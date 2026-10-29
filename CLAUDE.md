@@ -31,6 +31,15 @@ Two studies provide the scientific basis:
   [tree species distribution maps](https://www.nature.com/articles/s41597-022-01128-5/figures/2) and
   [indicator pair scatterplots](https://www.nature.com/articles/s41597-022-01128-5/figures/1).
 
+A third source turned out to matter as much as the first two (found in Phase 1, item 1):
+
+- **[European Atlas of Forest Tree Species](https://forest.jrc.ec.europa.eu/en/european-atlas/)**
+  (San-Miguel-Ayanz et al. 2016, JRC) — built from the same harmonised plot data as EU-Forest. It
+  publishes, per species, the 1 km **relative probability of presence** map (C-SMFA model), the 1 km
+  **maximum habitat suitability** map (RDS-MHS model), chorology polygons, and the **autoecology
+  diagrams** that are the model for our scatterplots. See
+  [`notes/2026-10-29-phase1-01-eu-forest-study.md`](notes/2026-10-29-phase1-01-eu-forest-study.md).
+
 ### The two products
 
 1. **Indicator pair scatterplots** (web pane). Three layers, bottom to top:
@@ -62,6 +71,7 @@ one ArangoDB instance (`http://localhost:8529`), distinguished by database name.
 | **`indicator-pair-scatterplots`** (this repo) | Data + web panes for scatterplots and distribution maps | `/Users/milko/Local/Development/Git/Projects/Metadata/indicator-pair-scatterplots` |
 | **`metadata-external-databases`** | Ingestion side of the `GeoService` database: environmental grids incl. **WorldClim 2.1** and **CHELSA** covering the project region. Read its `CLAUDE.md` for the database layout and credentials. | `/Users/milko/Local/Development/Git/Projects/Metadata/metadata-external-databases` |
 | **`metadata-store`** | Central data dictionary: standards and metadata used by all project databases | `/Users/milko/Local/Development/Git/Projects/Metadata/metadata-store` |
+| **`species-distribution`** (v1, reference only) | The earlier attempt at the scatterplot data side, see section 4; GitHub [`skofic/species-distribution`](https://github.com/skofic/species-distribution) | `/Users/milko/Local/Development/Workshop/species-distribution` |
 | **Local EU-Trees4F data** | The published dataset (`EU-Trees4F_dataset`: `ens_clim`, `ens_sdms`, `single_models`, `pngs`), the paper PDF, the FORGENIUS D4.7 deliverable, and **`Reproducibility_scripts`** (R functions, `maxent.jar`, chorology shapefiles, climate / soil / land-use predictors, species occurrences) | `/Users/milko/Local/Development/Workshop/EU-Trees4F` |
 
 GitHub: [`skofic/indicator-pair-scatterplots`](https://github.com/skofic/indicator-pair-scatterplots).
@@ -71,7 +81,7 @@ GitHub: [`skofic/indicator-pair-scatterplots`](https://github.com/skofic/indicat
 ## 4. Prior work (v1) — reference only
 
 [`notes/old-version-readme.md`](notes/old-version-readme.md) is the README of an earlier attempt at
-the scatterplot **data** side. It is a useful head start for the Data Plan, but it must be
+the scatterplot **data** side (the `species-distribution` repository, see section 3). It is a useful head start for the Data Plan, but it must be
 **re-evaluated, not imported blindly**. What it did:
 
 - Three layers as ArangoDB collections: **CHELSA** grid (base), **EU-Forest** occurrences crossed
@@ -97,12 +107,16 @@ Phases run **in order, one item at a time**. Each phase ends in decisions that a
 (with the date) and that may amend the following phases.
 
 ### Phase 1 — Scientific study
-**Status: not started (next).**
+**Status: in progress. Item 1 done and its decisions confirmed on 2026-10-29; item 2 (EU-Trees4F study) is next.**
 
 1. Study the **EU-Forest** project and data.
    1. Its distribution maps show species as **continuous areas** rather than the point occurrences in
       the data. Understand how that was done and what additional datasets were used to interpolate /
       spread the points, so the technique can be replicated.
+      → **Done.** Study note: [`notes/2026-10-29-phase1-01-eu-forest-study.md`](notes/2026-10-29-phase1-01-eu-forest-study.md).
+      EU-Forest publishes 1 km cell centroids (EPSG:3035) only; the continuous maps are the Atlas
+      RPP / MHS rasters (modelled, not interpolated); the Atlas autoecology diagram defines our
+      scatterplot, with the base layer = all surveyed plots including absences.
 2. Study the **EU-Trees4F** project and data.
    1. Understand the process used to **join occurrence data with environmental data**, so it can be
       replicated with WorldClim 2.1 and/or CHELSA.
@@ -173,6 +187,7 @@ Outcome: a set of examples to choose from, the chosen libraries, and the technic
 | Date | Decision |
 |---|---|
 | 2026-10-29 | Repository bootstrapped; brief adopted as the initial plan. |
+| 2026-10-29 | Phase 1 item 1 complete. **Confirmed by Milko:** (a) **Maps: do not replicate the Atlas C-SMFA / RDS-MHS models; serve published rasters directly** — Atlas relative probability of presence (1 km, default layer), Atlas maximum habitat suitability (1 km), EU-Trees4F current and future suitability (10 km, time slider) — with GCU locations as a vector layer on top. Data Plan must check species coverage (Atlas list vs EU-Trees4F 67 species vs EUFGIS target species) and licences. (b) **Scatterplot base layer = the Atlas autoecology definition**: all surveyed EU-Forest cells (~250 k), species layer = cells with the species, top layer = GCUs. The whole-climate-grid base (v1 approach, >27 M points) stays an optional toggle, not the default. The full climate grid is still needed for the map-click → scatterplot lookup. (c) **Climate sources in this order: EU-Trees4F historical predictors first** (7 layers at 5 arc-min ≈ 10 km, WGS84, in `Reproducibility_scripts/datasets/climate/historical`: bio1, bio12, bio15, temp10_summer, prec_winter, prec_summer, continentality), **then WorldClim 2.1 and CHELSA 2.1 from GeoService** (1 km), only if the overlay of the same pair from the three sources shows a visible difference. Build the lookup pipeline once with a pluggable climate source so the comparison is cheap. Note: the EU-Trees4F set lacks coldest-month temperature, driest-month precipitation and solar irradiation, so the three Atlas pairs cannot all be reproduced from it. |
 
 ---
 
