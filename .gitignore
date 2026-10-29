@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# Project
+# ---------------------------------------------------------------------------
+# Scratch space for informal notes and experiments: never committed.
+scrapbook/
+
+# ---------------------------------------------------------------------------
+# macOS
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.apdisk
+
+# ---------------------------------------------------------------------------
+# Editors / IDEs
+# ---------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# ---------------------------------------------------------------------------
+# Logs and temporary files
+# ---------------------------------------------------------------------------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+*.rej
+*.cache
+
+# ---------------------------------------------------------------------------
+# Environment / secrets
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+
+# ---------------------------------------------------------------------------
+# Dependencies / build artifacts (Node.js and Python, as in the sibling repos)
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+build/
+out/
+.venv/
+venv/
+__pycache__/
+*.pyc
+coverage/
+.nyc_output/
