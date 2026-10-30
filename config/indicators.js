@@ -17,9 +17,9 @@ export const GID = {
   pr_winter: 'env_climate_pr_winter',
   continentality: 'env_climate_continentality',
   tas_coldest: 'env_climate_tas_coldest',
-  srad_spring_summer: 'env_climate_srad_spring_summer',
+  srad_spring_summer: 'env_climate_srad_spring-summer',
   ai: 'env_climate_ai',                 // aridity index (CHELSA only), dimensionless
-  pr_seasonality_ratio: 'env_climate_pr_seasonality_ratio',
+  pr_seasonality_ratio: 'env_climate_pr_seasonality-ratio',
 }
 
 /** Indicator pairs: x × y, by GID key. P1–P3 are the core set; P4–P5 need the 1 km sources. */
