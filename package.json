@@ -1,0 +1,19 @@
+{
+  "name": "indicator-pair-scatterplots",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tree species distribution maps and indicator pair scatterplots for the EUFGIS portal: data pipeline into the GeoService ArangoDB database.",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "species:build": "node sources/species/build.js",
+    "occurrences:build": ".venv/bin/python sources/occurrences/build_occurrences.py",
+    "eutrees4f:sample": ".venv/bin/python sources/climate/eutrees4f/sample.py",
+    "test": "node lib/geometry.test.js"
+  },
+  "dependencies": {
+    "arangojs": "^9.2.0",
+    "metadata-store-validator": "github:skofic/metadata-store-validator#v1.8.0"
+  }
+}

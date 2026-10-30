@@ -11,7 +11,7 @@ to the species. The maps show the species' current and future distribution with 
 
 ## Status
 
-**Phase 1, scientific study, complete; Phase 2, data plan, next.** No code exists yet. The work follows a four-phase plan
+**Phase 2, data plan, settled; its collection plan is being executed.** The data pipeline lives in `sources/`, `lib/` and `config/`; see `CLAUDE.md` §6 for the layout and the database conventions. The work follows a four-phase plan
 (study, data, display, serve), one item at a time, with every decision recorded. The living plan,
 its status and the decisions log are in [`CLAUDE.md`](CLAUDE.md).
 
@@ -43,6 +43,12 @@ Climate grids for the scatterplots come from [WorldClim 2.1](https://www.worldcl
 | `notes/old-version-readme.md` | README of the earlier attempt ([`skofic/species-distribution`](https://github.com/skofic/species-distribution)), kept as reference |
 | `notes/<date>-phase<n>-<item>-*.md` | Study notes and decision documents, one per plan item |
 | `notes/*.jpeg`, `notes/*.webp` | Example scatterplots from the Atlas and from EU-Trees4F |
+| `config/indicators.js` | The indicator pairs, climate sources, dictionary GIDs and raster scaling |
+| `lib/` | Database connection, grid-cell geometry and keys, dictionary validation, record builders |
+| `sources/` | One folder per collection-plan step: `species`, `occurrences`, `climate/eutrees4f`, `units`, `datasets`, `maps` |
+| `setup.js` | Creates the project's collections and indexes in `GeoService` |
+| `data/` | Small committed inputs: source species lists, synonyms |
+| `work/`, `maps/` | Work files and downloaded rasters, regenerated, ignored |
 | `scrapbook/` | Ignored scratch space |
 
 ## Related repositories
@@ -57,6 +63,29 @@ Climate grids for the scatterplots come from [WorldClim 2.1](https://www.worldcl
   [`ecological-niche-service`](https://github.com/skofic/ecological-niche-service),
   [`ecological-niche-scatterplots`](https://github.com/skofic/ecological-niche-scatterplots) — the
   second version, built on EU-Trees4F (data pipeline, Foxx API, Plotly prototype); prior work.
+
+## Running the pipeline
+
+```sh
+npm ci --omit=optional                                   # Node dependencies (arangojs, the dictionary validator)
+python3 -m venv .venv && .venv/bin/pip install rasterio numpy pyproj shapely
+cp globals/auth/db.credentials.prototype.json globals/auth/db.credentials.json   # then fill it in
+npm run occurrences:build                                # EU-Forest → work/occurrences.jsonl
+npm run eutrees4f:sample                                 # 5′ predictors → work/climate-eutrees4f.jsonl
+npm run species:build                                    # → work/species.jsonl
+node setup.js                                            # collections and indexes
+node sources/units/species.js && npm run species:build   # unit target species → species table
+node sources/species/load.js
+node sources/climate/geoservice/probe.js                 # verify offline cell keys against the grids
+node sources/climate/geoservice/lookup.js --source worldclim   # and --source chelsa: 1 km values + derived
+node sources/occurrences/load.js --on-missing drop       # dictionary check, then load (--dry-run to check only)
+node sources/climate/geoservice/load_cells.js            # the per-cell cache
+node sources/units/export.js && .venv/bin/python sources/climate/eutrees4f/sample.py --in work/units.jsonl --out work/climate-units-eutrees4f.jsonl
+node sources/units/load.js
+sh sources/maps/download_atlas.sh; sh sources/maps/convert_eutrees4f.sh; sh sources/maps/convert_atlas.sh
+node sources/maps/manifest.js                            # ScatterMaps + the map Dataset records
+.venv/bin/python sources/compare/compare_sources.py      # the three-source comparison (work/compare)
+```
 
 ## Licence
 

@@ -75,3 +75,13 @@ __pycache__/
 *.pyc
 coverage/
 .nyc_output/
+
+# ---------------------------------------------------------------------------
+# Project-specific
+# ---------------------------------------------------------------------------
+# Credentials: deny everything under globals/auth/, re-allow only the committed prototype
+globals/auth/*
+!globals/auth/db.credentials.prototype.json
+# Pipeline working files (JSONL, reports) and downloaded rasters: regenerated, never committed
+work/
+maps/

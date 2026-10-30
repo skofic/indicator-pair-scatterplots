@@ -16,7 +16,7 @@ gene conservation unit information system) within the
 > generate **tree species distribution maps** and **indicator pair scatterplots**, both served as
 > web panes that work stand-alone *and* embedded in the existing EUFGIS TYPO3 portal.
 
-Nothing is built yet. The work follows the four-phase plan in section 5, one phase at a time.
+The data pipeline is being built (Phase 2, collection plan). The work follows the four-phase plan in section 5, one phase at a time.
 
 ---
 
@@ -164,7 +164,9 @@ Phases run **in order, one item at a time**. Each phase ends in decisions that a
   outcome of the Data Plan.
 
 ### Phase 2 — Data plan
-**Status: settled 2026-10-30. Items 1–4 decided and item 5 final in [`notes/2026-10-30-phase2-data-plan.md`](notes/2026-10-30-phase2-data-plan.md); species coverage in [`notes/2026-10-30-species-coverage.csv`](notes/2026-10-30-species-coverage.csv). Nothing open. Next: Milko's go-ahead, then the collection plan is executed (database access from this repository starts with it).**
+**Status: collection plan executed on 2026-10-30, steps 1–9 done except the Atlas rasters (download in progress, resumable); step 9 decided** (plan: [`notes/2026-10-30-phase2-data-plan.md`](notes/2026-10-30-phase2-data-plan.md) §6; coverage: [`notes/2026-10-30-species-coverage.csv`](notes/2026-10-30-species-coverage.csv); term requests: [`notes/2026-10-30-term-requests-derived-indicators.md`](notes/2026-10-30-term-requests-derived-indicators.md); comparison: [`notes/2026-10-30-phase2-step9-source-comparison.md`](notes/2026-10-30-phase2-step9-source-comparison.md)).
+
+What is in `GeoService` now (laptop): `ScatterSpecies` 271 taxa (242 EU-Forest, 67 EU-Trees4F, 43 Atlas, 123 unit target species, 4 synonyms folded); `ScatterOccurrences` 250 569 cells with EU-Trees4F, WorldClim 2.1 and CHELSA 2.1 blocks; `ScatterCells` 251 234 climate cells with derived indicators; `ScatterUnits` 3 669 units (340 restricted, climate only); `ScatterMaps` 2 449 manifest documents (EU-Trees4F COGs 2 211, chorology GeoJSON 238; Atlas pending); six `Dataset` records (EU-Forest, EU-Trees4F predictors and maps, Atlas RPP, MHS, chorology). **The seven derived indicators are computed in the work files but dropped at load until the dictionary carries their terms** (requested). Known data facts: 1 715 occurrence cells lie outside the land mask and have no 1 km climate; 26 unit target species (e.g. *Fagus orientalis*, 28 units) match no source; one unit (ESP00372) repeats a species in `Units.species_list`; EU-Trees4F rasters store temperatures × 10 and seasonal precipitation as three-month totals.
 
 Compile the Phase 1 findings into a proposal:
 
@@ -213,6 +215,7 @@ Outcome: a set of examples to choose from, the chosen libraries, and the technic
 | 2026-10-30 | Phase 1 item 3 complete. **Confirmed by Milko:** (a) units layer = the `Units` climate probe points with `species_list`, restricted units in the scatterplot but never on the map; (b) batch join by offline cell-key derivation + key lookups for the 1 km grids (sample-verified against the server), direct raster sampling for the EU-Trees4F 5′ layers, `/click` routes at runtime; (c) P4 WorldClim-only unless annual mean radiation is accepted for CHELSA; CHELSA `ai`, `cmi`, `gdd5`, `gsl`, `pet`, `vpd` on the candidate list; (d) **v2 prior work (`ecological-niche-*`) is proof of concept, not scientifically vetted: clean slate, do not build on it** (data may be glanced at, but we redo the work). **Corrections from Milko:** `NeoGeoService` has been erased, `GeoService` is the only reference database; the installed Foxx services (`env`, `grid`, `area`, `scat`) are from the **previous** GeoService version and need updating (most will still work; the `Dataset` collection changed significantly) — that update was paused to start this repository. **Decision:** this project creates **its own GeoService Foxx service**, which will later become the base of the new GeoService service once work on `metadata-external-databases` resumes. CHELSA is used for indicators WorldClim lacks (e.g. aridity). A dictionary-corrections document for the `metadata-store` Claude is produced from the issues flagged in item 3. |
 | 2026-10-30 | Phase 1 item 4 complete. **Confirmed by Milko:** (a) our collections follow the dictionary (term GIDs as property names, validator before load, `std_dataset` target shape, `std_dataset_ids` on every document); (b) derived indicator terms are requested from `metadata-store` once the Data Plan fixes the pair set, never improvised in loaded data; (c) **a species table of our own**: for now it holds the scientific name, which is the unique identifier; **UPOV codes will be adopted soon across all repositories**, so the table must be able to take a UPOV code as the key later without re-keying the data; a species coverage table goes in the Data Plan; (d) Milko delivers the handoff document to the `metadata-store` session (its §D, the future terms, marked as "for later") and updates the dictionary himself. **Phase 1 closed.** |
 | 2026-10-30 | The `metadata-store` session applied the handoff's §A and §B (14 terms corrected, `bio03` → `unit_Percent_pct`, `gdd*` → `unit_DegreeDays_deg-C-day`), committed `2098d97`, both servers reloaded; §D (our derived terms) waits for the final pair set. |
+| 2026-10-30 | **Step 9 decided (Milko):** the scatterplots are served from the 1 km grids, **WorldClim 2.1 as the default source**, **CHELSA 2.1 as the selectable alternative** (its 15–20 % higher precipitation stated in the documentation), the **EU-Trees4F block kept as the "as modelled" view**; all three stored side by side, so the choice is a display setting. Evidence: [`notes/2026-10-30-phase2-step9-source-comparison.md`](notes/2026-10-30-phase2-step9-source-comparison.md). |
 | 2026-10-30 | **Phase 2 settled.** Four `Scatter`-prefixed collections in `GeoService` (`ScatterSpecies` with a surrogate key and the scientific name as identifier, synonyms from day one; `ScatterOccurrences`, one document per EU-Forest cell with per-source indicator values at full precision; `ScatterUnits`, **materialised**, rebuilt by a refresh command; `ScatterMaps`, the raster/vector manifest with files on disk as COG) plus a `ScatterCells` cache of derived indicators per climate cell; `Dataset` records for every source and every new collection; the seven derived-indicator terms requested before loading. **Units** come from `GeoService.Units` for now (yearly refresh; no web service for live units exists; Milko coordinates with the portal developers on the live climate reference point); probe point for the scatterplot, **polygon from `UnitPolygons` for the map** where it exists and the unit is unrestricted (at 1 km only 1.8 % of shapes span ≥ 3 cells, so polygons add nothing to the scatterplot). **Range outline = Atlas chorology** (Caudullo 2017), not the EU-Forest α-shapes. **The laptop is the working platform**: its `GeoService` holds the full grids; the work server is a reduced copy for colleagues. Size is no constraint (< 1 GB added to 1.6 TB). **Atlas licence resolved**: "European Commission reuse notice" = Decision 2011/833/EU, i.e. CC BY 4.0; credit the layer DOI and chapter, indicate changes. |
 
 ---
@@ -228,6 +231,15 @@ Outcome: a set of examples to choose from, the chosen libraries, and the technic
   map layer does; the Serve Plan must respect this rule.
 - **`notes/`** holds briefs, study notes and decision documents and is committed.
   **`scrapbook/`** is ignored scratch space.
-- **No database access from this repository yet.** Reading the sibling repos is fine; running
-  anything against ArangoDB waits for the Data Plan.
+- **Database access (since 2026-10-30, Phase 2 collection plan):** the laptop's `GeoService` is the
+  working database; `metadata` is read for the dictionary snapshot. Credentials live in
+  `globals/auth/db.credentials.json` (gitignored, copied from `metadata-external-databases`; the
+  prototype is committed). Write tools refuse to run unless that file carries `"is_load_target": true`.
+  Every loaded value is checked against the dictionary first (`lib/dictionary.js`); a property whose
+  GID the dictionary does not know is dropped and listed, never loaded under an undefined name.
+- **Pipeline layout:** `config/indicators.js` (pairs, sources, GIDs, scaling), `lib/` (db, geometry,
+  dictionary, records), `sources/<step>/` (species, occurrences, climate/eutrees4f, units, datasets,
+  maps), `setup.js` (collections and indexes), `work/` (JSONL work files, ignored), `maps/` (rasters,
+  ignored). Python (`.venv`, rasterio / pyproj / shapely) does raster sampling and reprojection; Node
+  does keys, validation and loading, as in the ingestion repository.
 - Commit messages follow the conventional-commits style used in the sibling repositories.
