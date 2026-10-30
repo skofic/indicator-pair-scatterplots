@@ -67,3 +67,14 @@ The scatterplot axes chosen so far are derived from the monthly layers and have 
 
 They will be proposed with references (European Atlas of Forest Tree Species, de Rigo et al. 2016;
 EU-Trees4F, Mauri et al. 2022; `envirem`, Title & Bemmels 2018) when the pair set is final.
+
+## Status — done in `metadata-store`, 2026-10-30
+
+All of §A and §B applied to `data/EUFGIS/env/terms.properties.json` (23 changed lines, 14 terms), plus two items from §C that the ontology could answer:
+
+- `env_climate_bio03` now carries `unit_Percent_pct` rather than `unit_Dimensionless_1`: the ontology has a percent unit with a physical bound of 0–100, and BIO2 ≤ BIO7 by construction, so BIO3 never exceeds 100.
+- `env_climate_gdd0` / `gdd5` / `gdd10` now carry `unit_DegreeDays_deg-C-day`, which exists and which their own `_description` already named (°C·day). CHELSA's table labels the layers "°C"; the dictionary states the dimension of the heat sum.
+- `env_climate_bio05`'s definition was rewritten symmetrically to BIO6 ("The highest of the twelve monthly mean daily maximum air temperatures."), beyond the typo the note asked for.
+- `env_climate_pr` left as is: its description already carries the 1 kg m⁻² = 1 mm sentence.
+
+Verified on localhost: `loader --clear` 32,919 documents; validator sweep 32,864 / 0 errors; 14 term cards regenerated; the served terms read back corrected. Committed and pushed in `metadata-store` (`2098d97`); the laptop and the work server both reloaded on 2026-10-30, so `/ui/term/<gid>` serves the corrected terms on both. §D is noted for when the pair set is final.
