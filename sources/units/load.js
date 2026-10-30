@@ -36,12 +36,17 @@ try {
     }
     console.log(`  ${src}: ${got.size} of ${toFetch.length} uncached cells found`)
   }
-  for (const [k, d] of newCells) cached.set(k, d)
 
   const gids = ['gcu_id_number', 'species_list', 'gcu_loc_coordinates-restriction', 'geometry_point', 'geometry_hash', 'std_dataset_ids', ...Object.values(GID)]
   const { dictionary, missing } = await loadDictionary(gids, creds)
   if (missing.length) { console.log(`  not in the dictionary: ${missing.join(', ')}`); if (onMissing === 'fail') throw new Error('missing terms') }
   const skip = new Set(missing); const report = validator.createReport()
+  // cells fetched here are cached: check them like every other document (a cache written with an unknown
+  // property name on 2026-10-30 is why this exists), and refuse stale cached cells carrying unknown names
+  for (const d of newCells.values()) { dropGids(d, missing); const { errors } = checkDocument(d, dictionary, report, { skip }); if (errors.length) throw new Error(`invalid cell ${d._key}: ${JSON.stringify(errors[0])}`) }
+  for (const [k, d] of newCells) cached.set(k, d)
+  const known = new Set(Object.values(GID)); known.add('geometry_hash')
+  for (const d of cached.values()) for (const b of Object.values(d.properties ?? {})) for (const g of Object.keys(b)) if (!known.has(g)) throw new Error(`stale cached cell ${d._key} carries ${g}: remove it from ScatterCells and re-run`)
   const scale = SOURCES.eutrees4f.scale ?? {}
   const docs = []
   let invalid = 0, dedup = 0

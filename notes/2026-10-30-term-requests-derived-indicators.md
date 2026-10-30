@@ -85,3 +85,9 @@ References
   doi:10.1111/ecog.02880
 - Fick S.E., Hijmans R.J. (2017). WorldClim 2: new 1 km spatial resolution climate surfaces for global
   land areas. International Journal of Climatology 37:4302–4315. doi:10.1002/joc.5086
+
+## Status — created in `metadata-store`, 2026-10-30
+
+All seven terms exist with the `_gid`s exactly as listed above — no spelling changed. Applied as requested: `_data._scalar._number_float` with `_decimals` 2, the units named here, the normal ranges, and a `_range_valid` where one was asked for (`≥ 0` on the two precipitation means, continentality and the radiation sum; `0 … 1` inclusive on the seasonality ratio; none on the two temperatures, whose floor is the degree-Celsius unit's own physical bound). `_domn` as the other climate descriptors. The EU-Trees4F predictor codes are recorded as provided identifiers (`_pid`): `Ts`, `Ps`, `Pw`, `Ci`. `_issues` on `env_climate_srad_spring-summer` carries the actual-versus-potential caveat. References are stored as scheme-defining citations (Mauri 2022, Title & Bemmels 2018, de Rigo 2016, Fick & Hijmans 2017) with the climatologies as providers. `env_climate_tas`, `env_climate_pr` and `env_climate_srad` became namespaces as a consequence.
+
+Verified: laptop reload 32,926 documents, validator sweep 32,871 / 0 errors; the work server reloaded the same day (16,186 terms, both generated indexes current) and serves all seven at `/ui/term/<gid>`. Committed and pushed in `metadata-store` (`b06aee3`). The three loaders and the `std_terms` completion of `EU-TREES4F_PREDICTORS_2022` can run.
