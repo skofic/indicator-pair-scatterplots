@@ -69,9 +69,11 @@ one ArangoDB instance (`http://localhost:8529`), distinguished by database name.
 | Repo / resource | Role for this project | Local path |
 |---|---|---|
 | **`indicator-pair-scatterplots`** (this repo) | Data + web panes for scatterplots and distribution maps | `/Users/milko/Local/Development/Git/Projects/Metadata/indicator-pair-scatterplots` |
-| **`metadata-external-databases`** | Ingestion side of the `GeoService` database: environmental grids incl. **WorldClim 2.1** and **CHELSA** covering the project region. Read its `CLAUDE.md` for the database layout and credentials. | `/Users/milko/Local/Development/Git/Projects/Metadata/metadata-external-databases` |
+| **`metadata-external-databases`** | Ingestion side of the `GeoService` database: environmental grids incl. **WorldClim 2.1** and **CHELSA** covering the project region. Read its `CLAUDE.md` for the database layout and credentials. `GeoService` on the work server is the only reference database (`NeoGeoService` was erased). | `/Users/milko/Local/Development/Git/Projects/Metadata/metadata-external-databases` |
 | **`metadata-store`** | Central data dictionary: standards and metadata used by all project databases | `/Users/milko/Local/Development/Git/Projects/Metadata/metadata-store` |
 | **`species-distribution`** (v1, reference only) | The earlier attempt at the scatterplot data side, see section 4; GitHub [`skofic/species-distribution`](https://github.com/skofic/species-distribution) | `/Users/milko/Local/Development/Workshop/species-distribution` |
+| **`ecological-niche-data`**, **`ecological-niche-service`** (installed as Foxx `scat` in `GeoService`), **`ecological-niche-scatterplots`** (v2, 2025–2026, **proof of concept, not vetted; reference only, do not build on it**) | A second prior attempt built on EU-Trees4F at 5′: `OCCURRENCE` (species probabilities per grid point, current and future), `PAIRS` (EU-Trees4F climate indicators per cell), `CHOROLOGY`; a Foxx API with `/species`, `/map`, `/pair` incl. per-unit routes; a Flask + Plotly prototype. See [`notes/2026-10-30-phase1-03-geoservice-study.md`](notes/2026-10-30-phase1-03-geoservice-study.md) §6. GitHub `skofic/ecological-niche-{data,service,scatterplots}` | `/Users/milko/Local/Development/Workshop/ecological-niche-data`, `/Users/milko/Local/Accounts/ArangoDB/Apps/_db/GeoService/scat/APP`, `/Users/milko/Local/Development/Projects/EUFGIS/ecological-niche-scatterplots` |
+| **GeoService Foxx services** (`env`, `grid`, `area`, `scat`) | The served read API over `GeoService` (`/chelsa/click`, `/worldclim/click`, `/data/climate` per unit, `/hash`). **From the previous GeoService version; to be updated** (`Dataset` changed most). This project will write its own Foxx service, future base of the new GeoService service | `/Users/milko/Local/Accounts/ArangoDB/Apps/_db/GeoService/<service>/APP` |
 | **Local EU-Trees4F data** | The published dataset (`EU-Trees4F_dataset`: `ens_clim`, `ens_sdms`, `single_models`, `pngs`), the paper PDF, the FORGENIUS D4.7 deliverable, and **`Reproducibility_scripts`** (R functions, `maxent.jar`, chorology shapefiles, climate / soil / land-use predictors, species occurrences) | `/Users/milko/Local/Development/Workshop/EU-Trees4F` |
 
 GitHub: [`skofic/indicator-pair-scatterplots`](https://github.com/skofic/indicator-pair-scatterplots).
@@ -107,7 +109,7 @@ Phases run **in order, one item at a time**. Each phase ends in decisions that a
 (with the date) and that may amend the following phases.
 
 ### Phase 1 — Scientific study
-**Status: in progress. Item 1 done and its decisions confirmed on 2026-10-29; item 2 (EU-Trees4F study) is next.**
+**Status: complete (2026-10-29 … 2026-10-30). All four items done, all decisions confirmed. Phase 2 is next.**
 
 1. Study the **EU-Forest** project and data.
    1. Its distribution maps show species as **continuous areas** rather than the point occurrences in
@@ -122,9 +124,26 @@ Phases run **in order, one item at a time**. Each phase ends in decisions that a
       replicated with WorldClim 2.1 and/or CHELSA.
    2. Understand how the **continuous colour maps** were obtained (same question as 1.1).
    3. Select the **indicator pairs** that make scientific sense for the scatterplots.
+   → **Done.** Study note: [`notes/2026-10-30-phase1-02-eu-trees4f-study.md`](notes/2026-10-30-phase1-02-eu-trees4f-study.md).
+   The join is a containing-cell raster lookup on a 5′ WorldClim 1.4 (1961–1990) grid; the maps are
+   biomod2 ensemble-SDM probability surfaces (6 algorithms, MESS mask, chorology mask, MigClim
+   dispersal, land-use clip); core pairs proposed: annual T × annual P, summer T × summer P,
+   continentality × winter P, with the two remaining Atlas pairs added on the 1 km sources.
+   FORGENIUS D4.7 already placed 1 706 single-species GCUs (42 species) in the EU-Trees4F climate space.
 3. Study `metadata-external-databases` and the `GeoService` database, in particular the WorldClim and
    CHELSA grids covering the project region.
+   → **Done.** Study note: [`notes/2026-10-30-phase1-03-geoservice-study.md`](notes/2026-10-30-phase1-03-geoservice-study.md).
+   Both grids are loaded and validated on the work server (27.1 M CHELSA cells 1981–2010, 26.2 M
+   WorldClim cells 1970–2000, one SSP3-7.0 future each), awaiting the production cutover; cell keys
+   are derivable offline, so the batch join can be key lookups instead of v1's geo query; `Units`
+   carries a climate probe point per unit; CHELSA has no monthly radiation. A second prior attempt
+   (v2, EU-Trees4F-based, 2025–2026) was found, see the ecosystem table.
 4. Study `metadata-store` for the metadata and standards used across project databases.
+   → **Done.** Study note: [`notes/2026-10-30-phase1-04-metadata-store-study.md`](notes/2026-10-30-phase1-04-metadata-store-study.md).
+   Every property name is a term GID; all loaded climate variables have terms, our derived axes do
+   not yet; dataset records follow the `std_dataset` target shape; species are Latin binomials
+   reconciled against the EUFGIS `taxa` collection. Dictionary corrections for the `metadata-store`
+   Claude: [`notes/2026-10-30-handoff-metadata-store-climate-terms.md`](notes/2026-10-30-handoff-metadata-store-climate-terms.md).
 
 **Questions to answer**
 - Can the old WorldClim 1.4 data be substituted with other sources?
@@ -145,7 +164,7 @@ Phases run **in order, one item at a time**. Each phase ends in decisions that a
   outcome of the Data Plan.
 
 ### Phase 2 — Data plan
-**Status: not started.**
+**Status: not started (next). Inputs: the four Phase 1 study notes and the decisions log.**
 
 Compile the Phase 1 findings into a proposal:
 
@@ -188,6 +207,11 @@ Outcome: a set of examples to choose from, the chosen libraries, and the technic
 |---|---|
 | 2026-10-29 | Repository bootstrapped; brief adopted as the initial plan. |
 | 2026-10-29 | Phase 1 item 1 complete. **Confirmed by Milko:** (a) **Maps: do not replicate the Atlas C-SMFA / RDS-MHS models; serve published rasters directly** — Atlas relative probability of presence (1 km, default layer), Atlas maximum habitat suitability (1 km), EU-Trees4F current and future suitability (10 km, time slider) — with GCU locations as a vector layer on top. Data Plan must check species coverage (Atlas list vs EU-Trees4F 67 species vs EUFGIS target species) and licences. (b) **Scatterplot base layer = the Atlas autoecology definition**: all surveyed EU-Forest cells (~250 k), species layer = cells with the species, top layer = GCUs. The whole-climate-grid base (v1 approach, >27 M points) stays an optional toggle, not the default. The full climate grid is still needed for the map-click → scatterplot lookup. (c) **Climate sources in this order: EU-Trees4F historical predictors first** (7 layers at 5 arc-min ≈ 10 km, WGS84, in `Reproducibility_scripts/datasets/climate/historical`: bio1, bio12, bio15, temp10_summer, prec_winter, prec_summer, continentality), **then WorldClim 2.1 and CHELSA 2.1 from GeoService** (1 km), only if the overlay of the same pair from the three sources shows a visible difference. Build the lookup pipeline once with a pluggable climate source so the comparison is cheap. Note: the EU-Trees4F set lacks coldest-month temperature, driest-month precipitation and solar irradiation, so the three Atlas pairs cannot all be reproduced from it. |
+| 2026-10-30 | **Solar irradiation axis: substitute, not recompute.** The Atlas uses DEM-derived *potential* spring-summer irradiation (GRASS `r.sun`, clear sky). We use the spring-summer sum of *actual* surface shortwave radiation from the climate grids (WorldClim 2.1 `srad`, CHELSA 2.1 `rsds`) and **rename the axis label** accordingly (e.g. "Spring-summer solar radiation"), stating the difference in the documentation. Decided by Milko; final say on keeping the pair at all rests with item 2.3. |
+| 2026-10-30 | Phase 1 item 2 complete. **Confirmed by Milko:** (a) join = containing-cell lookup at the grid's native resolution, occurrences reprojected EPSG:3035 → WGS84, no thinning; (b) species layer from EU-Forest only (the EU-Trees4F occurrence files add points of undocumented origin and would break species ⊂ base); (c) core indicator pairs P1 annual T × annual P, P2 summer T × summer P, P3 continentality × winter P, all computable from the EU-Trees4F 5′ layers; P4 coldest-month T × spring-summer radiation and P5 precipitation seasonality × driest-month P added with WorldClim 2.1 / CHELSA 2.1; pair definitions in configuration; (d) an EU-Trees4F-style future-suitability overlay noted as optional later work. |
+| 2026-10-30 | **No reproduction of the EU-Trees4F suitability model.** Re-running the biomod2 workflow on WorldClim 2.1 / CHELSA 2.1 would gain 1 km resolution and data consistency, but would lose the JRC study's scientific backing (unpublished, unreviewed product; a 1981–2010 baseline matches the ~2005 occurrences worse than the authors' 1961–1990; fewer future models than the 11 EURO-CORDEX RCMs), and the effort is considerable (porting R 3.6 / biomod2-2020 / MigClim scripts, 100× more cells, SoilGrids not in GeoService). Decided by Milko. **Optional research track, not scheduled:** after the lookup pipeline and the three-source scatterplot comparison exist, and only if that comparison shows the species clouds moving visibly, re-run the *current-period* suitability only (same nine predictors, no dispersal, no land-use clip) at 1 km and compare with the published current maps and the Atlas MHS. |
+| 2026-10-30 | Phase 1 item 3 complete. **Confirmed by Milko:** (a) units layer = the `Units` climate probe points with `species_list`, restricted units in the scatterplot but never on the map; (b) batch join by offline cell-key derivation + key lookups for the 1 km grids (sample-verified against the server), direct raster sampling for the EU-Trees4F 5′ layers, `/click` routes at runtime; (c) P4 WorldClim-only unless annual mean radiation is accepted for CHELSA; CHELSA `ai`, `cmi`, `gdd5`, `gsl`, `pet`, `vpd` on the candidate list; (d) **v2 prior work (`ecological-niche-*`) is proof of concept, not scientifically vetted: clean slate, do not build on it** (data may be glanced at, but we redo the work). **Corrections from Milko:** `NeoGeoService` has been erased, `GeoService` is the only reference database; the installed Foxx services (`env`, `grid`, `area`, `scat`) are from the **previous** GeoService version and need updating (most will still work; the `Dataset` collection changed significantly) — that update was paused to start this repository. **Decision:** this project creates **its own GeoService Foxx service**, which will later become the base of the new GeoService service once work on `metadata-external-databases` resumes. CHELSA is used for indicators WorldClim lacks (e.g. aridity). A dictionary-corrections document for the `metadata-store` Claude is produced from the issues flagged in item 3. |
+| 2026-10-30 | Phase 1 item 4 complete. **Confirmed by Milko:** (a) our collections follow the dictionary (term GIDs as property names, validator before load, `std_dataset` target shape, `std_dataset_ids` on every document); (b) derived indicator terms are requested from `metadata-store` once the Data Plan fixes the pair set, never improvised in loaded data; (c) **a species table of our own**: for now it holds the scientific name, which is the unique identifier; **UPOV codes will be adopted soon across all repositories**, so the table must be able to take a UPOV code as the key later without re-keying the data; a species coverage table goes in the Data Plan; (d) Milko delivers the handoff document to the `metadata-store` session (its §D, the future terms, marked as "for later") and updates the dictionary himself. **Phase 1 closed.** |
 
 ---
 

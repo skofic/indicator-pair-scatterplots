@@ -214,5 +214,5 @@ Plan.
 3. **Climate sources in order**: EU-Trees4F historical predictors first (7 layers, 5 arc-min ≈ 10 km,
    WGS84, already on disk), then WorldClim 2.1 and CHELSA 2.1 (1 km, in GeoService) if an overlay of
    the same pair from the three sources shows a visible difference. The pipeline is built once with a
-   pluggable climate source. The three Atlas pairs remain the reference set of indicator pairs; the
-   solar-irradiation axis still needs a decision (recompute vs. substitute).
+   pluggable climate source. The three Atlas pairs remain the reference set of indicator pairs; **the**
+   solar-irradiation axis: **decided 2026-10-30, substitute** actual spring-summer radiation from the climate grids and rename the axis label (see the decisions log in `CLAUDE.md`).
