@@ -23,6 +23,7 @@
   <strong>OpenLayers</strong>
   <label>Base map <select id="basemap">
     <option value="none">none</option>
+    <option value="boundaries">country boundaries only (Natural Earth)</option>
     <option value="hillshade">Esri hillshade only</option>
     <option value="osm-gray" selected>OpenStreetMap, grey</option>
     <option value="osm">OpenStreetMap, colour</option>
@@ -34,7 +35,7 @@
   <label><input type="checkbox" id="t4fut"> EU-Trees4F 2095 RCP 8.5, natural dispersal <input type="range" class="op" data-layer="t4fut" min="0" max="100" value="100" title="opacity"></label>
   <label><input type="checkbox" id="choro" checked> chorology (native range) <input type="range" class="op" data-layer="choro" min="0" max="100" value="100" title="opacity"></label>
   <label><input type="checkbox" id="units" checked> units <input type="range" class="op" data-layer="units" min="0" max="100" value="100" title="opacity"></label>
-  <span class="legend"><i style="background:#1a7a1a"></i>presence<i style="background:#1f4e9c"></i>suitability<i style="background:rgba(255,140,0,.6)"></i>EU-Trees4F 2005<i style="background:rgba(200,30,30,.55)"></i>EU-Trees4F 2095<i style="border:2px dashed #6a1b9a;height:6px;width:10px"></i>chorology<i style="border:2px solid #e06a00;height:8px;width:10px"></i>units</span>
+  <span class="legend"><i style="background:#1a7a1a"></i>presence<i style="background:#1f4e9c"></i>suitability<i style="background:rgba(255,214,0,.65)"></i>EU-Trees4F 2005<i style="background:rgba(233,30,99,.6)"></i>EU-Trees4F 2095<i style="border:2px dashed #6a1b9a;height:6px;width:10px"></i>chorology<i style="border:2px solid #e06a00;height:8px;width:10px"></i>units</span>
 </header>
 <div id="search">
   <strong>Units</strong>
@@ -67,7 +68,7 @@ const mhs = cog({ color: ramp([200, 215, 240], [31, 78, 156]) })
 // EU-Trees4F binary layers: the realised ("nat") variant exists for the current period only; future periods come
 // as potential ("pot"), natural dispersal ("disp") and their land-use clips.
 const bin = (rgba) => cog({ color: ['case', ['>=', ['band', 1], 1], rgba, [0, 0, 0, 0]] })
-const t4cur = bin([255, 140, 0, 0.6]), t4fut = bin([200, 30, 30, 0.55])
+const t4cur = bin([255, 214, 0, 0.65]), t4fut = bin([233, 30, 99, 0.6])
 const gj = new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' })
 const choro = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#6a1b9a', width: 2.5, lineDash: [8, 5] }), fill: new ol.style.Fill({ color: 'rgba(106,27,154,.05)' }) }) })
 const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e06a00', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(224,106,0,.25)' }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#e06a00' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) }) })
@@ -75,6 +76,8 @@ const layers = { rpp, mhs, t4cur, t4fut, choro, units }
 // base maps (raster tiles in Web Mercator, reprojected by OpenLayers to EPSG:3035)
 const xyz = (url, attributions) => new ol.layer.Tile({ source: new ol.source.XYZ({ url, attributions, crossOrigin: 'anonymous', maxZoom: 17 }), opacity: 0.7 })
 const basemaps = {
+  boundaries: new ol.layer.Vector({ source: new ol.source.Vector({ url: '../maps/basemap/ne_50m_admin_0_countries.geojson', format: new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' }) }),
+    style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#8a8a8a', width: 0.8 }), fill: new ol.style.Fill({ color: '#f4f4f0' }) }), background: '#dfe9f3' }),
   'osm-gray': new ol.layer.Tile({ source: new ol.source.OSM({ crossOrigin: 'anonymous' }), opacity: 0.7, className: 'basemap-gray' }),
   topo: xyz('https://tile.opentopomap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)'),
   hillshade: xyz('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', 'Esri, USGS, NOAA'),
