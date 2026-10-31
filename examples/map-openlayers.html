@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Map — OpenLayers</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.2.1/ol.css">
+<style>
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; color: #222; background: #fff }
+  header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 16px; border-bottom: 1px solid #ddd }
+  header label { display: inline-flex; gap: 6px; align-items: center }
+  #map { height: calc(100vh - 150px); margin: 0 8px }
+  #info { padding: 6px 16px; font-size: 13px; color: #333; min-height: 2.6em }
+  .legend i { display: inline-block; width: 14px; height: 10px; vertical-align: -1px; margin: 0 4px 0 8px }
+</style>
+</head>
+<body>
+<header>
+  <strong>OpenLayers</strong>
+  <label><input type="checkbox" id="rpp" checked> Atlas relative probability of presence (1 km COG)</label>
+  <label><input type="checkbox" id="mhs"> Atlas maximum habitat suitability</label>
+  <label><input type="checkbox" id="t4cur"> EU-Trees4F current, realised (10 km)</label>
+  <label><input type="checkbox" id="t4fut"> EU-Trees4F 2095 RCP 8.5, realised</label>
+  <label><input type="checkbox" id="choro" checked> chorology (native range)</label>
+  <label><input type="checkbox" id="units" checked> units</label>
+  <span class="legend"><i style="background:#1a7a1a"></i>presence<i style="background:#1f4e9c"></i>suitability<i style="background:rgba(255,140,0,.6)"></i>EU-Trees4F<i style="border:2px solid #e06a00;height:8px;width:10px"></i>units</span>
+</header>
+<div id="map"></div>
+<div id="info">Click the map to read the values at that location — the values are what the scatterplot would be asked to show.</div>
+<script src="https://cdn.jsdelivr.net/npm/proj4@2.15.0/dist/proj4.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ol@10.2.1/dist/ol.js"></script>
+<script>
+// The view works in the Atlas rasters' native projection (ETRS89-LAEA, EPSG:3035), so the 1 km COGs are never
+// warped; the OSM base tiles and the vectors (WGS84) are reprojected by OpenLayers.
+proj4.defs('EPSG:3035', '+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs')
+ol.proj.proj4.register(proj4)
+const laea = ol.proj.get('EPSG:3035'); laea.setExtent([1896628.62, 1507846.05, 4662111.45, 6829874.45])
+const MAPS = '../maps/', DATA = '../work/examples/data/'
+const cog = (url, style) => new ol.layer.WebGLTile({ source: new ol.source.GeoTIFF({ sources: [{ url }], normalize: false, interpolate: false }), style, opacity: 0.85 })
+// Atlas RPP: Float32 0…1 with −1 = uncertain / no data; MHS: 0…1; EU-Trees4F bin: 0/1 Int16 on the 10 km INSPIRE grid
+const ramp = (from, to) => ['interpolate', ['linear'], ['band', 1], 0, [255, 255, 255, 0], 0.05, [...from, 0.25], 1, [...to, 1]]
+const rpp = cog(MAPS + 'atlas/rpp/tif/Fagus-sylvatica_rpp.tif', { color: ['case', ['<', ['band', 1], 0], [0, 0, 0, 0], ramp([200, 230, 180], [26, 122, 26])] })
+const mhs = cog(MAPS + 'atlas/mhs/tif/Fagus-sylvatica_mhs.tif', { color: ramp([200, 215, 240], [31, 78, 156]) })
+const bin = (file) => cog(MAPS + 'eutrees4f/ens_sdms/bin/' + file, { color: ['case', ['>=', ['band', 1], 1], [255, 140, 0, 0.6], [0, 0, 0, 0]] })
+const t4cur = bin('Fagus_sylvatica_ens-sdms_cur2005_bin_nat.tif'), t4fut = bin('Fagus_sylvatica_ens-sdms_rcp85_fut2095_bin_nat.tif')
+const vec = (url, style) => new ol.layer.Vector({ source: new ol.source.Vector({ url, format: new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' }) }), style })
+const choro = vec(MAPS + 'chorology/geojson/Fagus_sylvatica_sylvatica_plg.geojson', new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#2e7d32', width: 1.5, lineDash: [6, 4] }), fill: new ol.style.Fill({ color: 'rgba(46,125,50,.06)' }) }))
+const units = vec(DATA + 'units-geo-Fagus_sylvatica.geojson', new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e06a00', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(224,106,0,.25)' }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#e06a00' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) }))
+const layers = { rpp, mhs, t4cur, t4fut, choro, units }
+const map = new ol.Map({ target: 'map', layers: [new ol.layer.Tile({ source: new ol.source.OSM(), opacity: 0.6 }), ...Object.values(layers)],
+  view: new ol.View({ projection: laea, center: ol.proj.fromLonLat([10, 50], laea), zoom: 4 }) })
+for (const [id, l] of Object.entries(layers)) { l.setVisible(document.getElementById(id).checked); document.getElementById(id).addEventListener('change', (e) => l.setVisible(e.target.checked)) }
+map.on('singleclick', (e) => {
+  const [lon, lat] = ol.proj.toLonLat(e.coordinate, laea)
+  const read = (l) => { const d = l.getData(e.pixel); return d ? d[0] : null }
+  const parts = [`<b>${lat.toFixed(4)}, ${lon.toFixed(4)}</b>`]
+  for (const [name, l] of [['Atlas presence', rpp], ['Atlas suitability', mhs], ['EU-Trees4F 2005', t4cur], ['EU-Trees4F 2095 RCP 8.5', t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${name}: ${v < 0 ? 'no data' : v.toFixed(2)}`) }
+  const hit = map.getFeaturesAtPixel(e.pixel, { layerFilter: (l) => l === units })
+  if (hit.length) parts.push(`unit <b>${hit[0].get('id')}</b> (${hit[0].get('species').join(', ')})`)
+  parts.push('→ in the product, this location is sent to the Foxx service (<code>/worldclim/click</code>) and drawn as a point in the scatterplot')
+  document.getElementById('info').innerHTML = parts.join(' · ')
+})
+</script>
+</body>
+</html>
