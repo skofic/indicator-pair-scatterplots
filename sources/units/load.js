@@ -34,8 +34,12 @@ try {
 
   // cached cells, then the grids (every period) for the rest, which are validated and cached
   const cached = new Map((await db.query('FOR k IN @keys LET d = DOCUMENT(@@c, k) FILTER d != null RETURN d', { '@c': collections.cells, keys: cellKeys }).then((c) => c.all())).map((d) => [d._key, d]))
+  // a cached cell is current only if every grid block it holds is nested by period (the shape since
+  // 2026-10-31); older flat cells (3 287 unit-only cells on 2026-10-31) are refetched and rewritten
+  let stale = 0
+  for (const [k, d] of [...cached]) if (['worldclim', 'chelsa'].some((src) => d.properties?.[src] && !(SOURCES[src].period in d.properties[src]))) { cached.delete(k); stale++ }
   const toFetch = cellKeys.filter((k) => !cached.has(k))
-  console.log(`${units.length} units → ${cellKeys.length} cells: ${cached.size} cached, ${toFetch.length} to read from the grids`)
+  console.log(`${units.length} units → ${cellKeys.length} cells: ${cached.size} cached, ${stale} stale, ${toFetch.length} to read from the grids`)
   const newCells = new Map()
   for (const src of ['worldclim', 'chelsa']) {
     const S = SOURCES[src]
@@ -66,7 +70,7 @@ try {
     if (t4fH.get(u.key)) periods[SOURCES.eutrees4f.period] = t4fH.get(u.key)
     Object.assign(periods, t4fF.get(u.key) ?? {})
     const t4 = climateBlock('eutrees4f', { periods })
-    if (t4) { doc.properties.eutrees4f = t4; if (SOURCES.eutrees4f.datasetKey) ids.add(SOURCES.eutrees4f.datasetKey) }
+    if (t4) { doc.properties.eutrees4f = t4; if (keys['EU-TREES4F_PREDICTORS_2022']) ids.add(keys['EU-TREES4F_PREDICTORS_2022']) }
     const cell = cached.get(keyOf.get(u.key))
     if (cell) for (const src of ['worldclim', 'chelsa']) if (cell.properties?.[src]) { doc.properties[src] = { ...(u.restricted ? {} : { geometry_hash: cell._key }), ...cell.properties[src] }; ids.add(SOURCES[src].datasetKey) }
     doc.std_dataset_ids = [...ids]

@@ -77,7 +77,7 @@ try {
       else if (f.period === SOURCES[f.src].period) c.periods[f.period] = line.values ?? {}
       else c.periods[f.period] = nestFuture(f.src, f.period, line.values ?? {})
     }
-    const doc = dropGids(occurrenceDoc(occ, climate, ownIds), missing)
+    const doc = dropGids(occurrenceDoc(occ, climate, ownIds, { eutrees4f: keys['EU-TREES4F_PREDICTORS_2022'] }), missing)
     const { errors } = checkDocument(doc, dictionary, report, { skip, leafGids })
     if (errors.length) {
       invalid++
