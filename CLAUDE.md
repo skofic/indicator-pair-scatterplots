@@ -180,7 +180,7 @@ Outcome: the plan to collect and compile the data, probably into a database — 
 data matches what is already there, otherwise a new database for this task.
 
 ### Phase 3 — Display plan
-**Status: not started.**
+**Status: in progress since 2026-10-31.** Plan and decisions: [`notes/2026-10-31-phase3-display-plan.md`](notes/2026-10-31-phase3-display-plan.md). Questions 3–4 answered by measurement (base layers static, the rest dynamic through our Foxx service); **the map pane is settled on OpenLayers** (`examples/map-openlayers.html`, approved 2026-10-31); the scatterplot choice (D3 + Canvas vs Plotly WebGL, `examples/`) and the Serve Plan context are next; the unit reference-point distance flag is pending. Examples run with `node examples/serve.mjs 8080` → http://localhost:8080/examples/ .
 
 1. Users must be able to navigate the maps.
 2. Users must be able to zoom on areas of the scatterplot.

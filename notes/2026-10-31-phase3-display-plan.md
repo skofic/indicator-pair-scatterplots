@@ -1,8 +1,11 @@
 # Phase 3 — Display Plan
 
-Date: 2026-10-31. Status: **in progress** — questions 3 and 4 answered by measurement (section 2);
-candidate technologies listed (section 3); the examples of section 4 are being built for Milko to
-choose from; decisions in section 5 as they are taken.
+Date: 2026-10-31. Status: **in progress.** Questions 3 and 4 answered by measurement (section 2);
+candidates in section 3; examples built (section 4). **The map pane is settled on the OpenLayers
+example** ("now it is perfect", Milko, 2026-10-31): base maps, species-driven layers, live faceted unit
+search, per-layer transparency, click read-out. **Next session: the scatterplot** — what the interface
+shows, with the same search pane — and the context for the Serve Plan. Pending for the units: the
+reference-point distance flag (threshold 5 km unless Milko prefers another).
 
 ## 0. What the display must do (from the brief and the Phase 1–2 decisions)
 
@@ -111,5 +114,6 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-10-31 | **Map pane, after review of the OpenLayers example (Milko):** the map is good. **Base maps**, in this order: none · Esri hillshade only · **OpenStreetMap grey (default)** · OpenStreetMap colour · OpenTopoMap (relief, contours). The grey default keeps the vegetation texture without the colour that collided with the Atlas green. Each service's attribution and usage terms are a Phase 4 item. |
 | 2026-10-31 | **EU-Trees4F future layers:** the published future periods exist as potential, natural dispersal and their land-use clips (no "realised"); the example shows natural dispersal for 2095 RCP 8.5 in red next to the current realised map in orange; the pane must name the variant it shows. |
 | 2026-10-31 | **A shared unit search pane** for map and scatterplot (Milko): country = the first three characters of the unit number (ISO 3166-1 alpha-3), unit number, species; Milko researches further fields. **Coordinate restriction is a request parameter**: restricted units are hidden by default; never on the map, on request in the scatterplot. **Per-layer transparency sliders** on both panes. First version built in the map example from an index exported from `ScatterUnits` (3 669 units, 37 countries, 123 species, 340 restricted). |
+| 2026-10-31 | **Map pane colours and layout (Milko):** base map list gains "country boundaries only" (Natural Earth 1:50 m, public domain, drawn by the page) after "none"; Atlas presence green and suitability blue stay; EU-Trees4F current = yellow, future = magenta (orange = units, purple = chorology outline); the click read-out is its own row below the map. **Map pane approved.** Pending: a per-unit flag when the reference point lies more than 5 km from the unit polygon (28 units exceed 20 km today; data quality is a work in progress on the EUFGIS side). |
 | 2026-10-31 | **Serving strategy (Milko agrees, Claude chooses):** two channels. **A Foxx service in `GeoService`** for everything that is a query — species layer, units, facet counts, manifest, click lookup, optional binned density; **static file hosting** (Phase 4) for the bulk: precomputed base layers per pair × source × period and the COG rasters read by byte range. Examples switch from exported files to the service once the scatterplot library is chosen. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |
