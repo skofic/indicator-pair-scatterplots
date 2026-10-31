@@ -39,10 +39,11 @@
 <div id="search">
   <strong>Units</strong>
   <label>Country <select id="country"><option value="">all</option></select></label>
-  <label>Species <select id="speciesSel"><option value="">all</option></select></label>
+  <label>Species <select id="speciesSel"></select></label>
   <label>Unit <select id="unitSel"><option value="">—</option></select></label>
   <label><input type="checkbox" id="showRestricted" disabled> show restricted (never on the map)</label>
   <span id="searchInfo"></span>
+  <span id="layersInfo" style="color:#555"></span>
 </div>
 <div id="map"></div>
 <div id="info">Click the map to read the values at that location — the values are what the scatterplot would be asked to show.</div>
@@ -56,66 +57,86 @@
 proj4.defs('EPSG:3035', '+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs')
 ol.proj.proj4.register(proj4)
 const laea = ol.proj.get('EPSG:3035'); laea.setExtent([1896628.62, 1507846.05, 7104179.80, 6829874.45])   // EPSG:3035 projected bounds; the Atlas rasters span x 2.5–7.4 M, y 1.3–5.6 M
-const MAPS = '../maps/', DATA = '../work/examples/data/'
-const cog = (url, style) => new ol.layer.WebGLTile({ source: new ol.source.GeoTIFF({ sources: [{ url }], normalize: false, interpolate: false }), style, opacity: 0.85 })
+const DATA = '../work/examples/data/', $ = (id) => document.getElementById(id)
+const cogSource = (path) => new ol.source.GeoTIFF({ sources: [{ url: '../' + path }], normalize: false, interpolate: false })
+const cog = (style) => new ol.layer.WebGLTile({ style, opacity: 0.85 })
 // Atlas RPP: Float32 0…1 with −1 = uncertain / no data; MHS: 0…1; EU-Trees4F bin: 0/1 Int16 on the 10 km INSPIRE grid
 const ramp = (from, to) => ['interpolate', ['linear'], ['band', 1], 0, [255, 255, 255, 0], 0.05, [...from, 0.25], 1, [...to, 1]]
-const rpp = cog(MAPS + 'atlas/rpp/tif/Fagus-sylvatica_rpp.tif', { color: ['case', ['<', ['band', 1], 0], [0, 0, 0, 0], ramp([200, 230, 180], [26, 122, 26])] })
-const mhs = cog(MAPS + 'atlas/mhs/tif/Fagus-sylvatica_mhs.tif', { color: ramp([200, 215, 240], [31, 78, 156]) })
-// EU-Trees4F binary layers (10 km INSPIRE grid, EPSG:3035): the realised ("nat") variant exists for the current
-// period only; future periods come as potential ("pot"), natural dispersal ("disp") and their land-use clips.
-const bin = (file, rgba) => cog(MAPS + 'eutrees4f/ens_sdms/bin/' + file, { color: ['case', ['>=', ['band', 1], 1], rgba, [0, 0, 0, 0]] })
-const t4cur = bin('Fagus_sylvatica_ens-sdms_cur2005_bin_nat.tif', [255, 140, 0, 0.6]), t4fut = bin('Fagus_sylvatica_ens-sdms_rcp85_fut2095_bin_disp.tif', [200, 30, 30, 0.55])
-const vec = (url, style) => new ol.layer.Vector({ source: new ol.source.Vector({ url, format: new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' }) }), style })
-const choro = vec(MAPS + 'chorology/geojson/Fagus_sylvatica_sylvatica_plg.geojson', new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#6a1b9a', width: 2.5, lineDash: [8, 5] }), fill: new ol.style.Fill({ color: 'rgba(106,27,154,.05)' }) }))
-const units = vec(DATA + 'units-geo-Fagus_sylvatica.geojson', new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e06a00', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(224,106,0,.25)' }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#e06a00' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) }))
+const rpp = cog({ color: ['case', ['<', ['band', 1], 0], [0, 0, 0, 0], ramp([200, 230, 180], [26, 122, 26])] })
+const mhs = cog({ color: ramp([200, 215, 240], [31, 78, 156]) })
+// EU-Trees4F binary layers: the realised ("nat") variant exists for the current period only; future periods come
+// as potential ("pot"), natural dispersal ("disp") and their land-use clips.
+const bin = (rgba) => cog({ color: ['case', ['>=', ['band', 1], 1], rgba, [0, 0, 0, 0]] })
+const t4cur = bin([255, 140, 0, 0.6]), t4fut = bin([200, 30, 30, 0.55])
+const gj = new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' })
+const choro = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#6a1b9a', width: 2.5, lineDash: [8, 5] }), fill: new ol.style.Fill({ color: 'rgba(106,27,154,.05)' }) }) })
+const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e06a00', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(224,106,0,.25)' }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#e06a00' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) }) })
 const layers = { rpp, mhs, t4cur, t4fut, choro, units }
 // base maps (raster tiles in Web Mercator, reprojected by OpenLayers to EPSG:3035)
-const xyz = (url, attributions, className) => new ol.layer.Tile({ source: new ol.source.XYZ({ url, attributions, crossOrigin: 'anonymous', maxZoom: 17 }), opacity: 0.7, className })
+const xyz = (url, attributions) => new ol.layer.Tile({ source: new ol.source.XYZ({ url, attributions, crossOrigin: 'anonymous', maxZoom: 17 }), opacity: 0.7 })
 const basemaps = {
   'osm-gray': new ol.layer.Tile({ source: new ol.source.OSM({ crossOrigin: 'anonymous' }), opacity: 0.7, className: 'basemap-gray' }),
   topo: xyz('https://tile.opentopomap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)'),
   hillshade: xyz('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', 'Esri, USGS, NOAA'),
-  positron: xyz('https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', '© OpenStreetMap contributors © CARTO'),
   osm: new ol.layer.Tile({ source: new ol.source.OSM(), opacity: 0.7 }),
 }
 for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === 'osm-gray')
 const map = new ol.Map({ target: 'map', layers: [...Object.values(basemaps), ...Object.values(layers)],
   view: new ol.View({ projection: laea, center: ol.proj.fromLonLat([10, 50], laea), zoom: 4 }) })
-document.getElementById('basemap').addEventListener('change', (e) => { for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === e.target.value) })
-for (const [id, l] of Object.entries(layers)) { l.setVisible(document.getElementById(id).checked); document.getElementById(id).addEventListener('change', (e) => l.setVisible(e.target.checked)) }
+$('basemap').addEventListener('change', (e) => { for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === e.target.value) })
+for (const [id, l] of Object.entries(layers)) { l.setVisible($(id).checked); $(id).addEventListener('change', (e) => l.setVisible(e.target.checked)) }
 for (const r of document.querySelectorAll('input.op')) { const l = layers[r.dataset.layer]; l.setOpacity(r.value / 100); r.addEventListener('input', () => l.setOpacity(r.value / 100)) }
 
-// ---- unit search: country (first three characters of the unit number) / species / unit, from the real units
-let index
-fetch(DATA + 'units-index.json').then((r) => r.json()).then((ix) => {
-  index = ix
-  const country = document.getElementById('country'), speciesSel = document.getElementById('speciesSel'), unitSel = document.getElementById('unitSel')
-  for (const c of ix.countries) country.add(new Option(`${c.code} (${c.units})`, c.code))
-  for (const s of ix.species) speciesSel.add(new Option(`${s.name} (${s.units})`, s.name))
-  const refill = () => {
-    const sel = ix.units.filter((u) => (!country.value || u.country === country.value) && (!speciesSel.value || u.species.includes(speciesSel.value)))
-    unitSel.innerHTML = '<option value="">—</option>'
-    for (const u of sel) unitSel.add(new Option(u.id + (u.restricted ? ' (restricted)' : ''), u.id))
-    const r = sel.filter((u) => u.restricted).length
-    document.getElementById('searchInfo').textContent = `${sel.length} units, ${r} restricted (not on the map)` + (speciesSel.value && speciesSel.value !== 'Fagus sylvatica' ? ' — this example only carries the beech layers' : '')
+// ---- species → map layers (from the ScatterMaps manifest), units → vector layer; the search pane filters live
+let ix, mapIndex, allUnits = []
+const state = { country: '', species: 'Fagus sylvatica', unit: '' }
+function showSpeciesLayers(name) {
+  const e = mapIndex.species[name] ?? { eutrees4f: {}, chorology: [] }
+  const set = (layer, path) => { layer.setSource(path ? cogSource(path) : null); $(layer === rpp ? 'rpp' : layer === mhs ? 'mhs' : layer === t4cur ? 't4cur' : 't4fut').parentElement.style.opacity = path ? 1 : 0.4 }
+  set(rpp, e.atlas_rpp); set(mhs, e.atlas_mhs); set(t4cur, e.eutrees4f['cur2005|cur|nat']); set(t4fut, e.eutrees4f['fut2095|rcp85|disp'])
+  choro.getSource().clear()
+  for (const c of e.chorology.filter((c) => c.layer.startsWith('native range'))) fetch('../' + c.path).then((r) => r.json()).then((g) => choro.getSource().addFeatures(gj.readFeatures(g)))
+  $('layersInfo').textContent = `${name}: ` + [e.atlas_rpp && 'Atlas presence', e.atlas_mhs && 'Atlas suitability', Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length} binary layers)`, e.chorology.length && 'chorology'].filter(Boolean).join(', ') || `${name}: no map layer in any source`
+}
+function refill() {
+  const { country, species } = state
+  const match = (u, c, s) => (!c || u.country === c) && (!s || u.species.includes(s))
+  const sel = ix.units.filter((u) => match(u, country, species))
+  // facets: each list counts the units that match the OTHER selections (metadata-store behaviour)
+  const facet = (el, items, key, label, current) => {
+    el.innerHTML = '<option value="">all</option>'
+    for (const [v, n] of items) el.add(new Option(`${label(v)} (${n})`, v, false, v === current))
   }
-  country.addEventListener('change', refill); speciesSel.addEventListener('change', refill); refill()
-  unitSel.addEventListener('change', () => {
-    const f = units.getSource().getFeatures().find((f) => f.get('id') === unitSel.value)
+  const count = (list, pick) => { const m = new Map(); for (const u of list) for (const k of [].concat(pick(u))) m.set(k, (m.get(k) ?? 0) + 1); return [...m].sort((a, b) => a[0].localeCompare(b[0])) }
+  facet($('country'), count(ix.units.filter((u) => match(u, '', species)), (u) => u.country), 'country', (v) => v, country)
+  facet($('speciesSel'), count(ix.units.filter((u) => match(u, country, '')), (u) => u.species), 'species', (v) => v + (mapIndex.species[v]?.atlas_rpp ? ' ●' : ''), species)
+  const unitSel = $('unitSel'); unitSel.innerHTML = '<option value="">—</option>'
+  for (const u of sel) unitSel.add(new Option(u.id + (u.restricted ? ' (restricted)' : ''), u.id, false, u.id === state.unit))
+  $('searchInfo').textContent = `${sel.length} units, ${sel.filter((u) => u.restricted).length} restricted (not on the map) · ● species with an Atlas map`
+  const ids = new Set(sel.map((u) => u.id))
+  units.getSource().clear(); units.getSource().addFeatures(allUnits.filter((f) => ids.has(f.get('id'))))
+}
+Promise.all([fetch(DATA + 'units-index.json').then((r) => r.json()), fetch(DATA + 'map-index.json').then((r) => r.json()), fetch(DATA + 'units-geo-all.geojson').then((r) => r.json())]).then(([a, b, g]) => {
+  ix = a; mapIndex = b; allUnits = gj.readFeatures(g)
+  refill(); showSpeciesLayers(state.species)
+  $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill() })
+  $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.unit = ''; refill(); showSpeciesLayers(state.species) })
+  $('unitSel').addEventListener('change', (e) => {
+    state.unit = e.target.value
+    const f = allUnits.find((f) => f.get('id') === state.unit)
     if (f) map.getView().fit(f.getGeometry().getExtent(), { padding: [60, 60, 60, 60], maxZoom: 11, duration: 600 })
-    else if (unitSel.value) document.getElementById('info').textContent = `${unitSel.value}: restricted coordinates, not shown on the map (its climate is in the scatterplot)`
+    else if (state.unit) $('info').textContent = `${state.unit}: restricted coordinates, not shown on the map (its climate is in the scatterplot)`
   })
 })
 map.on('singleclick', (e) => {
   const [lon, lat] = ol.proj.toLonLat(e.coordinate, laea)
-  const read = (l) => { const d = l.getData(e.pixel); return d ? d[0] : null }
+  const read = (l) => { if (!l.getSource()) return null; const d = l.getData(e.pixel); return d ? d[0] : null }
   const parts = [`<b>${lat.toFixed(4)}, ${lon.toFixed(4)}</b>`]
   for (const [name, l] of [['Atlas presence', rpp], ['Atlas suitability', mhs], ['EU-Trees4F 2005', t4cur], ['EU-Trees4F 2095 RCP 8.5', t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${name}: ${v < 0 ? 'no data' : v.toFixed(2)}`) }
   const hit = map.getFeaturesAtPixel(e.pixel, { layerFilter: (l) => l === units })
   if (hit.length) parts.push(`unit <b>${hit[0].get('id')}</b> (${hit[0].get('species').join(', ')})`)
   parts.push('→ in the product, this location is sent to the Foxx service (<code>/worldclim/click</code>) and drawn as a point in the scatterplot')
-  document.getElementById('info').innerHTML = parts.join(' · ')
+  $('info').innerHTML = parts.join(' · ')
 })
 </script>
 </body>
