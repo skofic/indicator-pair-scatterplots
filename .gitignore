@@ -83,5 +83,5 @@ coverage/
 globals/auth/*
 !globals/auth/db.credentials.prototype.json
 # Pipeline working files (JSONL, reports) and downloaded rasters: regenerated, never committed
-work/
-maps/
+/work/
+/maps/
