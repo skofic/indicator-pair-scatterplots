@@ -36,6 +36,9 @@ export const SOURCES = {
   eutrees4f: {
     key: 'eutrees4f',
     title: 'EU-Trees4F historical predictors (WorldClim 1.4, 1961–1990, 5 arc-minutes)',
+    period: '1961-1990',
+    // Future: ensemble mean of the 11 EURO-CORDEX RCMs on the WorldClim 1.4 baseline, 3 periods × 2 RCPs
+    future: { periods: ['1991-2020', '2021-2050', '2051-2080'], scenarios: ['rcp45', 'rcp85'] },
     dir: '/Users/milko/Local/Development/Workshop/EU-Trees4F/Reproducibility_scripts/datasets/climate/historical',
     // raster file → indicator key; scaling is read from the raster metadata and checked by sample.py
     rasters: { 'bio1.tif': 'bio01', 'bio12.tif': 'bio12', 'bio15.tif': 'bio15', 'temp10_summer.tif': 'tas_summer',
@@ -50,11 +53,22 @@ export const SOURCES = {
   worldclim: { key: 'worldclim', title: 'WorldClim 2.1 (1970–2000, 30 arc-seconds)', collection: 'worldclim', period: '1970-2000',
     datasetKey: 'bf102320-3726-48d1-b3fc-421f131c6666',          // the existing GeoService Dataset record
     annual: { bio01: 'env_climate_bio01', bio12: 'env_climate_bio12', bio14: 'env_climate_bio14', bio15: 'env_climate_bio15' },
-    monthly: ['env_climate_tas', 'env_climate_pr', 'env_climate_srad'] },
+    monthly: ['env_climate_tas', 'env_climate_pr', 'env_climate_srad'],
+    // Future: CMIP6 MPI-ESM1-2-HR under SSP3-7.0, nested period → model → ssp as in the grid itself. Monthly
+    // future layers are pr / tasmax / tasmin only, so the tas-derived indicators (summer T, continentality,
+    // coldest-month T) are computed from tas ≈ (tasmax + tasmin) / 2 — an APPROXIMATION, stated in the
+    // Dataset record; no radiation in the future periods.
+    future: { periods: ['2021-2040', '2041-2060', '2061-2080', '2081-2100'], model: 'MPI-ESM1-2-HR', ssp: 'ssp370',
+      annual: { bio01: 'env_climate_bio01', bio12: 'env_climate_bio12', bio14: 'env_climate_bio14', bio15: 'env_climate_bio15' },
+      monthly: ['env_climate_tasmax', 'env_climate_tasmin', 'env_climate_pr'], tasApprox: true } },
   chelsa: { key: 'chelsa', title: 'CHELSA 2.1 (1981–2010, 30 arc-seconds)', collection: 'chelsa', period: '1981-2010',
     datasetKey: '4badf85d-270a-463c-89d3-04bc52d806bd',
     annual: { bio01: 'env_climate_bio01', bio12: 'env_climate_bio12', bio14: 'env_climate_bio14', bio15: 'env_climate_bio15', ai: 'env_climate_ai' },
-    monthly: ['env_climate_tas', 'env_climate_pr'] },
+    monthly: ['env_climate_tas', 'env_climate_pr'],
+    // Future: same model / ssp; monthly tas and pr present, so every derived indicator except radiation; no `ai`.
+    future: { periods: ['2011-2040', '2041-2070', '2071-2100'], model: 'MPI-ESM1-2-HR', ssp: 'ssp370',
+      annual: { bio01: 'env_climate_bio01', bio12: 'env_climate_bio12', bio14: 'env_climate_bio14', bio15: 'env_climate_bio15' },
+      monthly: ['env_climate_tas', 'env_climate_pr'] } },
 }
 
 export const EU_FOREST_CSV = '/Users/milko/Local/Backup/ArangoDB/data/EU-Forest_species.csv'

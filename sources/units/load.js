@@ -1,72 +1,77 @@
-// Step 6, part 2: ScatterUnits — one document per unit at its climate probe point, with the same per-source
-// blocks as ScatterOccurrences. Cells come from ScatterCells; probe-point cells not yet cached are read from
-// the grids and ADDED to the cache. Restricted units carry climate values only: no point, no cell key.
-// Usage: node sources/units/load.js [--dry-run] [--on-missing drop|fail]     (after sources/units/export.js and
-//        .venv/bin/python sources/climate/eutrees4f/sample.py --in work/units.jsonl --out work/climate-units-eutrees4f.jsonl)
+// Step 6: ScatterUnits — one document per unit at its climate probe point, with the same per-source, per-period
+// blocks as ScatterOccurrences. Grid cells come from ScatterCells; probe-point cells not yet cached are read from
+// the grids for every period and ADDED to the cache (validated first). Restricted units carry climate values
+// only: no point, no cell key.   Usage: node sources/units/load.js [--dry-run] [--on-missing drop|fail]
+// Inputs: work/units.jsonl (sources/units/export.js), work/climate-units-eutrees4f.jsonl and
+//         work/climate-units-eutrees4f-future.jsonl (sources/climate/eutrees4f/sample*.py --in work/units.jsonl)
 import { readFileSync, existsSync } from 'node:fs'
 import { connect, loadCredentials, explain } from '../../lib/db.js'
 import { loadDictionary, validator, checkDocument, dropGids } from '../../lib/dictionary.js'
 import { containingCellKey } from '../../lib/geometry.js'
+import { climateBlock, nestFuture, occurrenceGids, toGids } from '../../lib/records.js'
 import { ensureSchema } from '../../setup.js'
 import { GID, SOURCES } from '../../config/indicators.js'
 import { fetchCells } from '../climate/geoservice/lookup.js'
+import { ensureDatasetRecords, datasetGids } from '../datasets/records.js'
 
 const dryRun = process.argv.includes('--dry-run')
 const onMissing = process.argv.includes('--on-missing') ? process.argv[process.argv.indexOf('--on-missing') + 1] : 'drop'
 const lines = (f) => existsSync(f) ? readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []
 try {
   const creds = loadCredentials(); const { db, collections } = connect(creds, { requireLoadTarget: !dryRun })
+  const wanted = occurrenceGids(); const extra = ['gcu_id_number', 'gcu_loc_coordinates-restriction']
+  const { dictionary, missing: allMissing } = await loadDictionary([...wanted, ...extra, ...datasetGids()], creds)
+  const missing = allMissing.filter((g) => wanted.includes(g) || extra.includes(g))
+  if (missing.length) { console.log(`  not in the dictionary: ${missing.join(', ')}`); if (onMissing === 'fail') throw new Error('missing terms') }
+  const keys = await ensureDatasetRecords(db, collections.dataset, { write: !dryRun, dictionary, missing: allMissing })
+  const skip = new Set(missing); const leafGids = new Set([...wanted, ...extra]); const report = validator.createReport()
+
   const units = lines('work/units.jsonl')
-  const t4f = new Map(lines('work/climate-units-eutrees4f.jsonl').map((l) => [l.key, l.values]))
+  const t4fH = new Map(lines('work/climate-units-eutrees4f.jsonl').map((l) => [l.key, l.values]))
+  const t4fF = new Map(lines('work/climate-units-eutrees4f-future.jsonl').map((l) => [l.key, l.values]))
   const keyOf = new Map(units.map((u) => [u.key, containingCellKey(u.lon, u.lat)]))
   const cellKeys = [...new Set(keyOf.values())]
 
-  // cached cells, then the grids for the rest (and cache them)
+  // cached cells, then the grids (every period) for the rest, which are validated and cached
   const cached = new Map((await db.query('FOR k IN @keys LET d = DOCUMENT(@@c, k) FILTER d != null RETURN d', { '@c': collections.cells, keys: cellKeys }).then((c) => c.all())).map((d) => [d._key, d]))
   const toFetch = cellKeys.filter((k) => !cached.has(k))
   console.log(`${units.length} units → ${cellKeys.length} cells: ${cached.size} cached, ${toFetch.length} to read from the grids`)
   const newCells = new Map()
   for (const src of ['worldclim', 'chelsa']) {
     const S = SOURCES[src]
-    const got = await fetchCells(db, collections[S.collection], S, toFetch)
-    for (const [k, values] of got) {
-      if (!newCells.has(k)) newCells.set(k, { _key: k, std_dataset_ids: [], properties: {} })
-      const doc = newCells.get(k); doc.std_dataset_ids.push(S.datasetKey)
-      doc.properties[src] = Object.fromEntries(Object.entries(values).map(([ind, v]) => [GID[ind], v]))
+    for (const period of [S.period, ...(S.future?.periods ?? [])]) {
+      const got = await fetchCells(db, collections[S.collection], S, toFetch, { period })
+      for (const [k, values] of got) {
+        if (!newCells.has(k)) newCells.set(k, { _key: k, std_dataset_ids: new Set([keys['SCATTER_OCCURRENCES']].filter(Boolean)), properties: {} })
+        const doc = newCells.get(k); doc.std_dataset_ids.add(S.datasetKey)
+        const g = toGids(src, period === S.period ? values : nestFuture(src, period, values))
+        if (Object.keys(g).length) (doc.properties[src] ??= {})[period] = g
+      }
+      if (period === S.period) console.log(`  ${src}: ${got.size} of ${toFetch.length} uncached cells found`)
     }
-    console.log(`  ${src}: ${got.size} of ${toFetch.length} uncached cells found`)
   }
+  for (const d of newCells.values()) { d.std_dataset_ids = [...d.std_dataset_ids]; dropGids(d, missing); const { errors } = checkDocument(d, dictionary, report, { skip, leafGids }); if (errors.length) throw new Error(`invalid cell ${d._key}: ${JSON.stringify(errors[0])}`); cached.set(d._key, d) }
+  const known = new Set([...Object.values(GID), 'geometry_hash'])
+  const walkKeys = (o, f) => { for (const [k, v] of Object.entries(o)) { if (known.has(k)) continue; if (v && typeof v === 'object') walkKeys(v, f); else f(k) } }
+  for (const d of cached.values()) walkKeys(d.properties ?? {}, (k) => { throw new Error(`stale cached cell ${d._key} carries ${k}: remove it from ScatterCells and re-run`) })
 
-  const gids = ['gcu_id_number', 'species_list', 'gcu_loc_coordinates-restriction', 'geometry_point', 'geometry_hash', 'std_dataset_ids', ...Object.values(GID)]
-  const { dictionary, missing } = await loadDictionary(gids, creds)
-  if (missing.length) { console.log(`  not in the dictionary: ${missing.join(', ')}`); if (onMissing === 'fail') throw new Error('missing terms') }
-  const skip = new Set(missing); const report = validator.createReport()
-  // cells fetched here are cached: check them like every other document (a cache written with an unknown
-  // property name on 2026-10-30 is why this exists), and refuse stale cached cells carrying unknown names
-  for (const d of newCells.values()) { dropGids(d, missing); const { errors } = checkDocument(d, dictionary, report, { skip }); if (errors.length) throw new Error(`invalid cell ${d._key}: ${JSON.stringify(errors[0])}`) }
-  for (const [k, d] of newCells) cached.set(k, d)
-  const known = new Set(Object.values(GID)); known.add('geometry_hash')
-  for (const d of cached.values()) for (const b of Object.values(d.properties ?? {})) for (const g of Object.keys(b)) if (!known.has(g)) throw new Error(`stale cached cell ${d._key} carries ${g}: remove it from ScatterCells and re-run`)
-  const scale = SOURCES.eutrees4f.scale ?? {}
   const docs = []
   let invalid = 0, dedup = 0
   for (const u of units) {
-    const k = keyOf.get(u.key); const cell = cached.get(k)
-    // Units.species_list repeats a name for a few units (ESP00372: "Quercus suber" twice, seen 2026-10-30); the
-    // dictionary defines species_list as a set, so duplicates are folded here and counted.
-    const species = [...new Set(u.species)]; if (species.length !== u.species.length) dedup++
-    const doc = { _key: u.key, gcu_id_number: u.key, species_list: species, 'gcu_loc_coordinates-restriction': u.restricted, std_dataset_ids: [], properties: {} }
+    const species = [...new Set(u.species)]; if (species.length !== u.species.length) dedup++   // ESP00372 repeats a name
+    const doc = { _key: u.key, gcu_id_number: u.key, species_list: species, 'gcu_loc_coordinates-restriction': u.restricted, std_dataset_ids: [keys['SCATTER_UNITS']].filter(Boolean), properties: {} }
     if (!u.restricted) doc.geometry_point = { type: 'Point', coordinates: [u.lon, u.lat] }
-    const ids = new Set()
-    const t = t4f.get(u.key)
-    if (t && Object.values(t).some((v) => v !== null)) {
-      doc.properties.eutrees4f = {}
-      for (const [ind, raw] of Object.entries(t)) if (raw !== null) { const v = raw * (scale[ind] ?? 1); doc.properties.eutrees4f[GID[ind]] = Number.isInteger(v) ? v : Number(v.toFixed(4)) }
-    }
-    if (cell) for (const src of ['worldclim', 'chelsa']) if (cell.properties?.[src]) { doc.properties[src] = { ...(u.restricted ? {} : { geometry_hash: k }), ...cell.properties[src] }; ids.add(SOURCES[src].datasetKey) }
+    const ids = new Set(doc.std_dataset_ids)
+    const periods = {}
+    if (t4fH.get(u.key)) periods[SOURCES.eutrees4f.period] = t4fH.get(u.key)
+    Object.assign(periods, t4fF.get(u.key) ?? {})
+    const t4 = climateBlock('eutrees4f', { periods })
+    if (t4) { doc.properties.eutrees4f = t4; if (SOURCES.eutrees4f.datasetKey) ids.add(SOURCES.eutrees4f.datasetKey) }
+    const cell = cached.get(keyOf.get(u.key))
+    if (cell) for (const src of ['worldclim', 'chelsa']) if (cell.properties?.[src]) { doc.properties[src] = { ...(u.restricted ? {} : { geometry_hash: cell._key }), ...cell.properties[src] }; ids.add(SOURCES[src].datasetKey) }
     doc.std_dataset_ids = [...ids]
     dropGids(doc, missing)
-    const { errors } = checkDocument(doc, dictionary, report, { skip })
+    const { errors } = checkDocument(doc, dictionary, report, { skip, leafGids })
     if (errors.length) { invalid++; if (invalid <= 3) console.log('  invalid:', doc._key, JSON.stringify(errors[0])) }
     docs.push(doc)
   }

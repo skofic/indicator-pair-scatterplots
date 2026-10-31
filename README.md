@@ -11,7 +11,7 @@ to the species. The maps show the species' current and future distribution with 
 
 ## Status
 
-**Phase 2, data plan, settled; its collection plan is being executed.** The data pipeline lives in `sources/`, `lib/` and `config/`; see `CLAUDE.md` §6 for the layout and the database conventions. The work follows a four-phase plan
+**Phase 2, data plan, complete; Phase 3, display plan, next.** The data pipeline lives in `sources/`, `lib/` and `config/`; see `CLAUDE.md` §6 for the layout and the database conventions. The work follows a four-phase plan
 (study, data, display, serve), one item at a time, with every decision recorded. The living plan,
 its status and the decisions log are in [`CLAUDE.md`](CLAUDE.md).
 
@@ -78,6 +78,8 @@ node sources/units/species.js && npm run species:build   # unit target species �
 node sources/species/load.js
 node sources/climate/geoservice/probe.js                 # verify offline cell keys against the grids
 node sources/climate/geoservice/lookup.js --source worldclim   # and --source chelsa: 1 km values + derived
+node sources/climate/geoservice/lookup.js --source chelsa --period 2041-2070   # one run per future period
+.venv/bin/python sources/climate/eutrees4f/sample_future.py  # EU-Trees4F future periods × RCPs
 node sources/occurrences/load.js --on-missing drop       # dictionary check, then load (--dry-run to check only)
 node sources/climate/geoservice/load_cells.js            # the per-cell cache
 node sources/units/export.js && .venv/bin/python sources/climate/eutrees4f/sample.py --in work/units.jsonl --out work/climate-units-eutrees4f.jsonl

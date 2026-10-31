@@ -26,10 +26,10 @@ export const RECORDS = [
   },
   {
     std_dataset_code: 'EU-TREES4F_PREDICTORS_2022',
-    std_date_submission: today, std_date_start: '1961', std_date_end: '1990',
+    std_date_submission: today, std_date_start: '1961', std_date_end: '2080',
     _info: {
-      _title: eng('EU-Trees4F historical climate predictors (WorldClim 1.4, 5 arc-minutes)'),
-      _description: eng('The seven climate layers EU-Trees4F used to calibrate its species distribution models: mean annual temperature, annual precipitation, precipitation seasonality, summer temperature, summer and winter precipitation, continentality; WorldClim 1.4 (1961–1990) at 5 arc-minutes (~10 km), WGS84. Sampled at every EU-Forest cell into ScatterOccurrences.properties.eutrees4f. Stored values are converted to physical units (temperatures ÷ 10; seasonal precipitation totals ÷ 3 to the mean monthly amount).'),
+      _title: eng('EU-Trees4F climate predictors, historical and future (WorldClim 1.4 baseline, EURO-CORDEX ensemble, 5 arc-minutes)'),
+      _description: eng('The seven climate layers EU-Trees4F used to calibrate and project its species distribution models: mean annual temperature, annual precipitation, precipitation seasonality, summer temperature, summer and winter precipitation, continentality. Historical: WorldClim 1.4, 1961–1990. Future: the ensemble mean of 11 EURO-CORDEX regional climate models, change-factor downscaled onto the same baseline, for 1991–2020, 2021–2050 and 2051–2080 under RCP 4.5 and RCP 8.5 — the exact climate behind the EU-Trees4F suitability maps. 5 arc-minutes (~10 km), WGS84. Sampled at every EU-Forest cell and every unit probe point into properties.eutrees4f.<period>[.<rcp>] of ScatterOccurrences and ScatterUnits. Stored values are converted to physical units (temperatures ÷ 10; seasonal precipitation totals ÷ 3 to the mean monthly amount).'),
       _references: {
         _citation: ['Mauri, A., Girardello, M., Strona, G., Beck, P.S.A., Forzieri, G., Caudullo, G., Manca, F., Cescatti, A. (2022). EU-Trees4F, a dataset on the future distribution of European tree species. *Scientific Data* 9:37. doi: [10.1038/s41597-022-01128-5](https://doi.org/10.1038/s41597-022-01128-5)'],
         _url: ['[EU-Trees4F on figshare (CC0)](https://doi.org/10.6084/m9.figshare.c.5525688)'],
@@ -106,6 +106,54 @@ RECORDS.push(
         _citation: ['de Rigo, D., Caudullo, G., Houston Durrant, T., San-Miguel-Ayanz, J. (2016). The European Atlas of Forest Tree Species: modelling, data and information on forest tree species. In: San-Miguel-Ayanz, J. et al. (eds.), European Atlas of Forest Tree Species. Publ. Off. EU, Luxembourg, pp. e01aa69+. [w3id.org/mtv/FISE-Comm/v01/e01aa69](https://w3id.org/mtv/FISE-Comm/v01/e01aa69)'],
         _url: ['[Atlas data and metadata](https://forest.jrc.ec.europa.eu/en/european-atlas/atlas-data-and-metadata/)'],
       },
+    },
+    std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_region', std_dataset_scope: 'std_dataset_scope_grid' },
+    std_dataset_prop: { _collection_list: ['ScatterMaps'], std_terms: ['species'], std_terms_key: ['species'] },
+  },
+)
+
+const SCATTER_TERMS = () => Object.values(GID)
+RECORDS.push(
+  {
+    std_dataset_code: 'SCATTER_OCCURRENCES',
+    std_date_submission: today, std_date_start: '1961', std_date_end: '2100',
+    _info: {
+      _title: eng('Indicator pair scatterplots: EU-Forest occurrence cells with present and future climate'),
+      _description: eng('One document per EU-Forest 1 km cell (250 569): the species observed there, the cell centroid, and the indicator values of the three climate sources side by side under properties.<source>.<period>: EU-Trees4F predictors (1961–1990; 1991–2020, 2021–2050, 2051–2080 under RCP 4.5 / 8.5 at 10 km), WorldClim 2.1 (1970–2000; 2021–2100 in four periods under MPI-ESM1-2-HR SSP3-7.0 at 1 km) and CHELSA 2.1 (1981–2010; 2011–2100 in three periods, same model and scenario, 1 km). Annual and monthly-derived indicators (summer / winter means, continentality, coldest-month temperature, spring-summer radiation, seasonality ratio) at full precision. Caveats: WorldClim future monthly layers carry only daily extremes, so its future temperature-derived indicators use tas ≈ (tasmax + tasmin) / 2; radiation exists for the WorldClim historical period only; 1 715 cells outside the project land mask have no 1 km climate. The base and species layers of the scatterplots (European Atlas of Forest Tree Species autoecology definition).'),
+      _references: { _url: ['[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'] },
+    },
+    std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_region', std_dataset_scope: 'std_dataset_scope_grid' },
+    std_dataset_prop: { _collection_list: ['ScatterOccurrences', 'ScatterCells'], std_terms: ['species_list', 'geometry_point', 'geometry_hash', ...SCATTER_TERMS()], std_terms_key: ['geometry_point'] },
+  },
+  {
+    std_dataset_code: 'SCATTER_UNITS',
+    std_date_submission: today, std_date_start: '1961', std_date_end: '2100',
+    _info: {
+      _title: eng('Indicator pair scatterplots: gene conservation units in present and future climate'),
+      _description: eng('One document per EUFGIS gene conservation unit (3 669) at its climate reference point, with the unit number, its target species, the coordinate-restriction flag and the same per-source, per-period indicator blocks as ScatterOccurrences. Restricted units carry climate values only: no point and no cell reference. Rebuilt from GeoService.Units by a refresh command; the top layer of the scatterplots, the layer the visualisation exists for.'),
+      _references: { _url: ['[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'] },
+    },
+    std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_gcu', std_dataset_scope: 'std_dataset_scope_shape' },
+    std_dataset_prop: { _collection_list: ['ScatterUnits'], std_terms: ['gcu_id_number', 'species_list', 'gcu_loc_coordinates-restriction', 'geometry_point', 'geometry_hash', ...SCATTER_TERMS()], std_terms_key: ['gcu_id_number'] },
+  },
+  {
+    std_dataset_code: 'SCATTER_SPECIES',
+    std_date_submission: today, std_date_start: '2016', std_date_end: '2026',
+    _info: {
+      _title: eng('Indicator pair scatterplots: species table'),
+      _description: eng('The catalogue of taxa named by any source of the scatterplots and maps (271): the scientific name as identifier (a surrogate key allows UPOV codes to be added later without re-keying), synonyms folded in, and per taxon the EU-Forest occurrence counts and the availability of EU-Trees4F maps, Atlas presence and suitability maps and EUFGIS target-species units. A catalogue, not spatial data: extent and scope are those of the data it indexes.'),
+      _references: { _url: ['[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'] },
+    },
+    std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_region', std_dataset_scope: 'std_dataset_scope_grid' },
+    std_dataset_prop: { _collection_list: ['ScatterSpecies'], std_terms: ['species'], std_terms_key: ['species'] },
+  },
+  {
+    std_dataset_code: 'SCATTER_MAPS',
+    std_date_submission: today, std_date_start: '2005', std_date_end: '2095',
+    _info: {
+      _title: eng('Indicator pair scatterplots: map layer manifest'),
+      _description: eng('One document per served map file: EU-Trees4F suitability rasters (SDM ensemble, current and future, cloud-optimised GeoTIFF), European Atlas of Forest Tree Species relative probability of presence and maximum habitat suitability rasters (1 km, EPSG:3035), and the Atlas chorology polygons (GeoJSON), with species, source, period, scenario, variant, file path, projection, resolution, licence and citation. A catalogue of files, not spatial data itself.'),
+      _references: { _url: ['[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'] },
     },
     std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_region', std_dataset_scope: 'std_dataset_scope_grid' },
     std_dataset_prop: { _collection_list: ['ScatterMaps'], std_terms: ['species'], std_terms_key: ['species'] },

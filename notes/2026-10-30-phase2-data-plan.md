@@ -1,7 +1,9 @@
 # Phase 2 — Data Plan (proposal)
 
-Date: 2026-10-30. Status: **settled with Milko on 2026-10-30** (items 1–4); section 6 is the
-**final collection plan** (item 5), awaiting the go-ahead to start building. Items 1–3 of the phase
+Date: 2026-10-30. Status: **settled with Milko on 2026-10-30; executed 2026-10-30 … 2026-10-31; closed.**
+Amendment of 2026-10-31: the future periods of all three climate sources were added to the collections
+(decision in `CLAUDE.md`), the document structure became `properties.<source>.<period>[...]`, and the
+four Scatter collections got Dataset records; the SDM ensemble only is served for EU-Trees4F. Items 1–3 of the phase
 are the inventory, the coverage and the options below; item 4 is the solution in section 5.
 Inputs: the four Phase 1 study notes and the decisions log in `CLAUDE.md`.
 

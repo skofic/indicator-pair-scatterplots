@@ -22,8 +22,9 @@ const r4 = (v) => Number(v.toFixed(4))
 
 export function derive(S, annual, monthly) {
   const m = (gid) => monthly.map((x) => x[gid])
-  const tas = m('env_climate_tas'), pr = m('env_climate_pr')
   const ok = (a) => a.length === 12 && a.every((v) => typeof v === 'number')
+  let tas = m('env_climate_tas'); const pr = m('env_climate_pr')
+  if (!ok(tas) && S.tasApprox) { const mx = m('env_climate_tasmax'), mn = m('env_climate_tasmin'); if (ok(mx) && ok(mn)) tas = mx.map((v, i) => (v + mn[i]) / 2) }
   const out = {}
   for (const [ind, gid] of Object.entries(S.annual)) if (typeof annual?.[gid] === 'number') out[ind] = annual[gid]
   if (ok(tas)) {
@@ -45,15 +46,26 @@ export function derive(S, annual, monthly) {
 }
 
 /** Read the cells `keys` from the source's collection and derive the indicators: Map key → values. */
-export async function fetchCells(db, coll, S, keys, { batch = 1000, onProgress = null } = {}) {
-  const monthlyFields = S.monthly.map((g) => `${g}: x.${g}`).join(', ')
-  const annualFields = Object.values(S.annual).map((g) => `${g}: p.${g}`).join(', ')
-  const aql = `FOR k IN @keys LET d = DOCUMENT(@@c, k) FILTER d != null LET p = d.properties[@period]
+/**
+ * The source descriptor for a period: the historical one (S itself) or S.future with the period's path.
+ * `path` = the AQL expression that reaches the period's values inside `d.properties`.
+ */
+export function periodSource(S, period) {
+  if (!period || period === S.period) return { ...S, period: S.period, path: 'd.properties[@period]', bind: { period: S.period } }
+  if (!S.future?.periods?.includes(period)) throw new Error(`${S.key} has no period ${period}`)
+  return { ...S, ...S.future, period, path: 'd.properties[@period][@model][@ssp]', bind: { period, model: S.future.model, ssp: S.future.ssp } }
+}
+
+export async function fetchCells(db, coll, S, keys, { batch = 1000, onProgress = null, period = null } = {}) {
+  const P = periodSource(S, period)
+  const monthlyFields = P.monthly.map((g) => `${g}: x.${g}`).join(', ')
+  const annualFields = Object.values(P.annual).map((g) => `${g}: p.${g}`).join(', ')
+  const aql = `FOR k IN @keys LET d = DOCUMENT(@@c, k) FILTER d != null LET p = ${P.path} FILTER p != null
     RETURN { k, annual: { ${annualFields} }, monthly: (FOR x IN p.std_date_span_month SORT x.std_month RETURN { ${monthlyFields} }) }`
   const cells = new Map()
   for (let i = 0; i < keys.length; i += batch) {
-    const rows = await db.query(aql, { '@c': coll, keys: keys.slice(i, i + batch), period: S.period }, { batchSize: batch }).then((c) => c.all())
-    for (const r of rows) cells.set(r.k, derive(S, r.annual, r.monthly))
+    const rows = await db.query(aql, { '@c': coll, keys: keys.slice(i, i + batch), ...P.bind }, { batchSize: batch }).then((c) => c.all())
+    for (const r of rows) cells.set(r.k, derive(P, r.annual, r.monthly))
     if (onProgress) onProgress(Math.min(i + batch, keys.length), keys.length)
   }
   return cells
@@ -62,8 +74,10 @@ export async function fetchCells(db, coll, S, keys, { batch = 1000, onProgress =
 if (process.argv[1].endsWith('lookup.js')) try {
   const arg = (k, d) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : d }
   const source = arg('--source'); const BATCH = Number(arg('--batch', 1000)); const LIMIT = Number(arg('--limit', Infinity))
-  if (!SOURCES[source]?.collection) throw new Error('--source worldclim|chelsa')
+  const period = arg('--period', null)
+  if (!SOURCES[source]?.collection) throw new Error('--source worldclim|chelsa [--period <future period>]')
   const S = SOURCES[source]
+  const suffix = period && period !== S.period ? `-${period}` : ''
   const t0 = Date.now()
   const creds = loadCredentials(); const { db, collections } = connect(creds)
   const coll = collections[S.collection]
@@ -71,13 +85,13 @@ if (process.argv[1].endsWith('lookup.js')) try {
   for await (const line of createInterface({ input: createReadStream('work/occurrences.jsonl') })) if (line.trim() && occ.length < LIMIT) occ.push(JSON.parse(line))
   const keyOf = new Map(occ.map((o) => [o.key, containingCellKey(o.lon, o.lat)]))
   const cellKeys = [...new Set(keyOf.values())]
-  console.log(`${source}: ${occ.length} occurrences → ${cellKeys.length} distinct cells`)
+  console.log(`${source}${suffix}: ${occ.length} occurrences → ${cellKeys.length} distinct cells`)
 
-  const cells = await fetchCells(db, coll, S, cellKeys, { batch: BATCH, onProgress: (n, N) => { if (n % (BATCH * 25) === 0) console.log(`  ${n} / ${N} cells, ${Math.round((Date.now() - t0) / 1000)} s`) } })
-  const outCells = createWriteStream(`work/cells-${source}.jsonl`)
+  const cells = await fetchCells(db, coll, S, cellKeys, { period, batch: BATCH, onProgress: (n, N) => { if (n % (BATCH * 25) === 0) console.log(`  ${n} / ${N} cells, ${Math.round((Date.now() - t0) / 1000)} s`) } })
+  const outCells = createWriteStream(`work/cells-${source}${suffix}.jsonl`)
   for (const [k, values] of cells) outCells.write(JSON.stringify({ key: k, values }) + '\n')
   outCells.end()
-  const outOcc = createWriteStream(`work/climate-${source}.jsonl`)
+  const outOcc = createWriteStream(`work/climate-${source}${suffix}.jsonl`)
   let missing = 0
   for (const o of occ) { const k = keyOf.get(o.key); const v = cells.get(k); if (!v) missing++; outOcc.write(JSON.stringify({ key: o.key, geometry_hash: k, values: v ?? {} }) + '\n') }
   outOcc.end()
