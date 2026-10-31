@@ -106,4 +106,8 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 
 ## 5. Decisions
 
-(none yet)
+| Date | Decision |
+|---|---|
+| 2026-10-31 | **Map pane, after review of the OpenLayers example (Milko):** the map is good. **Base maps**, in this order: none · Esri hillshade only · **OpenStreetMap grey (default)** · OpenStreetMap colour · OpenTopoMap (relief, contours). The grey default keeps the vegetation texture without the colour that collided with the Atlas green. Each service's attribution and usage terms are a Phase 4 item. |
+| 2026-10-31 | **EU-Trees4F future layers:** the published future periods exist as potential, natural dispersal and their land-use clips (no "realised"); the example shows natural dispersal for 2095 RCP 8.5 in red next to the current realised map in orange; the pane must name the variant it shows. |
+| 2026-10-31 | **A shared unit search pane** for map and scatterplot (Milko): country = the first three characters of the unit number (ISO 3166-1 alpha-3), unit number, species; Milko researches further fields. **Coordinate restriction is a request parameter**: restricted units are hidden by default; never on the map, on request in the scatterplot. **Per-layer transparency sliders** on both panes. First version built in the map example from an index exported from `ScatterUnits` (3 669 units, 37 countries, 123 species, 340 restricted). |
