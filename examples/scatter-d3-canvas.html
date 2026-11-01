@@ -20,6 +20,8 @@
   .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin: 0 3px 0 8px }
   .grid line { stroke: #000; stroke-opacity: .06 } .grid path { display: none }
   body.embedded .host { display: none }
+  #disabled { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.82); color: #555; font-size: 15px; text-align: center; padding: 24px; z-index: 3 }
+  body.disabled #disabled { display: flex } body.disabled .bar { opacity: .45; pointer-events: none }
 </style>
 </head>
 <body>
@@ -53,7 +55,7 @@
   <span id="legend"></span>
   <span style="color:#777">drag = zoom to box · wheel = zoom · shift-drag = pan · double-click = reset · option-click a unit = add to / remove from the selection</span>
 </div>
-<div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div></div>
+<div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div><div id="disabled"></div></div>
 <div id="status">loading…</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
@@ -271,8 +273,10 @@ async function applyFilter(f) {
   state.country = f.country ?? ''; state.unit = f.unit ?? ''
   if (f.restricted != null) $('restricted').checked = f.restricted
   if (f.flagKm != null) $('flagKm').value = String(f.flagKm)
-  await refresh()
-  if (noData) status.textContent = `no scatterplot export for ${f.species} (examples hold ${meta.species.join(', ')}); showing ${state.species}`
+  // a species without scatterplot data invalidates the plot: the pane is disabled, not left showing another species
+  document.body.classList.toggle('disabled', noData)
+  $('disabled').innerHTML = noData ? `<div><b>${f.species}</b><br>no scatterplot data for this species<br><small>the examples hold ${meta.species.join(', ')}; the service will serve every species of the sources</small></div>` : ''
+  if (!noData) await refresh()
 }
 window.addEventListener('message', (e) => {
   if (e.data?.type === 'map-selection') selectFromMap(e.data.geometry)

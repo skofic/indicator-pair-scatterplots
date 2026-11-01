@@ -179,9 +179,14 @@ to the viewport so only the map and the plot react to the wheel. Milko's two set
 browser on a second monitor; Safari in half a screen) both get near-square panes this way. Decisions
 recorded: defaults of the class view accepted (present position, potential variant, 2 °C × 200 mm, ≥ 100
 cells), 5 km threshold accepted, a `ui` namespace of dictionary terms for the panes' shared state and
-the unit distance descriptor to be requested at the Phase 3 close. Kept in mind for later: **detaching
-the map to its own tab or window** from the joint page (the messages already allow it: `window.open` +
-`postMessage`, or a `BroadcastChannel` for same-origin tabs).
+the unit distance descriptor to be requested at the Phase 3 close. **Iteration 7 (same day, Milko):** a species without scatterplot
+data **disables the scatterplot pane** (greyed, with the reason) instead of leaving another species on
+show; a **divider** between the panes resizes them along the layout's axis (double-click resets); **the
+map in its own window**: a button opens the map page in a second window, which keeps talking to the
+host through `window.opener` with the same messages (the host hides the map pane, the scatterplot takes
+the page; closing the window brings the map back). Two pages opened by hand in two tabs cannot talk,
+since they have no common host; a `BroadcastChannel` would allow that for same-origin tabs if ever
+needed.
 Not yet: the pair selector (needs
 the service or five times the export), the class of each unit's own cell (a service-side raster
 sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the
