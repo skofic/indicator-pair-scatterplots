@@ -114,6 +114,15 @@ dashed, selected period solid — in D3 the boundary of the hexagon set holding 
 Plotly a contour at the count level enclosing 95 %), arrows from present to selected period for the
 units, opacity dials, URL parameters `?species=&climate=`. Screenshot of the D3 page for beech under
 CHELSA 2071–2100: [`compare/d3-example-fagus-chelsa-2071-2100.png`](compare/d3-example-fagus-chelsa-2071-2100.png).
+**Iteration 2 (2026-11-01, Milko's review):** points as the default for base and species; the climate
+selector became **product → scenario → period** (a user cannot jump between products or mix methods:
+the present is the "reference" scenario of each product); the D3 envelope is now a **smooth closed
+contour** (blurred pixel histogram cut at the level holding 95 % of the mass, traced with
+`d3.contours`), the same rule as Plotly's; **the axes are fixed per product** (present extent padded by
+the future shift) so the view does not jump between periods, and the user's zoom survives (Plotly
+`uirevision`); **box zoom by dragging** in D3 as in Plotly (wheel zoom, shift-drag pan, double-click
+reset); hover on a separate overlay canvas with a 10 px hit radius and a highlight ring. Both pages
+verified headless; D3 screenshot: [`compare/d3-example-fagus-eutrees4f-2051-2080-rcp85.png`](compare/d3-example-fagus-eutrees4f-2051-2080-rcp85.png).
 Not yet: the EU-Trees4F Figure 1 classification view, the map → scatterplot link, the unit
 reference-point distance flag, the pair selector (needs the service or five times the export). **Built 2026-10-31**, to be opened by Milko: start the
 server with `node examples/serve.mjs 8080` and open http://localhost:8080/examples/ . Libraries come

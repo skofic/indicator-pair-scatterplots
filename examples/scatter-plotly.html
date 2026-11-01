@@ -18,7 +18,9 @@
 <body>
 <div class="bar">
   <strong>Plotly scattergl (WebGL)</strong>
-  <label>Climate <select id="climate"></select></label>
+  <label>Product <select id="product"></select></label>
+  <label>Scenario <select id="scenario"></select></label>
+  <label>Period <select id="period"></select></label>
   <label>Base <select id="baseMode"><option value="density">square density</option><option value="points">points</option><option value="none">hidden</option></select> <input type="range" id="bins" min="40" max="200" value="90" title="bins per axis"> <input type="range" class="op" data-layer="base" min="0" max="100" value="100" title="opacity"></label>
   <label>Species <select id="speciesMode"><option value="points">points</option><option value="density">square density</option><option value="none">hidden</option></select> <input type="range" class="op" data-layer="species" min="0" max="100" value="100" title="opacity"></label>
   <label><input type="checkbox" id="envelope" checked> envelope (95 %): present dashed, selected solid</label>
@@ -42,6 +44,16 @@ let climates, meta, units = []
 const slug = (s) => s.replace(/\s+/g, '_'), file = (c) => `${c.src}-${c.period}${c.scenario ? '-' + c.scenario : ''}`
 const load = async (name) => { if (!cache[name]) cache[name] = await (await fetch(DATA + name)).json(); return cache[name] }
 const presentOf = (c) => climates.find((k) => k.src === c.src && k.present)
+const PRODUCT = { eutrees4f: 'EU-Trees4F (WorldClim 1.4 + EURO-CORDEX, 10 km)', worldclim: 'WorldClim 2.1 (1 km)', chelsa: 'CHELSA 2.1 (1 km)' }
+const SCEN = { '': 'present (reference)', rcp45: 'RCP 4.5', rcp85: 'RCP 8.5', ssp370: 'MPI-ESM1-2-HR · SSP3-7.0' }
+let domainProduct = null, xr, yr
+function fillSelectors(keep) {
+  const c = state.climate
+  if (!keep) { $('product').innerHTML = ''; for (const k of Object.keys(PRODUCT)) $('product').add(new Option(PRODUCT[k], k, false, k === c.src)) }
+  $('scenario').innerHTML = ''; for (const s of [...new Set(climates.filter((k) => k.src === c.src).map((k) => k.scenario))]) $('scenario').add(new Option(SCEN[s] ?? s, s, false, s === c.scenario))
+  $('period').innerHTML = ''; for (const k of climates.filter((k) => k.src === c.src && k.scenario === c.scenario)) $('period').add(new Option(k.period, k.key, false, k.key === c.key))
+}
+function pick(src, scenario, period) { const cs = climates.filter((k) => k.src === src && (scenario == null || k.scenario === scenario)); return cs.find((k) => k.period === period) ?? cs.find((k) => k.present) ?? cs[0] }
 const op = (l) => Number(document.querySelector(`input.op[data-layer=${l}]`).value) / 100
 /** a grid density and the count level enclosing 95 % of the points, for the envelope contour */
 function grid(points, xr, yr, n) {
@@ -56,9 +68,8 @@ async function refresh() {
   const t0 = performance.now(), c = state.climate, p = presentOf(c), future = !c.present
   const [base, species, speciesPresent, basePresent] = await Promise.all([load(`base-${file(c)}.json`), load(`species-${slug(state.species)}-${file(c)}.json`), c.present ? null : load(`species-${slug(state.species)}-${file(p)}.json`), load(`base-${file(p)}.json`)])
   units = await load(`units-${slug(state.species)}.json`); refill()
-  let xmin = Infinity, xmax = -Infinity, ymax = -Infinity
-  for (const arr of [base, basePresent]) for (const [px, py] of arr) { if (px < xmin) xmin = px; if (px > xmax) xmax = px; if (py > ymax) ymax = py }
-  const xr = [xmin, xmax], yr = [0, ymax]
+  // the axes are fixed per product from its present base, padded for the future shift; the user's zoom survives updates (uirevision)
+  if (domainProduct !== c.src) { let xmin = Infinity, xmax = -Infinity, ymax = -Infinity; for (const [px, py] of basePresent) { if (px < xmin) xmin = px; if (px > xmax) xmax = px; if (py > ymax) ymax = py }; xr = [xmin - 1, xmax + 6]; yr = [0, ymax * 1.1]; domainProduct = c.src }
   const n = Number($('bins').value), traces = []
   if ($('baseMode').value === 'density') { const g = grid(base, xr, yr, n); traces.push({ type: 'heatmap', x: g.x, y: g.y, z: g.z.map((r) => r.map((v) => v || null)), colorscale: [[0, '#e8e8e8'], [0.3, '#9a9a9a'], [1, '#3a3a3a']], zsmooth: false, showscale: false, opacity: op('base'), hoverinfo: 'skip', name: 'all EU-Forest cells' }) }
   else if ($('baseMode').value === 'points') traces.push({ type: 'scattergl', mode: 'markers', name: 'all EU-Forest cells', x: base.map((d) => d[0]), y: base.map((d) => d[1]), marker: { size: 2, color: '#b9b9b9' }, opacity: op('base'), hoverinfo: 'skip' })
@@ -79,7 +90,7 @@ async function refresh() {
     text: vis.map((u) => `${u.id}${u.restricted ? ' (restricted)' : ''}<br>${u.species.join(', ')}` + (future ? `<br>present: ${u.values[p.key][0].toFixed(1)} °C · ${Math.round(u.values[p.key][1])} mm` : '')), hovertemplate: '%{text}<br>%{x:.1f} °C · %{y:.0f} mm<extra></extra>',
     marker: { size: vis.map((u) => u.id === state.unit ? 12 : 7), color: future ? '#c2185b' : '#e06a00', line: { color: '#fff', width: 1 } }, opacity: op('units') })
   const [xt, yt] = meta.pair.title.split(' × ')
-  const layout = { margin: { l: 60, r: 20, t: 8, b: 48 }, xaxis: { title: { text: xt }, range: xr }, yaxis: { title: { text: yt }, range: yr }, legend: { orientation: 'h', y: 1.02 }, dragmode: 'zoom', hovermode: 'closest' }
+  const layout = { margin: { l: 60, r: 20, t: 8, b: 48 }, xaxis: { title: { text: xt }, range: xr, autorange: false }, yaxis: { title: { text: yt }, range: yr, autorange: false }, legend: { orientation: 'h', y: 1.02 }, dragmode: 'zoom', hovermode: 'closest', uirevision: c.src }
   await Plotly.react('plot', traces, layout, { responsive: true, scrollZoom: true, displaylogo: false })
   status.textContent = `${c.label} · ${base.length} base, ${species.length} ${state.species}, ${vis.length} units · ${Math.round(performance.now() - t0)} ms · drag to zoom, double-click to reset`
 }
@@ -93,11 +104,12 @@ Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + '
   climates = cl; meta = m
   const q = new URLSearchParams(location.search); if (q.get('species') && m.species.includes(q.get('species'))) state.species = q.get('species')
   const want = q.get('climate') && cl.some((c) => c.key === q.get('climate')) ? q.get('climate') : 'worldclim|1970-2000|'
-  for (const c of cl) $('climate').add(new Option(c.label, c.key, false, c.key === want))
-  state.climate = cl.find((c) => c.key === want)
+  state.climate = cl.find((c) => c.key === want); fillSelectors(false)
   for (const s of m.species) $('speciesSel').add(new Option(s, s, false, s === state.species))
   refresh()
-  $('climate').addEventListener('change', (e) => { state.climate = cl.find((c) => c.key === e.target.value); refresh() })
+  $('product').addEventListener('change', (e) => { state.climate = pick(e.target.value, null, null); fillSelectors(true); refresh() })
+  $('scenario').addEventListener('change', (e) => { state.climate = pick(state.climate.src, e.target.value, state.climate.period); fillSelectors(true); refresh() })
+  $('period').addEventListener('change', (e) => { state.climate = cl.find((c) => c.key === e.target.value); refresh() })
   $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.country = ''; state.unit = ''; refresh() })
   $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refresh() })
   $('unitSel').addEventListener('change', (e) => { state.unit = e.target.value; refresh() })
