@@ -5,105 +5,155 @@
 <title>Scatterplot — D3 + Canvas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { color-scheme: light; --base: #c8c8c8; --species: #1f4e9c; --unit: #e06a00; --future: #c2185b; --ink: #222 }
-  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; color: var(--ink); background: #fff }
-  header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 16px; border-bottom: 1px solid #ddd }
-  header label { display: inline-flex; gap: 6px; align-items: center }
-  #wrap { position: relative; margin: 8px 16px }
+  :root { --base: #b9b9b9; --species: #1f4e9c; --unit: #e06a00; --future: #c2185b; --ink: #222 }
+  html, body { height: 100% }
+  body { margin: 0; font: 13px/1.4 system-ui, sans-serif; color: var(--ink); background: #fff; display: flex; flex-direction: column }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 14px; border-bottom: 1px solid #ddd; flex: none }
+  #search { background: #f6f6f6 }
+  label { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap }
+  input[type=range] { width: 64px; vertical-align: middle }
+  #wrap { position: relative; flex: 1 1 auto; min-height: 320px; margin: 4px 12px; overflow: hidden }
   canvas, svg { position: absolute; left: 0; top: 0 }
   svg { pointer-events: none }
-  #tip { position: absolute; background: #fff; border: 1px solid #999; padding: 4px 8px; font-size: 12px; pointer-events: none; display: none; border-radius: 3px }
-  #status { padding: 4px 16px; color: #555; font-size: 12px }
-  .legend span { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin: 0 4px 0 8px }
+  #tip { position: absolute; background: #fff; border: 1px solid #999; padding: 4px 8px; font-size: 12px; pointer-events: none; display: none; border-radius: 3px; z-index: 2 }
+  #status { padding: 4px 14px; color: #555; font-size: 12px; border-top: 1px solid #ddd; background: #fafafa; flex: none }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin: 0 3px 0 8px }
 </style>
 </head>
 <body>
-<header>
+<div class="bar">
   <strong>D3 + Canvas</strong>
-  <label>Climate <select id="source">
-    <option value="worldclim-1970-2000">WorldClim 2.1 · 1970–2000</option>
-    <option value="chelsa-1981-2010">CHELSA 2.1 · 1981–2010</option>
-    <option value="chelsa-2041-2070">CHELSA 2.1 · 2041–2070 (SSP3-7.0)</option>
-    <option value="chelsa-2071-2100">CHELSA 2.1 · 2071–2100 (SSP3-7.0)</option>
-    <option value="eutrees4f-1961-1990">EU-Trees4F · 1961–1990 (10 km)</option>
-  </select></label>
-  <label>Units in <select id="unitsPeriod">
-    <option value="present">present (CHELSA 1981–2010)</option>
-    <option value="2041-2070">2041–2070</option>
-    <option value="2071-2100">2071–2100</option>
-  </select></label>
-  <label><input type="checkbox" id="arrows" checked> arrows present → future</label>
-  <label><input type="checkbox" id="density"> base as hexbin density</label>
-  <label><input type="checkbox" id="showSpecies" checked> species</label>
+  <label>Climate <select id="climate"></select></label>
+  <label>Base <select id="baseMode"><option value="hex">hexagon density</option><option value="points">points</option><option value="none">hidden</option></select> <input type="range" id="hexR" min="2" max="10" value="4" title="hexagon radius"> <input type="range" class="op" data-layer="base" min="0" max="100" value="100" title="opacity"></label>
+  <label>Species <select id="speciesMode"><option value="points">points</option><option value="hex">hexagon density</option><option value="none">hidden</option></select> <input type="range" class="op" data-layer="species" min="0" max="100" value="100" title="opacity"></label>
+  <label><input type="checkbox" id="envelope" checked> envelope (95 %): present dashed, selected solid</label>
+  <label>Units <input type="range" class="op" data-layer="units" min="0" max="100" value="100" title="opacity"></label>
+  <label><input type="checkbox" id="arrows" checked> arrows present → selected</label>
+  <label><input type="checkbox" id="restricted" checked> include restricted units</label>
   <button id="reset">reset zoom</button>
-  <span class="legend"><span style="background:var(--base)"></span>all EU-Forest cells<span style="background:var(--species)"></span>Fagus sylvatica<span style="background:var(--unit)"></span>units<span style="background:var(--future)"></span>units, future</span>
-</header>
+</div>
+<div class="bar" id="search">
+  <label>Species <select id="speciesSel"></select></label>
+  <label>Country <select id="country"><option value="">all</option></select></label>
+  <label>Unit <select id="unitSel"><option value="">—</option></select></label>
+  <span id="searchInfo"></span>
+  <span><span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period</span>
+</div>
 <div id="wrap"><canvas id="c"></canvas><svg id="s"></svg><div id="tip"></div></div>
 <div id="status">loading…</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
 <script>
-const DATA = '../work/examples/data/'
-const M = { top: 10, right: 20, bottom: 46, left: 64 }
-const W = Math.min(window.innerWidth - 32, 1100), H = Math.max(420, window.innerHeight - 150)
-const canvas = document.getElementById('c'), svg = d3.select('#s'), tip = document.getElementById('tip'), status = document.getElementById('status')
-canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio; canvas.style.width = W + 'px'; canvas.style.height = H + 'px'
-svg.attr('width', W).attr('height', H); document.getElementById('wrap').style.height = H + 'px'
-const ctx = canvas.getContext('2d'); ctx.scale(devicePixelRatio, devicePixelRatio)
-const x0 = d3.scaleLinear().range([M.left, W - M.right]), y0 = d3.scaleLinear().range([H - M.bottom, M.top])
-let tx = d3.zoomIdentity, cache = {}, units, base = [], species = [], quad
-const gX = svg.append('g'), gY = svg.append('g')
-svg.append('text').attr('x', (M.left + W - M.right) / 2).attr('y', H - 8).attr('text-anchor', 'middle').text('Annual mean temperature (°C)')
-svg.append('text').attr('transform', `translate(14,${(M.top + H - M.bottom) / 2}) rotate(-90)`).attr('text-anchor', 'middle').text('Annual precipitation (mm)')
-const sel = (id) => document.getElementById(id)
-const css = (v) => getComputedStyle(document.body).getPropertyValue(v)
-async function load(name) {
-  if (!cache[name]) { const t = performance.now(); cache[name] = await (await fetch(DATA + name)).json(); status.textContent = `${name}: ${cache[name].length} points in ${Math.round(performance.now() - t)} ms` }
-  return cache[name]
+const DATA = '../work/examples/data/', $ = (id) => document.getElementById(id), css = (v) => getComputedStyle(document.body).getPropertyValue(v)
+const M = { top: 10, right: 16, bottom: 44, left: 62 }
+const wrap = $('wrap'), canvas = $('c'), svg = d3.select('#s'), tip = $('tip'), status = $('status'), ctx = canvas.getContext('2d')
+let W = 0, H = 0, tx = d3.zoomIdentity
+const x0 = d3.scaleLinear(), y0 = d3.scaleLinear()
+const gX = svg.append('g'), gY = svg.append('g'), xl = svg.append('text').attr('text-anchor', 'middle'), yl = svg.append('text').attr('text-anchor', 'middle')
+const cache = {}, state = { species: 'Fagus sylvatica', climate: null, country: '', unit: '' }
+let climates, meta, index, units = [], base = [], species = [], speciesPresent = [], quad
+const slug = (s) => s.replace(/\s+/g, '_'), file = (c) => `${c.src}-${c.period}${c.scenario ? '-' + c.scenario : ''}`
+const load = async (name) => { if (!cache[name]) { const t = performance.now(); cache[name] = await (await fetch(DATA + name)).json(); status.textContent = `${name}: ${cache[name].length} rows in ${Math.round(performance.now() - t)} ms` } return cache[name] }
+const presentOf = (c) => climates.find((k) => k.src === c.src && k.present)
+function size() {
+  W = wrap.clientWidth; H = wrap.clientHeight
+  canvas.width = W * devicePixelRatio; canvas.height = H * devicePixelRatio; canvas.style.width = W + 'px'; canvas.style.height = H + 'px'
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); svg.attr('width', W).attr('height', H)
+  x0.range([M.left, W - M.right]); y0.range([H - M.bottom, M.top])
+  const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : ''
+  xl.attr('x', (M.left + W - M.right) / 2).attr('y', H - 8).text(cap(meta?.pair.title.split(' × ')[0])); yl.attr('transform', `translate(13,${(M.top + H - M.bottom) / 2}) rotate(-90)`).text(cap(meta?.pair.title.split(' × ')[1]))
+  zoom.translateExtent([[M.left, M.top], [W - M.right, H - M.bottom]]).extent([[M.left, M.top], [W - M.right, H - M.bottom]])
 }
-function unitXY(u) { const p = sel('unitsPeriod').value; return p === 'present' ? u.present : u.future[p] }
 async function refresh() {
-  const k = sel('source').value
-  base = await load(`base-${k}.json`); species = await load(`species-Fagus_sylvatica-${k}.json`)
-  if (!units) units = await load('units-Fagus_sylvatica.json')
-  x0.domain(d3.extent(base, (d) => d[0])).nice(); y0.domain([0, d3.max(base, (d) => d[1])]).nice()
-  quad = d3.quadtree().x((u) => unitXY(u)[0]).y((u) => unitXY(u)[1]).addAll(units.filter((u) => unitXY(u)[0] != null))
-  draw()
+  const c = state.climate, p = presentOf(c)
+  base = await load(`base-${file(c)}.json`)
+  species = await load(`species-${slug(state.species)}-${file(c)}.json`)
+  speciesPresent = c.present ? species : await load(`species-${slug(state.species)}-${file(p)}.json`)
+  units = await load(`units-${slug(state.species)}.json`)
+  const allBase = await load(`base-${file(p)}.json`)
+  x0.domain(d3.extent(allBase.concat(base), (d) => d[0])).nice(); y0.domain([0, d3.max(allBase.concat(base), (d) => d[1])]).nice()
+  refill(); draw()
+}
+const unitXY = (u, c) => u.values[c.key]
+function visibleUnits() { return units.filter((u) => (state.country === '' || u.id.startsWith(state.country)) && (!state.unit || u.id === state.unit) && ($('restricted').checked || !u.restricted) && unitXY(u, state.climate)) }
+/** the hexbin contour that encloses ≥ 95 % of the points: hexbins in screen space, bins sorted by count */
+function envelope(points, x, y) {
+  const hex = d3.hexbin().x((d) => x(d[0])).y((d) => y(d[1])).radius(12).extent([[M.left, M.top], [W - M.right, H - M.bottom]])
+  const bins = hex(points).sort((a, b) => b.length - a.length)
+  let acc = 0, keep = []
+  for (const b of bins) { keep.push(b); acc += b.length; if (acc >= 0.95 * points.length) break }
+  return { bins: keep, hex }
 }
 function draw() {
-  const x = tx.rescaleX(x0), y = tx.rescaleY(y0)
-  const t0 = performance.now()
+  if (!base.length && !species.length) return
+  const x = tx.rescaleX(x0), y = tx.rescaleY(y0), t0 = performance.now(), op = (l) => $('wrap') && Number(document.querySelector(`input.op[data-layer=${l}]`).value) / 100
   ctx.clearRect(0, 0, W, H); ctx.save(); ctx.beginPath(); ctx.rect(M.left, M.top, W - M.left - M.right, H - M.top - M.bottom); ctx.clip()
-  if (sel('density').checked) {
-    const hex = d3.hexbin().x((d) => x(d[0])).y((d) => y(d[1])).radius(6).extent([[M.left, M.top], [W - M.right, H - M.bottom]])
-    const bins = hex(base), color = d3.scaleSequentialLog(d3.interpolateGreys).domain([1, d3.max(bins, (b) => b.length)])
-    const hexPath = new Path2D(hex.hexagon())
-    for (const b of bins) { ctx.fillStyle = color(b.length); ctx.save(); ctx.translate(b.x, b.y); ctx.fill(hexPath); ctx.restore() }
-  } else { ctx.fillStyle = css('--base'); for (const d of base) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5) }
-  if (sel('showSpecies').checked) { ctx.fillStyle = css('--species'); for (const d of species) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2) }
-  const future = sel('unitsPeriod').value !== 'present'
-  if (sel('arrows').checked && future) {
-    ctx.strokeStyle = 'rgba(224,106,0,.45)'; ctx.lineWidth = 1
-    for (const u of units) { const a = u.present, b = unitXY(u); if (a[0] == null || b[0] == null) continue; ctx.beginPath(); ctx.moveTo(x(a[0]), y(a[1])); ctx.lineTo(x(b[0]), y(b[1])); ctx.stroke() }
+  const hexOf = (pts, r) => { const hex = d3.hexbin().x((d) => x(d[0])).y((d) => y(d[1])).radius(r).extent([[M.left, M.top], [W - M.right, H - M.bottom]]); return { hex, bins: hex(pts) } }
+  const drawHex = (pts, r, interp, alpha) => { const { hex, bins } = hexOf(pts, r); const color = d3.scaleSequentialLog(interp).domain([1, d3.max(bins, (b) => b.length)]); const path = new Path2D(hex.hexagon()); ctx.globalAlpha = alpha; for (const b of bins) { ctx.fillStyle = color(b.length); ctx.save(); ctx.translate(b.x, b.y); ctx.fill(path); ctx.restore() } ctx.globalAlpha = 1 }
+  const r = Number($('hexR').value)
+  if ($('baseMode').value === 'hex') drawHex(base, r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
+  else if ($('baseMode').value === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of base) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
+  if ($('speciesMode').value === 'hex') drawHex(species, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op('species'))
+  else if ($('speciesMode').value === 'points') { ctx.globalAlpha = op('species'); ctx.fillStyle = css('--species'); for (const d of species) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2); ctx.globalAlpha = 1 }
+  if ($('envelope').checked) {
+    // the boundary of the 95 % hexagon set: each hexagon edge whose neighbour across it is not in the set
+    const outline = (pts, dash, color) => {
+      const { bins, hex } = envelope(pts, x, y), r = hex.radius(), dx = r * Math.sqrt(3), dy = 1.5 * r
+      const key = (bx, by) => `${Math.round(bx * 10)},${Math.round(by * 10)}`, kept = new Set(bins.map((b) => key(b.x, b.y)))
+      const nb = [[dx, 0], [dx / 2, dy], [-dx / 2, dy], [-dx, 0], [-dx / 2, -dy], [dx / 2, -dy]]   // neighbour across edge i (pointy-top hexagon, vertices at 30° + 60°·k)
+      const v = (k) => [r * Math.cos(Math.PI / 6 + k * Math.PI / 3), -r * Math.sin(Math.PI / 6 + k * Math.PI / 3)]
+      ctx.save(); ctx.setLineDash(dash); ctx.strokeStyle = color; ctx.lineWidth = 2.6; ctx.lineJoin = 'round'; ctx.globalAlpha = 1; ctx.beginPath()
+      for (const b of bins) for (let i = 0; i < 6; i++) { if (kept.has(key(b.x + nb[i][0], b.y + nb[i][1]))) continue; const [ax, ay] = v(i), [cx, cy] = v(i + 1); ctx.moveTo(b.x + ax, b.y + ay); ctx.lineTo(b.x + cx, b.y + cy) }
+      ctx.stroke(); ctx.restore()
+    }
+    if (!state.climate.present) outline(speciesPresent, [6, 4], '#0d2a66')
+    outline(species, [], state.climate.present ? '#0d2a66' : '#8e0038')
+  }
+  const vis = visibleUnits(), c = state.climate, p = presentOf(c), future = !c.present
+  ctx.globalAlpha = op('units')
+  if ($('arrows').checked && future) {
+    ctx.strokeStyle = 'rgba(224,106,0,.3)'; ctx.fillStyle = 'rgba(224,106,0,.5)'; ctx.lineWidth = 0.8
+    for (const u of vis) { const a = unitXY(u, p), b = unitXY(u, c); if (!a || !b) continue; const ax = x(a[0]), ay = y(a[1]), bx = x(b[0]), by = y(b[1]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); const ang = Math.atan2(by - ay, bx - ax); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - 6 * Math.cos(ang - 0.4), by - 6 * Math.sin(ang - 0.4)); ctx.lineTo(bx - 6 * Math.cos(ang + 0.4), by - 6 * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill() }
   }
   ctx.fillStyle = css(future ? '--future' : '--unit'); ctx.strokeStyle = '#fff'
-  for (const u of units) { const p = unitXY(u); if (p[0] == null) continue; ctx.beginPath(); ctx.arc(x(p[0]), y(p[1]), 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
-  ctx.restore()
+  for (const u of vis) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state.unit === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
+  ctx.globalAlpha = 1; ctx.restore()
   gX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x)); gY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y))
-  status.textContent = `${base.length} base + ${species.length} species + ${units.length} units drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  quad = d3.quadtree().x((u) => unitXY(u, c)[0]).y((u) => unitXY(u, c)[1]).addAll(vis)
+  status.textContent = `${state.climate.label} · ${base.length} base, ${species.length} ${state.species}, ${vis.length} units (${units.filter((u) => u.restricted).length} restricted in all) · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
-const zoom = d3.zoom().scaleExtent([1, 40]).translateExtent([[M.left, M.top], [W - M.right, H - M.bottom]]).extent([[M.left, M.top], [W - M.right, H - M.bottom]]).on('zoom', (e) => { tx = e.transform; draw() })
+const zoom = d3.zoom().scaleExtent([1, 60]).on('zoom', (e) => { tx = e.transform; draw() })
 d3.select(canvas).call(zoom)
 canvas.addEventListener('mousemove', (e) => {
   if (!quad) return
-  const x = tx.rescaleX(x0), y = tx.rescaleY(y0), r = e.offsetX, s = e.offsetY
-  const u = quad.find(x.invert(r), y.invert(s)); if (!u) return
-  const p = unitXY(u), d = Math.hypot(x(p[0]) - r, y(p[1]) - s)
-  if (d < 8) { tip.style.display = 'block'; tip.style.left = r + 12 + 'px'; tip.style.top = s + 12 + 'px'; tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ' (restricted)' : ''}<br>${p[0].toFixed(1)} °C · ${Math.round(p[1])} mm<br>${u.species.join(', ')}` } else tip.style.display = 'none'
+  const x = tx.rescaleX(x0), y = tx.rescaleY(y0), r = e.offsetX, s = e.offsetY, u = quad.find(x.invert(r), y.invert(s)); if (!u) return
+  const q = unitXY(u, state.climate), d = Math.hypot(x(q[0]) - r, y(q[1]) - s)
+  if (d < 8) { const p = unitXY(u, presentOf(state.climate)); tip.style.display = 'block'; tip.style.left = r + 12 + 'px'; tip.style.top = s + 12 + 'px'; tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ' (restricted)' : ''}<br>${q[0].toFixed(1)} °C · ${Math.round(q[1])} mm` + (state.climate.present ? '' : `<br>present: ${p[0].toFixed(1)} °C · ${Math.round(p[1])} mm`) + `<br>${u.species.join(', ')}` } else tip.style.display = 'none'
 })
-for (const id of ['source', 'unitsPeriod', 'arrows', 'density', 'showSpecies']) sel(id).addEventListener('change', refresh)
-sel('reset').addEventListener('click', () => d3.select(canvas).call(zoom.transform, d3.zoomIdentity))
-refresh()
+function refill() {
+  const sel = units.filter((u) => $('restricted').checked || !u.restricted)
+  const countries = [...new Set(sel.map((u) => u.id.slice(0, 3)))].sort()
+  const cs = $('country'); cs.innerHTML = '<option value="">all</option>'; for (const c of countries) cs.add(new Option(`${c} (${sel.filter((u) => u.id.startsWith(c)).length})`, c, false, c === state.country))
+  const us = $('unitSel'); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !state.country || u.id.startsWith(state.country))) us.add(new Option(u.id + (u.restricted ? ' (restricted)' : ''), u.id, false, u.id === state.unit))
+  $('searchInfo').textContent = `${sel.length} units of ${state.species}`
+}
+Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + 'meta.json').then((r) => r.json())]).then(([cl, m]) => {
+  climates = cl; meta = m
+  const q = new URLSearchParams(location.search); if (q.get('species') && m.species.includes(q.get('species'))) state.species = q.get('species')
+  const want = q.get('climate') && cl.some((c) => c.key === q.get('climate')) ? q.get('climate') : 'worldclim|1970-2000|'
+  for (const c of cl) $('climate').add(new Option(c.label, c.key, false, c.key === want))
+  state.climate = cl.find((c) => c.key === want)
+  for (const s of m.species) $('speciesSel').add(new Option(s, s, false, s === state.species))
+  size(); refresh()
+  $('climate').addEventListener('change', (e) => { state.climate = cl.find((c) => c.key === e.target.value); refresh() })
+  $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.country = ''; state.unit = ''; refresh() })
+  $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill(); draw() })
+  $('unitSel').addEventListener('change', (e) => { state.unit = e.target.value; draw() })
+  for (const id of ['baseMode', 'speciesMode', 'envelope', 'arrows', 'restricted']) $(id).addEventListener('change', () => { refill(); draw() })
+  for (const r of document.querySelectorAll('input[type=range]')) r.addEventListener('input', draw)
+  $('reset').addEventListener('click', () => d3.select(canvas).call(zoom.transform, d3.zoomIdentity))
+  new ResizeObserver(() => { size(); draw() }).observe(wrap)
+})
 </script>
 </body>
 </html>

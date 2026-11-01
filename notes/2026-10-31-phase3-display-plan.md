@@ -101,7 +101,21 @@ present and future, `work/examples/data/`), served locally by `examples/serve.mj
 3. `map-openlayers.html` — OpenLayers: Atlas RPP COG styled client-side, EU-Trees4F future layer,
    chorology outline, units; click → the clicked cell's values shown as a point on the scatterplot.
 
-The choice is made on these, not on prose. **Built 2026-10-31**, to be opened by Milko: start the
+The choice is made on these, not on prose.
+
+**Scatterplot iteration 1 (2026-11-01)**, after Milko's design brief (one climate selector moving all
+three layers; densities for base and species; the envelope; arrows; species and unit search; per-layer
+dials): both pages rebuilt. Data: `sources/export/pair.js` writes pair P1 for every source × period ×
+scenario (16 climates) and three species (beech, holm oak, spruce), 91 MB of JSON under
+`work/examples/data/`. Each page: climate selector (16 entries), species selector, country / unit
+search with the restriction toggle at the "values" level, base as hexagon (D3) or square (Plotly)
+density or points, species as points or density, the **95 % envelope** of the species cloud (present
+dashed, selected period solid — in D3 the boundary of the hexagon set holding 95 % of the points, in
+Plotly a contour at the count level enclosing 95 %), arrows from present to selected period for the
+units, opacity dials, URL parameters `?species=&climate=`. Screenshot of the D3 page for beech under
+CHELSA 2071–2100: [`compare/d3-example-fagus-chelsa-2071-2100.png`](compare/d3-example-fagus-chelsa-2071-2100.png).
+Not yet: the EU-Trees4F Figure 1 classification view, the map → scatterplot link, the unit
+reference-point distance flag, the pair selector (needs the service or five times the export). **Built 2026-10-31**, to be opened by Milko: start the
 server with `node examples/serve.mjs 8080` and open http://localhost:8080/examples/ . Libraries come
 from CDNs (D3 7.9, d3-hexbin, Plotly 2.35, OpenLayers 10.2, proj4); the map works in the Atlas rasters'
 own projection (EPSG:3035) so the 1 km COGs are read directly by byte range, never warped. The unit
