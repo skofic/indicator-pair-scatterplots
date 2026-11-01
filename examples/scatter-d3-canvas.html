@@ -5,7 +5,7 @@
 <title>Scatterplot — D3 + Canvas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --base: #b9b9b9; --species: #1f4e9c; --unit: #e06a00; --future: #c2185b; --ink: #222 }
+  :root { --base: #b9b9b9; --species: #1f4e9c; --unit: #e06a00; --future: #c2185b; --stable: #f2c200; --lost: #d7301f; --new: #2b6cd4; --ink: #222 }
   html, body { height: 100% }
   body { margin: 0; font: 13px/1.4 system-ui, sans-serif; color: var(--ink); background: #fff; display: flex; flex-direction: column }
   .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 14px; border-bottom: 1px solid #ddd; flex: none }
@@ -24,6 +24,7 @@
 <body>
 <div class="bar">
   <strong>D3 + Canvas</strong>
+  <label>View <select id="view"><option value="layers">layers</option><option value="classes">suitability classes (EU-Trees4F Fig. 1)</option></select></label>
   <label>Product <select id="product"></select></label>
   <label>Scenario <select id="scenario"></select></label>
   <label>Period <select id="period"></select></label>
@@ -34,6 +35,11 @@
   <label><input type="checkbox" id="arrows" checked> arrows present → selected</label>
   <label><input type="checkbox" id="restricted" checked> include restricted units</label>
   <button id="reset" title="also: double-click the plot">reset view</button>
+  <span id="classCtl" style="display:none">
+    <label>Suitability <select id="variant"><option value="pot">potential (climate only)</option><option value="disp">with natural dispersal (MigClim)</option></select></label>
+    <label>Cells at <select id="classPos"><option value="present">present climate</option><option value="future">selected period</option></select></label>
+    <label>Bins <select id="binSize"><option value="0.5,50">0.5 °C × 50 mm</option><option value="1,100">1 °C × 100 mm</option><option value="2,200" selected>2 °C × 200 mm</option></select> ≥ <select id="binMin"><option>10</option><option>30</option><option selected>100</option><option>300</option></select> cells</label>
+  </span>
 </div>
 <div class="bar" id="search">
   <label>Species <select id="speciesSel"></select></label>
@@ -41,7 +47,7 @@
   <label>Unit <select id="unitSel"><option value="">—</option></select></label>
   <span id="searchInfo"></span>
   <label>Selection <span id="selCount">0</span> <select id="selMode"><option value="all">show all units</option><option value="only">only the selection</option><option value="hide">hide the selection</option></select> <button id="selClear">clear</button></label>
-  <span><span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period</span>
+  <span id="legend"></span>
   <span style="color:#777">drag = zoom to box · wheel = zoom · shift-drag = pan · double-click = reset · option-click a unit = add to / remove from the selection</span>
 </div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div></div>
@@ -55,10 +61,15 @@ const wrap = $('wrap'), canvas = $('c'), over = $('over'), svg = d3.select('#s')
 let W = 0, H = 0, tx = d3.zoomIdentity
 const x0 = d3.scaleLinear(), y0 = d3.scaleLinear()
 const gGX = svg.append('g').attr('class', 'grid'), gGY = svg.append('g').attr('class', 'grid'), gX = svg.append('g'), gY = svg.append('g'), xl = svg.append('text').attr('text-anchor', 'middle'), yl = svg.append('text').attr('text-anchor', 'middle')
-const cache = {}, state = { species: 'Fagus sylvatica', climate: null, country: '', unit: '', hover: null, selection: new Set(), selMode: 'all' }
+const cache = {}, state = { species: 'Fagus sylvatica', climate: null, country: '', unit: '', hover: null, selection: new Set(), selMode: 'all', view: 'layers' }
 let climates, meta, units = [], base = [], species = [], speciesPresent = [], quad, domainProduct = null
+let basePresent = [], aligned = [], classes = ''   // class view: present pair per cell, future pair per cell (null when missing), one class digit per cell
+// EU-Trees4F pairs each future map with the climate of the previous 30 years (paper, Methods: the current map, cur2005, is driven by 1961-1990)
+const FUT_MAP = { '1991-2020': 'fut2035', '2021-2050': 'fut2065', '2051-2080': 'fut2095' }
+const CLASS = { 1: ['stable', '--stable'], 2: ['decolonised', '--lost'], 3: ['newly suitable', '--new'] }
+const classView = () => state.view === 'classes' && state.climate.src === 'eutrees4f' && !state.climate.present
 const slug = (s) => s.replace(/\s+/g, '_'), file = (c) => `${c.src}-${c.period}${c.scenario ? '-' + c.scenario : ''}`
-const load = async (name) => { if (!cache[name]) { const t = performance.now(); cache[name] = await (await fetch(DATA + name)).json(); status.textContent = `${name}: ${cache[name].length} rows in ${Math.round(performance.now() - t)} ms` } return cache[name] }
+const load = async (name) => { if (!cache[name]) { const t = performance.now(); cache[name] = await (await fetch(DATA + name)).json(); status.textContent = `${name}: ${cache[name].length ?? Object.keys(cache[name]).length} rows in ${Math.round(performance.now() - t)} ms` } return cache[name] }
 const presentOf = (c) => climates.find((k) => k.src === c.src && k.present)
 const PRODUCT = { eutrees4f: 'EU-Trees4F (WorldClim 1.4 + EURO-CORDEX, 10 km)', worldclim: 'WorldClim 2.1 (1 km)', chelsa: 'CHELSA 2.1 (1 km)' }
 const SCEN = { '': 'present (reference)', rcp45: 'RCP 4.5', rcp85: 'RCP 8.5', ssp370: 'MPI-ESM1-2-HR · SSP3-7.0' }
@@ -96,7 +107,51 @@ async function refresh() {
   speciesPresent = c.present ? species : await load(`species-${slug(state.species)}-${file(p)}.json`)
   units = await load(`units-${slug(state.species)}.json`)
   if (domainProduct !== c.src) { fixDomain(await load(`base-${file(p)}.json`)); domainProduct = c.src; tx = d3.zoomIdentity }
+  const avail = c.src === 'eutrees4f' && !c.present
+  $('view').options[1].disabled = !avail; if (!avail && state.view === 'classes') { state.view = 'layers'; $('view').value = 'layers' }
+  $('classCtl').style.display = classView() ? '' : 'none'
+  if (classView()) {
+    basePresent = await load(`base-${file(p)}.json`); aligned = await load(`aligned-${file(c)}.json`)
+    classes = (await load(`suitability-${slug(state.species)}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${$('variant').value}`] ?? ''
+  }
+  $('legend').innerHTML = classView()
+    ? `<span class="sw" style="background:var(--base)"></span>all cells, present and selected period<span class="sw" style="background:var(--stable)"></span>stable<span class="sw" style="background:var(--lost)"></span>decolonised<span class="sw" style="background:var(--new)"></span>newly suitable<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period · arrows = mean climate shift per bin, thick = whole species envelope`
+    : `<span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period`
   refill(); draw()
+}
+/** where a unit is drawn: the class view keeps everything in the present climate space (the arrows show the shift) */
+const unitPos = (u) => classView() ? unitXY(u, presentOf(state.climate)) : unitXY(u, state.climate)
+function arrow(ax, ay, bx, by, w, head) {
+  ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke()
+  const ang = Math.atan2(by - ay, bx - ax); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - head * Math.cos(ang - 0.4), by - head * Math.sin(ang - 0.4)); ctx.lineTo(bx - head * Math.cos(ang + 0.4), by - head * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill()
+}
+/** EU-Trees4F Figure 1: every cell coloured by its suitability class (current binary map vs the selected period's), the
+ *  cells drawn at their present or future pair values; arrows = mean shift present → future of the species' current
+ *  envelope (classes stable + decolonised) per climate bin, the thick arrow for the whole envelope */
+function drawClasses(x, y, drawHex, r, op) {
+  const bm = $('baseMode').value
+  if (bm === 'hex') drawHex(basePresent.concat(aligned.filter(Boolean)), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
+  else if (bm === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of basePresent) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); for (const d of aligned) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
+  const pos = $('classPos').value === 'present' ? basePresent : aligned, n = classes.length, counts = [0, 0, 0, 0]
+  if ($('speciesMode').value !== 'none') {
+    ctx.globalAlpha = op('species')
+    for (const k of [1, 3, 2]) { ctx.fillStyle = css(CLASS[k][1]); const ch = String(k); for (let i = 0; i < n; i++) if (classes[i] === ch) { counts[k]++; const d = pos[i]; if (d) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2) } }
+    ctx.globalAlpha = 1
+  } else for (let i = 0; i < n; i++) counts[classes.charCodeAt(i) - 48]++
+  if ($('arrows').checked) {
+    const [bx, by] = $('binSize').value.split(',').map(Number), min = Number($('binMin').value), bins = new Map(), all = [0, 0, 0, 0, 0]
+    for (let i = 0; i < n; i++) {
+      if (classes[i] !== '1' && classes[i] !== '2') continue
+      const a = basePresent[i], b = aligned[i]; if (!b) continue
+      const key = `${Math.floor(a[0] / bx)},${Math.floor(a[1] / by)}`; let s = bins.get(key); if (!s) bins.set(key, s = [0, 0, 0, 0, 0])
+      for (const acc of [s, all]) { acc[0]++; acc[1] += a[0]; acc[2] += a[1]; acc[3] += b[0]; acc[4] += b[1] }
+    }
+    ctx.save(); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; ctx.lineCap = 'round'
+    for (const s of bins.values()) if (s[0] >= min) arrow(x(s[1] / s[0]), y(s[2] / s[0]), x(s[3] / s[0]), y(s[4] / s[0]), 1.2, 6)
+    if (all[0]) { ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; arrow(x(all[1] / all[0]), y(all[2] / all[0]), x(all[3] / all[0]), y(all[4] / all[0]), 6, 14); ctx.strokeStyle = '#111'; ctx.fillStyle = '#111'; arrow(x(all[1] / all[0]), y(all[2] / all[0]), x(all[3] / all[0]), y(all[4] / all[0]), 3.5, 12) }
+    ctx.restore()
+  }
+  return counts
 }
 const unitXY = (u, c) => u.values[c.key]
 function visibleUnits() {
@@ -124,10 +179,13 @@ function draw() {
   const x = tx.rescaleX(x0), y = tx.rescaleY(y0), t0 = performance.now(), op = (l) => Number(document.querySelector(`input.op[data-layer=${l}]`).value) / 100
   ctx.clearRect(0, 0, W, H); ctx.save(); ctx.beginPath(); ctx.rect(M.left, M.top, W - M.left - M.right, H - M.top - M.bottom); ctx.clip()
   const drawHex = (pts, r, interp, alpha) => { const hex = d3.hexbin().x((d) => x(d[0])).y((d) => y(d[1])).radius(r).extent([[M.left, M.top], [W - M.right, H - M.bottom]]); const bins = hex(pts); const color = d3.scaleSequentialLog(interp).domain([1, d3.max(bins, (b) => b.length)]); const path = new Path2D(hex.hexagon()); ctx.globalAlpha = alpha; for (const b of bins) { ctx.fillStyle = color(b.length); ctx.save(); ctx.translate(b.x, b.y); ctx.fill(path); ctx.restore() } ctx.globalAlpha = 1 }
-  const r = Number($('hexR').value)
-  if ($('baseMode').value === 'hex') drawHex(base, r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
+  const r = Number($('hexR').value), cv = classView()
+  let counts = null
+  if (cv) counts = drawClasses(x, y, drawHex, r, op)
+  else if ($('baseMode').value === 'hex') drawHex(base, r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
   else if ($('baseMode').value === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of base) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
-  if ($('speciesMode').value === 'hex') drawHex(species, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op('species'))
+  if (cv) {}
+  else if ($('speciesMode').value === 'hex') drawHex(species, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op('species'))
   else if ($('speciesMode').value === 'points') { ctx.globalAlpha = op('species'); ctx.fillStyle = css('--species'); for (const d of species) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2); ctx.globalAlpha = 1 }
   if ($('envelope').checked) {
     ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'
@@ -138,17 +196,19 @@ function draw() {
   ctx.globalAlpha = op('units')
   if ($('arrows').checked && future) {
     ctx.strokeStyle = 'rgba(224,106,0,.3)'; ctx.fillStyle = 'rgba(224,106,0,.5)'; ctx.lineWidth = 0.8
-    for (const u of vis) { const a = unitXY(u, p), b = unitXY(u, c); if (!a || !b) continue; const ax = x(a[0]), ay = y(a[1]), bx = x(b[0]), by = y(b[1]); ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke(); const ang = Math.atan2(by - ay, bx - ax); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - 6 * Math.cos(ang - 0.4), by - 6 * Math.sin(ang - 0.4)); ctx.lineTo(bx - 6 * Math.cos(ang + 0.4), by - 6 * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill() }
+    for (const u of vis) { const a = unitXY(u, p), b = unitXY(u, c); if (!a || !b) continue; arrow(x(a[0]), y(a[1]), x(b[0]), y(b[1]), 0.8, 6) }
   }
-  ctx.fillStyle = css(future ? '--future' : '--unit'); ctx.strokeStyle = '#fff'
-  for (const u of vis) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state.unit === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
+  if (cv) { ctx.fillStyle = css('--future'); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; for (const u of vis) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 2.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() } }
+  ctx.fillStyle = css(future && !cv ? '--future' : '--unit'); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1
+  for (const u of vis) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state.unit === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
   ctx.strokeStyle = '#111'; ctx.lineWidth = 2
-  for (const u of vis) if (state.selection.has(u.id)) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
+  for (const u of vis) if (state.selection.has(u.id)) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
   ctx.globalAlpha = 1; ctx.restore()
   gX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x)); gY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y))
   gGX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x).tickSize(-(H - M.top - M.bottom)).tickFormat('')); gGY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y).tickSize(-(W - M.left - M.right)).tickFormat(''))
-  quad = d3.quadtree().x((u) => x(unitXY(u, c)[0])).y((u) => y(unitXY(u, c)[1])).addAll(vis)   // screen space: hit tests are pixel distances
-  status.textContent = `${c.label} · ${base.length} base, ${species.length} ${state.species}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected) · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  quad = d3.quadtree().x((u) => x(unitPos(u)[0])).y((u) => y(unitPos(u)[1])).addAll(vis)   // screen space: hit tests are pixel distances
+  const what = cv ? `suitability around ${FUT_MAP[c.period].slice(3)} (climate ${c.period}, ${SCEN[c.scenario]}, ${$('variant').value === 'pot' ? 'potential' : 'with dispersal'}) vs current: ${counts[1]} stable, ${counts[2]} decolonised, ${counts[3]} newly suitable of ${basePresent.length} cells` : `${base.length} base, ${species.length} ${state.species}`
+  status.textContent = `${c.label} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected) · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
 // ---- interaction: wheel = zoom, shift-drag = pan, drag = box zoom, double-click = reset; hover on the overlay canvas
 const zoom = d3.zoom().scaleExtent([1, 80]).filter((e) => e.type === 'wheel' || (e.type !== 'dblclick' && e.shiftKey)).on('zoom', (e) => { tx = e.transform; draw() })
@@ -170,8 +230,8 @@ canvas.addEventListener('mousemove', (e) => {
   if (!quad) return
   const u = quad.find(e.offsetX, e.offsetY, 10)
   if (u) {
-    const c = state.climate, q = unitXY(u, c), p = unitXY(u, presentOf(c)), x = tx.rescaleX(x0), y = tx.rescaleY(y0)
-    octx.beginPath(); octx.arc(x(q[0]), y(q[1]), 7, 0, 2 * Math.PI); octx.strokeStyle = '#222'; octx.lineWidth = 2; octx.stroke()
+    const c = state.climate, q = unitXY(u, c), p = unitXY(u, presentOf(c)), d = unitPos(u), x = tx.rescaleX(x0), y = tx.rescaleY(y0)
+    octx.beginPath(); octx.arc(x(d[0]), y(d[1]), 7, 0, 2 * Math.PI); octx.strokeStyle = '#222'; octx.lineWidth = 2; octx.stroke()
     tip.style.display = 'block'; tip.style.left = Math.min(e.offsetX + 14, W - 220) + 'px'; tip.style.top = e.offsetY + 14 + 'px'
     tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ' (restricted)' : ''}<br>${q[0].toFixed(1)} °C · ${Math.round(q[1])} mm` + (c.present ? '' : `<br>present: ${p[0].toFixed(1)} °C · ${Math.round(p[1])} mm`) + `<br>${u.species.join(', ')}`
   } else tip.style.display = 'none'
@@ -204,6 +264,10 @@ Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + '
   $('scenario').addEventListener('change', (e) => { state.climate = pick(state.climate.src, e.target.value, state.climate.period); fillSelectors(true); refresh() })
   $('period').addEventListener('change', (e) => { state.climate = cl.find((c) => c.key === e.target.value); refresh() })
   $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.country = ''; state.unit = ''; refresh() })
+  if (q.get('view') === 'classes') { state.view = 'classes'; $('view').value = 'classes' }
+  $('view').addEventListener('change', (e) => { state.view = e.target.value; refresh() })
+  $('variant').addEventListener('change', refresh)
+  for (const id of ['classPos', 'binSize', 'binMin']) $(id).addEventListener('change', draw)
   $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill(); draw() })
   $('unitSel').addEventListener('change', (e) => { state.unit = e.target.value; draw() })
   for (const id of ['baseMode', 'speciesMode', 'envelope', 'arrows', 'restricted']) $(id).addEventListener('change', () => { refill(); draw() })

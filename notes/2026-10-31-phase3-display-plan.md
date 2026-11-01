@@ -123,8 +123,24 @@ the future shift) so the view does not jump between periods, and the user's zoom
 `uirevision`); **box zoom by dragging** in D3 as in Plotly (wheel zoom, shift-drag pan, double-click
 reset); hover on a separate overlay canvas with a 10 px hit radius and a highlight ring. Both pages
 verified headless; D3 screenshot: [`compare/d3-example-fagus-eutrees4f-2051-2080-rcp85.png`](compare/d3-example-fagus-eutrees4f-2051-2080-rcp85.png).
-Not yet: the EU-Trees4F Figure 1 classification view, the map → scatterplot link, the unit
-reference-point distance flag, the pair selector (needs the service or five times the export). **Built 2026-10-31**, to be opened by Milko: start the
+**Iteration 3 (2026-11-01): the EU-Trees4F Figure 1 classification view**, a `View` selector on the D3
+page, available for the EU-Trees4F product and a future period. Every base cell is classified from the
+published binary maps (`sources/export/suitability.js`: current `cur2005` potential map vs the selected
+period's map, potential or natural-dispersal variant) as stable (yellow), decolonised (red) or newly
+suitable (blue), drawn at the cell's present pair values (or at the selected period's, a toggle) over
+the grey cloud of all cells at both periods; black arrows give the mean climate shift per bin of the
+species' current envelope (stable + decolonised cells; bin size and minimum count selectable, default
+2 °C × 200 mm, ≥ 100 cells; the paper drew fifteen random bins), the thick arrow the shift of the whole
+envelope; units stay at their present position with thin arrows to the selected period. **Period
+pairing** follows the paper's Methods: a future map is driven by the climate of the previous 30 years,
+so map 2035 ↔ climate 1991–2020, 2065 ↔ 2021–2050, 2095 ↔ 2051–2080 (the R scripts' `fut1..3`). Found
+on the way: the 804 published dispersal binary rasters carry no CRS (same 10 km EPSG:3035 grid as the
+potential ones, cropped by whole cells); the served COGs now get it assigned at conversion, the manifest
+and the Dataset record say so. Screenshot, holm oak 2095 RCP 8.5:
+[`compare/d3-example-ilex-classes-eutrees4f-2095-rcp85.png`](compare/d3-example-ilex-classes-eutrees4f-2095-rcp85.png).
+Not yet: the map → scatterplot link, the unit reference-point distance flag, the pair selector (needs
+the service or five times the export), the class of each unit's own cell (a service-side raster
+sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the
 server with `node examples/serve.mjs 8080` and open http://localhost:8080/examples/ . Libraries come
 from CDNs (D3 7.9, d3-hexbin, Plotly 2.35, OpenLayers 10.2, proj4); the map works in the Atlas rasters'
 own projection (EPSG:3035) so the 1 km COGs are read directly by byte range, never warped. The unit
@@ -140,4 +156,5 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-01 | **Scatterplot library: D3 + Canvas** (Milko, after iteration 2 brought it level with Plotly on defaults, selector, envelope, hover, fixed axes and box zoom): Plotly's ease and polish do not beat D3's flexibility, and the pane must live inside TYPO3, where a 4.5 MB dependency we do not control weighs. Plotly is retired from the examples (kept in git history). **Unit selection**: option-click on a hovered unit toggles it in a selection; modes show all / only the selection / hide the selection; clear. |
 | 2026-10-31 | **Map pane colours and layout (Milko):** base map list gains "country boundaries only" (Natural Earth 1:50 m, public domain, drawn by the page) after "none"; Atlas presence green and suitability blue stay; EU-Trees4F current = yellow, future = magenta (orange = units, purple = chorology outline); the click read-out is its own row below the map. **Map pane approved.** Pending: a per-unit flag when the reference point lies more than 5 km from the unit polygon (28 units exceed 20 km today; data quality is a work in progress on the EUFGIS side). |
 | 2026-10-31 | **Serving strategy (Milko agrees, Claude chooses):** two channels. **A Foxx service in `GeoService`** for everything that is a query — species layer, units, facet counts, manifest, click lookup, optional binned density; **static file hosting** (Phase 4) for the bulk: precomputed base layers per pair × source × period and the COG rasters read by byte range. Examples switch from exported files to the service once the scatterplot library is chosen. |
+| 2026-11-01 | **Figure 1 classification view built** (iteration 3, see §4): classes from the published EU-Trees4F binary maps, never recomputed; period pairing per the paper's 30-year lag; the view is labelled as a projection of present cells into the selected period's suitability. Pending Milko's review. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |

@@ -12,9 +12,15 @@ for ens in ${@:-ens_sdms ens_clim}; do
     for f in "$SRC/$ens/$kind"/*.tif; do
       b="$(basename "$f")"; o="$OUT/$ens/$kind/$b"
       [ -f "$o" ] && continue
-      if gdal_translate -q -of COG -co COMPRESS=DEFLATE -co PREDICTOR=2 -co OVERVIEWS=IGNORE_EXISTING "$f" "$o" 2>>"$LOG"; then :; else echo "FAILED $f" >> "$LOG"; rm -f "$o"; fi
+      case "$b" in *_disp*) srs="-a_srs EPSG:3035";; *) srs="";; esac   # see the note below
+      if gdal_translate -q -of COG $srs -co COMPRESS=DEFLATE -co PREDICTOR=2 -co OVERVIEWS=IGNORE_EXISTING "$f" "$o" 2>>"$LOG"; then :; else echo "FAILED $f" >> "$LOG"; rm -f "$o"; fi
     done
     echo "$ens/$kind: $(ls "$OUT/$ens/$kind" | wc -l | tr -d ' ') files" >> "$LOG"
   done
 done
+# The published natural-dispersal ("disp", MigClim) binary rasters carry NO coordinate reference system (804 of
+# 1 742 files, found 2026-11-01). They sit on the same 10 km INSPIRE EPSG:3035 grid as the "pot" ones, cropped:
+# 389 × 400 cells from origin (2 640 000, 5 420 000) instead of 400 × 410 from (2 600 000, 5 500 000), i.e. offsets of
+# whole cells (verified). The CRS is assigned at conversion (-a_srs above; a COG cannot be edited afterwards) — a
+# documented change under the CC0 source.
 echo "end $(date -u +%FT%TZ)" >> "$LOG"
