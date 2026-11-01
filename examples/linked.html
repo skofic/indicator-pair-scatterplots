@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Map ↔ scatterplot</title>
+<style>
+  html, body { height: 100%; margin: 0 }
+  body { display: flex; flex-direction: column; font: 13px/1.4 system-ui, sans-serif; color: #222 }
+  #bar { flex: none; padding: 6px 14px; border-bottom: 1px solid #ddd; background: #f6f6f6 }
+  iframe { border: 0; flex: 1 1 50%; min-height: 0 }
+  #map { border-bottom: 3px solid #bbb }
+</style>
+</head>
+<body>
+<div id="bar"><strong>Linked panes</strong> — draw a point, box or polygon on the map (Draw selector) or click it: the surveyed cells inside appear in the scatterplot in teal, moved to the selected period. The map's species choice follows into the scatterplot (three species exported). Two independent pages talking through <code>postMessage</code> relayed by this page, as portal panes would; nothing is shared but messages.</div>
+<iframe id="map" src="map-openlayers.html"></iframe>
+<iframe id="scatter" src="scatter-d3-canvas.html?species=Fagus%20sylvatica&climate=worldclim%7C2081-2100%7Cssp370"></iframe>
+<script>
+// the relay: in the portal, the host page (or a shared bus) does this and checks the origin of every message
+window.addEventListener('message', (e) => { if (e.data?.type === 'map-selection' || e.data?.type === 'species') document.getElementById('scatter').contentWindow.postMessage(e.data, '*') })
+</script>
+</body>
+</html>

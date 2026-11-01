@@ -138,7 +138,21 @@ on the way: the 804 published dispersal binary rasters carry no CRS (same 10 km 
 potential ones, cropped by whole cells); the served COGs now get it assigned at conversion, the manifest
 and the Dataset record say so. Screenshot, holm oak 2095 RCP 8.5:
 [`compare/d3-example-ilex-classes-eutrees4f-2095-rcp85.png`](compare/d3-example-ilex-classes-eutrees4f-2095-rcp85.png).
-Not yet: the map → scatterplot link, the unit reference-point distance flag, the pair selector (needs
+**Iteration 4 (2026-11-01): the map → scatterplot link.** `examples/linked.html` puts the two pages in
+two iframes; the map page gets a Draw selector (point, box, polygon; a plain click sends a point) and
+posts the drawn geometry (WGS84 GeoJSON) with `postMessage`; the host page relays it to the scatterplot
+page, which finds the surveyed cells inside (point: the containing cell, else the nearest within 5 km
+with its distance stated) and draws them in teal at the selected period with present → period arrows.
+The map's species choice travels the same way. Two independent pages, nothing shared but messages:
+this is the pane model for the portal (Phase 4), where the host checks message origins. To make this
+cheap on static files the export now follows **one global cell order** (`ScatterOccurrences` sorted by
+key): `cells.json` holds the coordinates, the base files hold the pair per cell at each climate (null
+where missing), the species layer is an **index list** per species (one file, climate-independent), the
+suitability digits follow the same order. That is also the shape the Foxx service will serve: static
+base per pair × climate, index lists for species, map areas and points, unit values. Deep links for
+testing: `?point=lon,lat`, `?bbox=w,s,e,n`. Screenshot, beech cells of a Black Forest box under
+WorldClim 2081–2100: [`compare/d3-example-fagus-mapbox-worldclim-2081-2100.png`](compare/d3-example-fagus-mapbox-worldclim-2081-2100.png).
+Not yet: the unit reference-point distance flag, the pair selector (needs
 the service or five times the export), the class of each unit's own cell (a service-side raster
 sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the
 server with `node examples/serve.mjs 8080` and open http://localhost:8080/examples/ . Libraries come
@@ -157,4 +171,5 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-10-31 | **Map pane colours and layout (Milko):** base map list gains "country boundaries only" (Natural Earth 1:50 m, public domain, drawn by the page) after "none"; Atlas presence green and suitability blue stay; EU-Trees4F current = yellow, future = magenta (orange = units, purple = chorology outline); the click read-out is its own row below the map. **Map pane approved.** Pending: a per-unit flag when the reference point lies more than 5 km from the unit polygon (28 units exceed 20 km today; data quality is a work in progress on the EUFGIS side). |
 | 2026-10-31 | **Serving strategy (Milko agrees, Claude chooses):** two channels. **A Foxx service in `GeoService`** for everything that is a query — species layer, units, facet counts, manifest, click lookup, optional binned density; **static file hosting** (Phase 4) for the bulk: precomputed base layers per pair × source × period and the COG rasters read by byte range. Examples switch from exported files to the service once the scatterplot library is chosen. |
 | 2026-11-01 | **Figure 1 classification view built** (iteration 3, see §4): classes from the published EU-Trees4F binary maps, never recomputed; period pairing per the paper's 30-year lag; the view is labelled as a projection of present cells into the selected period's suitability. Pending Milko's review. |
+| 2026-11-01 | **Map → scatterplot link built** (iteration 4, see §4): panes as independent pages linked by `postMessage`; layers as index lists on one global cell order, the shape the service will serve. Pending Milko's review. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |

@@ -5,7 +5,7 @@
 <title>Scatterplot — D3 + Canvas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --base: #b9b9b9; --species: #1f4e9c; --unit: #e06a00; --future: #c2185b; --stable: #f2c200; --lost: #d7301f; --new: #2b6cd4; --ink: #222 }
+  :root { --base: #b9b9b9; --species: #1f4e9c; --unit: #e06a00; --future: #c2185b; --stable: #f2c200; --lost: #d7301f; --new: #2b6cd4; --map: #00897b; --ink: #222 }
   html, body { height: 100% }
   body { margin: 0; font: 13px/1.4 system-ui, sans-serif; color: var(--ink); background: #fff; display: flex; flex-direction: column }
   .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 14px; border-bottom: 1px solid #ddd; flex: none }
@@ -46,6 +46,7 @@
   <label>Country <select id="country"><option value="">all</option></select></label>
   <label>Unit <select id="unitSel"><option value="">—</option></select></label>
   <span id="searchInfo"></span>
+  <span id="mapSel" style="display:none">Map selection: <span id="mapSelInfo"></span> <button id="mapSelClear">clear</button></span>
   <label>Selection <span id="selCount">0</span> <select id="selMode"><option value="all">show all units</option><option value="only">only the selection</option><option value="hide">hide the selection</option></select> <button id="selClear">clear</button></label>
   <span id="legend"></span>
   <span style="color:#777">drag = zoom to box · wheel = zoom · shift-drag = pan · double-click = reset · option-click a unit = add to / remove from the selection</span>
@@ -62,8 +63,11 @@ let W = 0, H = 0, tx = d3.zoomIdentity
 const x0 = d3.scaleLinear(), y0 = d3.scaleLinear()
 const gGX = svg.append('g').attr('class', 'grid'), gGY = svg.append('g').attr('class', 'grid'), gX = svg.append('g'), gY = svg.append('g'), xl = svg.append('text').attr('text-anchor', 'middle'), yl = svg.append('text').attr('text-anchor', 'middle')
 const cache = {}, state = { species: 'Fagus sylvatica', climate: null, country: '', unit: '', hover: null, selection: new Set(), selMode: 'all', view: 'layers' }
-let climates, meta, units = [], base = [], species = [], speciesPresent = [], quad, domainProduct = null
-let basePresent = [], aligned = [], classes = ''   // class view: present pair per cell, future pair per cell (null when missing), one class digit per cell
+let climates, meta, units = [], base = [], basePresent = [], speciesIdx = [], species = [], speciesPresent = [], quad, domainProduct = null, cells = null
+// every file follows one global cell order (pair.js): base = the pair per cell at the selected climate (null = no value),
+// basePresent = the same at the product's present, speciesIdx = the cells holding the species, cells = [lon, lat] per cell
+let classes = ''   // class view: one class digit per cell
+const pts = (idx, b) => { const o = []; for (const i of idx) if (b[i]) o.push(b[i]); return o }
 // EU-Trees4F pairs each future map with the climate of the previous 30 years (paper, Methods: the current map, cur2005, is driven by 1961-1990)
 const FUT_MAP = { '1991-2020': 'fut2035', '2021-2050': 'fut2065', '2051-2080': 'fut2095' }
 const CLASS = { 1: ['stable', '--stable'], 2: ['decolonised', '--lost'], 3: ['newly suitable', '--new'] }
@@ -97,26 +101,23 @@ function size() {
 }
 /** the axes are fixed per product from its present base, padded for the future shift, and never move on a period change */
 function fixDomain(presentBase) {
-  const xe = d3.extent(presentBase, (d) => d[0]), ye = d3.max(presentBase, (d) => d[1])
+  const xe = d3.extent(presentBase, (d) => d?.[0]), ye = d3.max(presentBase, (d) => d?.[1])
   x0.domain([Math.floor(xe[0] - 1), Math.ceil(xe[1] + 6)]); y0.domain([0, Math.ceil(ye * 1.1 / 500) * 500])
 }
 async function refresh() {
   const c = state.climate, p = presentOf(c)
-  base = await load(`base-${file(c)}.json`)
-  species = await load(`species-${slug(state.species)}-${file(c)}.json`)
-  speciesPresent = c.present ? species : await load(`species-${slug(state.species)}-${file(p)}.json`)
+  base = await load(`base-${file(c)}.json`); basePresent = c.present ? base : await load(`base-${file(p)}.json`)
+  speciesIdx = await load(`species-${slug(state.species)}.json`)
+  species = pts(speciesIdx, base); speciesPresent = c.present ? species : pts(speciesIdx, basePresent)
   units = await load(`units-${slug(state.species)}.json`)
   if (domainProduct !== c.src) { fixDomain(await load(`base-${file(p)}.json`)); domainProduct = c.src; tx = d3.zoomIdentity }
   const avail = c.src === 'eutrees4f' && !c.present
   $('view').options[1].disabled = !avail; if (!avail && state.view === 'classes') { state.view = 'layers'; $('view').value = 'layers' }
   $('classCtl').style.display = classView() ? '' : 'none'
-  if (classView()) {
-    basePresent = await load(`base-${file(p)}.json`); aligned = await load(`aligned-${file(c)}.json`)
-    classes = (await load(`suitability-${slug(state.species)}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${$('variant').value}`] ?? ''
-  }
+  if (classView()) classes = (await load(`suitability-${slug(state.species)}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${$('variant').value}`] ?? ''
   $('legend').innerHTML = classView()
-    ? `<span class="sw" style="background:var(--base)"></span>all cells, present and selected period<span class="sw" style="background:var(--stable)"></span>stable<span class="sw" style="background:var(--lost)"></span>decolonised<span class="sw" style="background:var(--new)"></span>newly suitable<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period · arrows = mean climate shift per bin, thick = whole species envelope`
-    : `<span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period`
+    ? `<span class="sw" style="background:var(--base)"></span>all cells, present and selected period<span class="sw" style="background:var(--stable)"></span>stable<span class="sw" style="background:var(--lost)"></span>decolonised<span class="sw" style="background:var(--new)"></span>newly suitable<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period<span class="sw" style="background:var(--map)"></span>map selection · arrows = mean climate shift per bin, thick = whole species envelope`
+    : `<span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period<span class="sw" style="background:var(--map)"></span>map selection`
   refill(); draw()
 }
 /** where a unit is drawn: the class view keeps everything in the present climate space (the arrows show the shift) */
@@ -130,9 +131,9 @@ function arrow(ax, ay, bx, by, w, head) {
  *  envelope (classes stable + decolonised) per climate bin, the thick arrow for the whole envelope */
 function drawClasses(x, y, drawHex, r, op) {
   const bm = $('baseMode').value
-  if (bm === 'hex') drawHex(basePresent.concat(aligned.filter(Boolean)), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
-  else if (bm === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of basePresent) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); for (const d of aligned) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
-  const pos = $('classPos').value === 'present' ? basePresent : aligned, n = classes.length, counts = [0, 0, 0, 0]
+  if (bm === 'hex') drawHex(basePresent.filter(Boolean).concat(base.filter(Boolean)), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
+  else if (bm === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of basePresent) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); for (const d of base) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
+  const pos = $('classPos').value === 'present' ? basePresent : base, n = classes.length, counts = [0, 0, 0, 0]
   if ($('speciesMode').value !== 'none') {
     ctx.globalAlpha = op('species')
     for (const k of [1, 3, 2]) { ctx.fillStyle = css(CLASS[k][1]); const ch = String(k); for (let i = 0; i < n; i++) if (classes[i] === ch) { counts[k]++; const d = pos[i]; if (d) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2) } }
@@ -142,7 +143,7 @@ function drawClasses(x, y, drawHex, r, op) {
     const [bx, by] = $('binSize').value.split(',').map(Number), min = Number($('binMin').value), bins = new Map(), all = [0, 0, 0, 0, 0]
     for (let i = 0; i < n; i++) {
       if (classes[i] !== '1' && classes[i] !== '2') continue
-      const a = basePresent[i], b = aligned[i]; if (!b) continue
+      const a = basePresent[i], b = base[i]; if (!a || !b) continue
       const key = `${Math.floor(a[0] / bx)},${Math.floor(a[1] / by)}`; let s = bins.get(key); if (!s) bins.set(key, s = [0, 0, 0, 0, 0])
       for (const acc of [s, all]) { acc[0]++; acc[1] += a[0]; acc[2] += a[1]; acc[3] += b[0]; acc[4] += b[1] }
     }
@@ -182,8 +183,8 @@ function draw() {
   const r = Number($('hexR').value), cv = classView()
   let counts = null
   if (cv) counts = drawClasses(x, y, drawHex, r, op)
-  else if ($('baseMode').value === 'hex') drawHex(base, r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
-  else if ($('baseMode').value === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of base) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
+  else if ($('baseMode').value === 'hex') drawHex(base.filter(Boolean), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
+  else if ($('baseMode').value === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of base) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
   if (cv) {}
   else if ($('speciesMode').value === 'hex') drawHex(species, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op('species'))
   else if ($('speciesMode').value === 'points') { ctx.globalAlpha = op('species'); ctx.fillStyle = css('--species'); for (const d of species) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2); ctx.globalAlpha = 1 }
@@ -193,6 +194,14 @@ function draw() {
     ctx.setLineDash([]); ctx.strokeStyle = state.climate.present ? '#0d2a66' : '#8e0038'; ctx.stroke(envelopePath(species, x, y)); ctx.restore()
   }
   const vis = visibleUnits(), c = state.climate, p = presentOf(c), future = !c.present
+  let mapN = 0
+  if (state.mapSel) {
+    ctx.save(); ctx.fillStyle = css('--map'); ctx.strokeStyle = css('--map'); ctx.lineWidth = 0.8
+    if (future && $('arrows').checked) for (const i of state.mapSel.idx) { const a = basePresent[i], b = base[i]; if (a && b) arrow(x(a[0]), y(a[1]), x(b[0]), y(b[1]), 0.8, 5) }
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1
+    for (const i of state.mapSel.idx) { const b = base[i]; if (!b) continue; mapN++; ctx.beginPath(); ctx.rect(x(b[0]) - 2.5, y(b[1]) - 2.5, 5, 5); ctx.fill(); ctx.stroke() }
+    ctx.restore()
+  }
   ctx.globalAlpha = op('units')
   if ($('arrows').checked && future) {
     ctx.strokeStyle = 'rgba(224,106,0,.3)'; ctx.fillStyle = 'rgba(224,106,0,.5)'; ctx.lineWidth = 0.8
@@ -208,8 +217,33 @@ function draw() {
   gGX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x).tickSize(-(H - M.top - M.bottom)).tickFormat('')); gGY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y).tickSize(-(W - M.left - M.right)).tickFormat(''))
   quad = d3.quadtree().x((u) => x(unitPos(u)[0])).y((u) => y(unitPos(u)[1])).addAll(vis)   // screen space: hit tests are pixel distances
   const what = cv ? `suitability around ${FUT_MAP[c.period].slice(3)} (climate ${c.period}, ${SCEN[c.scenario]}, ${$('variant').value === 'pot' ? 'potential' : 'with dispersal'}) vs current: ${counts[1]} stable, ${counts[2]} decolonised, ${counts[3]} newly suitable of ${basePresent.length} cells` : `${base.length} base, ${species.length} ${state.species}`
-  status.textContent = `${c.label} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected) · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  const mapWhat = state.mapSel ? ` · map selection: ${state.mapSel.label}, ${mapN} drawn` : ''
+  status.textContent = `${c.label} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
+// ---- the map → scatterplot link: a GeoJSON Point or Polygon (WGS84) arrives by postMessage (or as ?point= / ?bbox=);
+// the cells inside are found here on the static cell list — in the product the service answers with the index list
+async function selectFromMap(geom) {
+  if (!geom) { state.mapSel = null; $('mapSel').style.display = 'none'; draw(); return }
+  cells ??= await load('cells.json')
+  const idx = []
+  if (geom.type === 'Point') {
+    const [lon, lat] = geom.coordinates, cl = Math.cos(lat * Math.PI / 180) * 111.32; let best = -1, bd = Infinity
+    for (let i = 0; i < cells.length; i++) { const dx = (cells[i][0] - lon) * cl, dy = (cells[i][1] - lat) * 111.32, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i } }
+    // 1 km cells: the containing cell's centre lies within 0.71 km; beyond that the nearest surveyed cell up to 5 km is
+    // shown with its distance (the product looks the point up in the full climate grid instead)
+    const km = Math.sqrt(bd); if (km <= 5) idx.push(best)
+    state.mapSel = { label: `point ${lat.toFixed(3)}, ${lon.toFixed(3)}` + (km <= 0.71 ? '' : km <= 5 ? ` — nearest surveyed cell ${km.toFixed(1)} km away` : ' — no surveyed cell within 5 km'), idx }
+  } else if (geom.type === 'Polygon') {
+    const ring = geom.coordinates[0], bx = d3.extent(ring, (p) => p[0]), by = d3.extent(ring, (p) => p[1])
+    for (let i = 0; i < cells.length; i++) { const c = cells[i]; if (c[0] >= bx[0] && c[0] <= bx[1] && c[1] >= by[0] && c[1] <= by[1] && d3.polygonContains(ring, c)) idx.push(i) }
+    state.mapSel = { label: `area with ${idx.length} surveyed cells`, idx }
+  } else return
+  $('mapSel').style.display = ''; $('mapSelInfo').textContent = state.mapSel.label; draw()
+}
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'map-selection') selectFromMap(e.data.geometry)
+  if (e.data?.type === 'species' && meta?.species.includes(e.data.name) && e.data.name !== state.species) { state.species = e.data.name; $('speciesSel').value = state.species; state.country = ''; state.unit = ''; refresh() }
+})
 // ---- interaction: wheel = zoom, shift-drag = pan, drag = box zoom, double-click = reset; hover on the overlay canvas
 const zoom = d3.zoom().scaleExtent([1, 80]).filter((e) => e.type === 'wheel' || (e.type !== 'dblclick' && e.shiftKey)).on('zoom', (e) => { tx = e.transform; draw() })
 const resetView = () => { d3.select(canvas).call(zoom.transform, d3.zoomIdentity) }
@@ -259,7 +293,13 @@ Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + '
   const q = new URLSearchParams(location.search); if (q.get('species') && m.species.includes(q.get('species'))) state.species = q.get('species')
   state.climate = cl.find((c) => c.key === q.get('climate')) ?? cl.find((c) => c.key === 'worldclim|1970-2000|')
   for (const s of m.species) $('speciesSel').add(new Option(s, s, false, s === state.species))
-  fillSelectors(false); size(); refresh()
+  fillSelectors(false); size()
+  refresh().then(() => {
+    const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
+    if (pt?.length === 2) selectFromMap({ type: 'Point', coordinates: pt })
+    else if (bb?.length === 4) selectFromMap({ type: 'Polygon', coordinates: [[[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]], [bb[0], bb[1]]]] })
+  })
+  $('mapSelClear').addEventListener('click', () => selectFromMap(null))
   $('product').addEventListener('change', (e) => { state.climate = pick(e.target.value, null, null); fillSelectors(true); refresh() })
   $('scenario').addEventListener('change', (e) => { state.climate = pick(state.climate.src, e.target.value, state.climate.period); fillSelectors(true); refresh() })
   $('period').addEventListener('change', (e) => { state.climate = cl.find((c) => c.key === e.target.value); refresh() })
