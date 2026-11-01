@@ -3,7 +3,8 @@
 // the grids for every period and ADDED to the cache (validated first). Restricted units carry climate values
 // only: no point, no cell key.   Usage: node sources/units/load.js [--dry-run] [--on-missing drop|fail]
 // Inputs: work/units.jsonl (sources/units/export.js), work/climate-units-eutrees4f.jsonl and
-//         work/climate-units-eutrees4f-future.jsonl (sources/climate/eutrees4f/sample*.py --in work/units.jsonl)
+//         work/climate-units-eutrees4f-future.jsonl (sources/climate/eutrees4f/sample*.py --in work/units.jsonl),
+//         work/units-distance.jsonl if present (sources/units/distance.js) → _custom.reference_point_distance_km
 import { readFileSync, existsSync } from 'node:fs'
 import { connect, loadCredentials, explain } from '../../lib/db.js'
 import { loadDictionary, validator, checkDocument, dropGids } from '../../lib/dictionary.js'
@@ -29,6 +30,7 @@ try {
   const units = lines('work/units.jsonl')
   const t4fH = new Map(lines('work/climate-units-eutrees4f.jsonl').map((l) => [l.key, l.values]))
   const t4fF = new Map(lines('work/climate-units-eutrees4f-future.jsonl').map((l) => [l.key, l.values]))
+  const distance = new Map(lines('work/units-distance.jsonl').map((l) => [l.key, l.km]))   // sources/units/distance.js, kept across reloads
   const keyOf = new Map(units.map((u) => [u.key, containingCellKey(u.lon, u.lat)]))
   const cellKeys = [...new Set(keyOf.values())]
 
@@ -65,6 +67,7 @@ try {
     const species = [...new Set(u.species)]; if (species.length !== u.species.length) dedup++   // ESP00372 repeats a name
     const doc = { _key: u.key, gcu_id_number: u.key, species_list: species, 'gcu_loc_coordinates-restriction': u.restricted, std_dataset_ids: [keys['SCATTER_UNITS']].filter(Boolean), properties: {} }
     if (!u.restricted) doc.geometry_point = { type: 'Point', coordinates: [u.lon, u.lat] }
+    if (distance.has(u.key)) doc._custom = { reference_point_distance_km: distance.get(u.key) }
     const ids = new Set(doc.std_dataset_ids)
     const periods = {}
     if (t4fH.get(u.key)) periods[SOURCES.eutrees4f.period] = t4fH.get(u.key)

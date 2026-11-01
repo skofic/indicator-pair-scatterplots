@@ -46,6 +46,7 @@
   <label>Country <select id="country"><option value="">all</option></select></label>
   <label>Unit <select id="unitSel"><option value="">—</option></select></label>
   <span id="searchInfo"></span>
+  <label title="data-quality flag: the climate values are read at the reference point">flag units whose reference point is &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km from the polygon</label>
   <span id="mapSel" style="display:none">Map selection: <span id="mapSelInfo"></span> <button id="mapSelClear">clear</button></span>
   <label>Selection <span id="selCount">0</span> <select id="selMode"><option value="all">show all units</option><option value="only">only the selection</option><option value="hide">hide the selection</option></select> <button id="selClear">clear</button></label>
   <span id="legend"></span>
@@ -117,7 +118,7 @@ async function refresh() {
   if (classView()) classes = (await load(`suitability-${slug(state.species)}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${$('variant').value}`] ?? ''
   $('legend').innerHTML = classView()
     ? `<span class="sw" style="background:var(--base)"></span>all cells, present and selected period<span class="sw" style="background:var(--stable)"></span>stable<span class="sw" style="background:var(--lost)"></span>decolonised<span class="sw" style="background:var(--new)"></span>newly suitable<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period<span class="sw" style="background:var(--map)"></span>map selection · arrows = mean climate shift per bin, thick = whole species envelope`
-    : `<span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period<span class="sw" style="background:var(--map)"></span>map selection`
+    : `<span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period<span class="sw" style="background:var(--map)"></span>map selection <span class="sw" style="border:1.5px dashed #b71c1c;background:none;width:9px;height:9px"></span>reference point far from the polygon`
   refill(); draw()
 }
 /** where a unit is drawn: the class view keeps everything in the present climate space (the arrows show the shift) */
@@ -155,6 +156,7 @@ function drawClasses(x, y, drawHex, r, op) {
   return counts
 }
 const unitXY = (u, c) => u.values[c.key]
+const flagged = (u) => u.distance != null && u.distance > Number($('flagKm').value)
 function visibleUnits() {
   const s = state.selection, m = state.selMode
   return units.filter((u) => (state.country === '' || u.id.startsWith(state.country)) && (!state.unit || u.id === state.unit) && ($('restricted').checked || !u.restricted) && unitXY(u, state.climate)
@@ -212,12 +214,16 @@ function draw() {
   for (const u of vis) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state.unit === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
   ctx.strokeStyle = '#111'; ctx.lineWidth = 2
   for (const u of vis) if (state.selection.has(u.id)) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
+  // the data-quality flag: a dashed dark-red ring on units whose reference point lies far from their polygon
+  ctx.strokeStyle = '#b71c1c'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); let nFlag = 0
+  for (const u of vis) if (flagged(u)) { nFlag++; const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 8, 0, 2 * Math.PI); ctx.stroke() }
+  ctx.setLineDash([])
   ctx.globalAlpha = 1; ctx.restore()
   gX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x)); gY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y))
   gGX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x).tickSize(-(H - M.top - M.bottom)).tickFormat('')); gGY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y).tickSize(-(W - M.left - M.right)).tickFormat(''))
   quad = d3.quadtree().x((u) => x(unitPos(u)[0])).y((u) => y(unitPos(u)[1])).addAll(vis)   // screen space: hit tests are pixel distances
   const what = cv ? `suitability around ${FUT_MAP[c.period].slice(3)} (climate ${c.period}, ${SCEN[c.scenario]}, ${$('variant').value === 'pot' ? 'potential' : 'with dispersal'}) vs current: ${counts[1]} stable, ${counts[2]} decolonised, ${counts[3]} newly suitable of ${basePresent.length} cells` : `${base.length} base, ${species.length} ${state.species}`
-  const mapWhat = state.mapSel ? ` · map selection: ${state.mapSel.label}, ${mapN} drawn` : ''
+  const mapWhat = (state.mapSel ? ` · map selection: ${state.mapSel.label}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} flagged (reference point > ${$('flagKm').value} km from the polygon)` : '')
   status.textContent = `${c.label} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
 // ---- the map → scatterplot link: a GeoJSON Point or Polygon (WGS84) arrives by postMessage (or as ?point= / ?bbox=);
@@ -267,7 +273,7 @@ canvas.addEventListener('mousemove', (e) => {
     const c = state.climate, q = unitXY(u, c), p = unitXY(u, presentOf(c)), d = unitPos(u), x = tx.rescaleX(x0), y = tx.rescaleY(y0)
     octx.beginPath(); octx.arc(x(d[0]), y(d[1]), 7, 0, 2 * Math.PI); octx.strokeStyle = '#222'; octx.lineWidth = 2; octx.stroke()
     tip.style.display = 'block'; tip.style.left = Math.min(e.offsetX + 14, W - 220) + 'px'; tip.style.top = e.offsetY + 14 + 'px'
-    tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ' (restricted)' : ''}<br>${q[0].toFixed(1)} °C · ${Math.round(q[1])} mm` + (c.present ? '' : `<br>present: ${p[0].toFixed(1)} °C · ${Math.round(p[1])} mm`) + `<br>${u.species.join(', ')}`
+    tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ' (restricted)' : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ reference point ${u.distance.toFixed(1)} km from the unit polygon</span>` : ''}<br>${q[0].toFixed(1)} °C · ${Math.round(q[1])} mm` + (c.present ? '' : `<br>present: ${p[0].toFixed(1)} °C · ${Math.round(p[1])} mm`) + `<br>${u.species.join(', ')}`
   } else tip.style.display = 'none'
 })
 window.addEventListener('mouseup', (e) => {
@@ -285,7 +291,7 @@ function refill() {
   const sel = units.filter((u) => $('restricted').checked || !u.restricted)
   const countries = [...new Set(sel.map((u) => u.id.slice(0, 3)))].sort()
   const cs = $('country'); cs.innerHTML = '<option value="">all</option>'; for (const c of countries) cs.add(new Option(`${c} (${sel.filter((u) => u.id.startsWith(c)).length})`, c, false, c === state.country))
-  const us = $('unitSel'); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !state.country || u.id.startsWith(state.country))) us.add(new Option(u.id + (u.restricted ? ' (restricted)' : ''), u.id, false, u.id === state.unit))
+  const us = $('unitSel'); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !state.country || u.id.startsWith(state.country))) us.add(new Option(u.id + (u.restricted ? ' (restricted)' : '') + (flagged(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state.unit))
   $('searchInfo').textContent = `${sel.length} units of ${state.species}`
 }
 Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + 'meta.json').then((r) => r.json())]).then(([cl, m]) => {
@@ -310,6 +316,7 @@ Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + '
   for (const id of ['classPos', 'binSize', 'binMin']) $(id).addEventListener('change', draw)
   $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill(); draw() })
   $('unitSel').addEventListener('change', (e) => { state.unit = e.target.value; draw() })
+  $('flagKm').addEventListener('change', () => { refill(); draw() })
   for (const id of ['baseMode', 'speciesMode', 'envelope', 'arrows', 'restricted']) $(id).addEventListener('change', () => { refill(); draw() })
   for (const r of document.querySelectorAll('input[type=range]')) r.addEventListener('input', draw)
   $('reset').addEventListener('click', resetView)

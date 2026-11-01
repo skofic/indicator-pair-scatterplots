@@ -21,7 +21,7 @@ try {
   console.log(`map-index.json: ${Object.keys(species).length} species, ${withMaps} with rasters`)
   const geo = await db.query(`FOR d IN @@c FILTER d["gcu_loc_coordinates-restriction"] != true AND d.geometry_point != null
     LET poly = DOCUMENT(@@up, d.gcu_id_number)
-    RETURN { type: "Feature", properties: { id: d.gcu_id_number, species: d.species_list }, geometry: poly != null ? poly.geometry : d.geometry_point }`, { '@c': C.units_scatter, '@up': C.unitpoly }).then((c) => c.all())
+    RETURN { type: "Feature", properties: { id: d.gcu_id_number, species: d.species_list, distance: d._custom.reference_point_distance_km }, geometry: poly != null ? poly.geometry : d.geometry_point }`, { '@c': C.units_scatter, '@up': C.unitpoly }).then((c) => c.all())
   writeFileSync('work/examples/data/units-geo-all-raw.geojson', JSON.stringify({ type: 'FeatureCollection', features: geo }))
   execFileSync('.venv/bin/python', ['-I', '-c', `
 import json

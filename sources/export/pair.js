@@ -3,7 +3,7 @@
 //   cells.json                                       [[lon, lat], ...]  every occurrence cell, the global order
 //   base-<src>-<period>[-<scenario>].json           [[x, y] | null, ...] the pair per cell in that order (null = no value)
 //   species-<name>.json                              [i, ...] indexes of the cells holding the species (climate-independent)
-//   units-<name>.json   [{ id, species, restricted, values: { "<src>|<period>|<scenario>": [x, y] } }]
+//   units-<name>.json   [{ id, species, restricted, distance (km, reference point → polygon), values: { "<src>|<period>|<scenario>": [x, y] } }]
 //   climates.json       the climate selector: every source / period / scenario with labels
 //   meta.json
 // This is also the shape the Foxx service will serve: the base per pair × climate is static, the service returns
@@ -57,7 +57,7 @@ if (process.argv[1].endsWith('pair.js')) try {
     const idx = (await q(`FOR d IN @@c FILTER @s IN d.species_list RETURN d._key`, { '@c': C.occurrences, s: sp })).map((k) => index.get(k)).sort((a, b) => a - b)
     writeFileSync(`work/examples/data/species-${slug(sp)}.json`, JSON.stringify(idx)); meta.counts[`${sp} cells`] = idx.length
     const sel = cl.map((c) => `"${c.key}": [${c.path}.${X}, ${c.path}.${Y}]`).join(', ')
-    const units = await q(`FOR d IN @@c FILTER @s IN d.species_list RETURN { id: d.gcu_id_number, species: d.species_list, restricted: d["gcu_loc_coordinates-restriction"], values: { ${sel} } }`, { '@c': C.units_scatter, s: sp })
+    const units = await q(`FOR d IN @@c FILTER @s IN d.species_list RETURN { id: d.gcu_id_number, species: d.species_list, restricted: d["gcu_loc_coordinates-restriction"], distance: d._custom.reference_point_distance_km, values: { ${sel} } }`, { '@c': C.units_scatter, s: sp })
     for (const u of units) for (const k of Object.keys(u.values)) if (u.values[k][0] == null) delete u.values[k]
     writeFileSync(`work/examples/data/units-${slug(sp)}.json`, JSON.stringify(units)); meta.counts[`units ${sp}`] = units.length
     console.log(`${sp}: ${idx.length} cells, ${units.length} units`)

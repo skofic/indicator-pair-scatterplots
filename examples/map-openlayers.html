@@ -46,6 +46,7 @@
   <label>Species <select id="speciesSel"></select></label>
   <label>Unit <select id="unitSel"><option value="">—</option></select></label>
   <label><input type="checkbox" id="showRestricted" disabled> show restricted (never on the map)</label>
+  <label title="data-quality flag: the climate values are read at the reference point">flag &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km</label>
   <span id="searchInfo"></span>
   <span id="layersInfo" style="color:#555"></span>
 </div>
@@ -76,7 +77,11 @@ const gj = new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjectio
 const choro = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#6a1b9a', width: 2.5, lineDash: [8, 5] }), fill: new ol.style.Fill({ color: 'rgba(106,27,154,.05)' }) }) })
 // the user's drawn point or area, sent to the scatterplot pane (see linked.html)
 const drawn = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#00897b', width: 2.5 }), fill: new ol.style.Fill({ color: 'rgba(0,137,123,.15)' }), image: new ol.style.Circle({ radius: 6, fill: new ol.style.Fill({ color: '#00897b' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1.5 }) }) }) })
-const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e06a00', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(224,106,0,.25)' }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#e06a00' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) }) })
+const unitStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e06a00', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(224,106,0,.25)' }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#e06a00' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) })
+// flagged = the climate reference point lies farther than the threshold from the polygon (data quality): dark-red dashed outline
+const flagStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b71c1c', width: 2.5, lineDash: [6, 4] }), fill: new ol.style.Fill({ color: 'rgba(183,28,28,.2)' }), image: new ol.style.Circle({ radius: 5, fill: new ol.style.Fill({ color: '#b71c1c' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) })
+const flagged = (f) => f.get('distance') != null && f.get('distance') > Number($('flagKm').value)
+const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: (f) => flagged(f) ? flagStyle : unitStyle })
 const layers = { rpp, mhs, t4cur, t4fut, choro, units }
 // base maps (raster tiles in Web Mercator, reprojected by OpenLayers to EPSG:3035)
 const xyz = (url, attributions) => new ol.layer.Tile({ source: new ol.source.XYZ({ url, attributions, crossOrigin: 'anonymous', maxZoom: 17 }), opacity: 0.7 })
@@ -119,8 +124,9 @@ function refill() {
   facet($('country'), count(ix.units.filter((u) => match(u, '', species)), (u) => u.country), 'country', (v) => v, country)
   facet($('speciesSel'), count(ix.units.filter((u) => match(u, country, '')), (u) => u.species), 'species', (v) => v + (mapIndex.species[v]?.atlas_rpp ? ' ●' : ''), species)
   const unitSel = $('unitSel'); unitSel.innerHTML = '<option value="">—</option>'
-  for (const u of sel) unitSel.add(new Option(u.id + (u.restricted ? ' (restricted)' : ''), u.id, false, u.id === state.unit))
-  $('searchInfo').textContent = `${sel.length} units, ${sel.filter((u) => u.restricted).length} restricted (not on the map) · ● species with an Atlas map`
+  const km = Number($('flagKm').value), flag = (u) => u.distance != null && u.distance > km
+  for (const u of sel) unitSel.add(new Option(u.id + (u.restricted ? ' (restricted)' : '') + (flag(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state.unit))
+  $('searchInfo').textContent = `${sel.length} units, ${sel.filter((u) => u.restricted).length} restricted (not on the map), ${sel.filter(flag).length} flagged (reference point > ${km} km from the polygon) · ● species with an Atlas map`
   const ids = new Set(sel.map((u) => u.id))
   units.getSource().clear(); units.getSource().addFeatures(allUnits.filter((f) => ids.has(f.get('id'))))
 }
@@ -128,6 +134,7 @@ Promise.all([fetch(DATA + 'units-index.json').then((r) => r.json()), fetch(DATA 
   ix = a; mapIndex = b; allUnits = gj.readFeatures(g)
   refill(); showSpeciesLayers(state.species)
   $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill() })
+  $('flagKm').addEventListener('change', () => { refill(); units.changed() })
   $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.unit = ''; refill(); showSpeciesLayers(state.species); post('species', { name: state.species }) })
   $('unitSel').addEventListener('change', (e) => {
     state.unit = e.target.value
@@ -157,7 +164,7 @@ map.on('singleclick', (e) => {
   const parts = [`<b>${lat.toFixed(4)}, ${lon.toFixed(4)}</b>`]
   for (const [name, l] of [['Atlas presence', rpp], ['Atlas suitability', mhs], ['EU-Trees4F 2005', t4cur], ['EU-Trees4F 2095 RCP 8.5', t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${name}: ${v < 0 ? 'no data' : v.toFixed(2)}`) }
   const hit = map.getFeaturesAtPixel(e.pixel, { layerFilter: (l) => l === units })
-  if (hit.length) parts.push(`unit <b>${hit[0].get('id')}</b> (${hit[0].get('species').join(', ')})`)
+  if (hit.length) parts.push(`unit <b>${hit[0].get('id')}</b> (${hit[0].get('species').join(', ')})` + (hit[0].get('distance') != null ? `, reference point ${hit[0].get('distance').toFixed(1)} km from the polygon${flagged(hit[0]) ? ' <span style="color:#b71c1c">⚠</span>' : ''}` : ''))
   parts.push('→ sent to the scatterplot as a point (its surveyed cell, if any); in the product the Foxx service returns the containing climate cell')
   $('info').innerHTML = parts.join(' · ')
 })
