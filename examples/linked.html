@@ -34,7 +34,7 @@
   <span id="info"></span>
   <button id="clear" style="display:none">clear the map selection</button>
   <label style="margin-left:auto">Layout <select id="layout"><option value="auto">follows the window</option><option value="side">side by side</option><option value="stack">stacked</option></select></label>
-  <button id="detach" title="the map opens in its own window and keeps talking to this page; close it to bring it back">map in its own window</button>
+  <label title="the map opens in its own tab or window and keeps talking to this page; closing it brings it back">Map <select id="detach"><option value="page">in this page</option><option value="tab">in a new tab</option><option value="window">in a new window</option></select></label>
 </div>
 <div id="panes" class="auto">
   <iframe id="map" src="map-openlayers.html?embedded=1"></iframe>
@@ -85,13 +85,15 @@ Promise.all([fetch(DATA + 'units-index.json'), fetch(DATA + 'map-index.json'), f
   })
   $('divider').addEventListener('dblclick', () => panes.style.removeProperty('--split'))
   // ---- the map in its own window: same page, same messages (it posts to window.opener); closing it brings it back
-  $('detach').addEventListener('click', () => {
-    if (popup && !popup.closed) { popup.close(); return }
-    popup = window.open('map-openlayers.html?embedded=1', 'eufgis-map', 'width=1100,height=800')
-    if (!popup) { $('info').textContent = 'the browser blocked the window'; return }
-    panes.classList.add('detached'); $('detach').textContent = 'bring the map back'
+  // without a size, window.open gives a tab; with one, a window — the browser's rule
+  $('detach').addEventListener('change', (e) => {
+    if (popup && !popup.closed) popup.close()
+    if (e.target.value === 'page') return
+    popup = window.open('map-openlayers.html?embedded=1', 'eufgis-map', e.target.value === 'window' ? 'width=1100,height=800' : '')
+    if (!popup) { $('info').textContent = 'the browser blocked the new tab or window'; e.target.value = 'page'; return }
+    panes.classList.add('detached')
     popup.addEventListener('load', () => setTimeout(send, 800))
-    const watch = setInterval(() => { if (popup.closed) { clearInterval(watch); popup = null; panes.classList.remove('detached'); $('detach').textContent = 'map in its own window'; send() } }, 500)
+    const watch = setInterval(() => { if (popup.closed) { clearInterval(watch); popup = null; panes.classList.remove('detached'); $('detach').value = 'page'; send() } }, 500)
   })
   $('clear').addEventListener('click', () => { for (const w of [mapW(), scatterW()]) w.postMessage({ type: 'clear-selection' }, '*'); $('clear').style.display = 'none' })
   // the panes load after this page: send the state once both are ready (the scatterplot asks for nothing, so wait for both loads)

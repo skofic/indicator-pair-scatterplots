@@ -182,7 +182,7 @@ cells), 5 km threshold accepted, a `ui` namespace of dictionary terms for the pa
 the unit distance descriptor to be requested at the Phase 3 close. **Iteration 7 (same day, Milko):** a species without scatterplot
 data **disables the scatterplot pane** (greyed, with the reason) instead of leaving another species on
 show; a **divider** between the panes resizes them along the layout's axis (double-click resets); **the
-map in its own window**: a button opens the map page in a second window, which keeps talking to the
+map in its own tab or window**: a selector opens the map page in a new tab (no size given to `window.open`) or window, which keeps talking to the
 host through `window.opener` with the same messages (the host hides the map pane, the scatterplot takes
 the page; closing the window brings the map back). Two pages opened by hand in two tabs cannot talk,
 since they have no common host; a `BroadcastChannel` would allow that for same-origin tabs if ever
