@@ -40,8 +40,9 @@
   <label>Country <select id="country"><option value="">all</option></select></label>
   <label>Unit <select id="unitSel"><option value="">—</option></select></label>
   <span id="searchInfo"></span>
+  <label>Selection <span id="selCount">0</span> <select id="selMode"><option value="all">show all units</option><option value="only">only the selection</option><option value="hide">hide the selection</option></select> <button id="selClear">clear</button></label>
   <span><span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period</span>
-  <span style="color:#777">drag = zoom to box · wheel = zoom · shift-drag = pan · double-click = reset</span>
+  <span style="color:#777">drag = zoom to box · wheel = zoom · shift-drag = pan · double-click = reset · option-click a unit = add to / remove from the selection</span>
 </div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div></div>
 <div id="status">loading…</div>
@@ -54,7 +55,7 @@ const wrap = $('wrap'), canvas = $('c'), over = $('over'), svg = d3.select('#s')
 let W = 0, H = 0, tx = d3.zoomIdentity
 const x0 = d3.scaleLinear(), y0 = d3.scaleLinear()
 const gGX = svg.append('g').attr('class', 'grid'), gGY = svg.append('g').attr('class', 'grid'), gX = svg.append('g'), gY = svg.append('g'), xl = svg.append('text').attr('text-anchor', 'middle'), yl = svg.append('text').attr('text-anchor', 'middle')
-const cache = {}, state = { species: 'Fagus sylvatica', climate: null, country: '', unit: '', hover: null }
+const cache = {}, state = { species: 'Fagus sylvatica', climate: null, country: '', unit: '', hover: null, selection: new Set(), selMode: 'all' }
 let climates, meta, units = [], base = [], species = [], speciesPresent = [], quad, domainProduct = null
 const slug = (s) => s.replace(/\s+/g, '_'), file = (c) => `${c.src}-${c.period}${c.scenario ? '-' + c.scenario : ''}`
 const load = async (name) => { if (!cache[name]) { const t = performance.now(); cache[name] = await (await fetch(DATA + name)).json(); status.textContent = `${name}: ${cache[name].length} rows in ${Math.round(performance.now() - t)} ms` } return cache[name] }
@@ -98,7 +99,11 @@ async function refresh() {
   refill(); draw()
 }
 const unitXY = (u, c) => u.values[c.key]
-function visibleUnits() { return units.filter((u) => (state.country === '' || u.id.startsWith(state.country)) && (!state.unit || u.id === state.unit) && ($('restricted').checked || !u.restricted) && unitXY(u, state.climate)) }
+function visibleUnits() {
+  const s = state.selection, m = state.selMode
+  return units.filter((u) => (state.country === '' || u.id.startsWith(state.country)) && (!state.unit || u.id === state.unit) && ($('restricted').checked || !u.restricted) && unitXY(u, state.climate)
+    && (m === 'all' || (m === 'only' ? s.has(u.id) : !s.has(u.id))))
+}
 
 /** the 95 % envelope as a smooth closed contour: a blurred pixel histogram of the points, cut at the density
  *  level whose cells hold 95 % of the mass (the same rule as the Plotly page), traced with d3.contours */
@@ -137,11 +142,13 @@ function draw() {
   }
   ctx.fillStyle = css(future ? '--future' : '--unit'); ctx.strokeStyle = '#fff'
   for (const u of vis) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state.unit === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2
+  for (const u of vis) if (state.selection.has(u.id)) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
   ctx.globalAlpha = 1; ctx.restore()
   gX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x)); gY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y))
   gGX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x).tickSize(-(H - M.top - M.bottom)).tickFormat('')); gGY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y).tickSize(-(W - M.left - M.right)).tickFormat(''))
   quad = d3.quadtree().x((u) => x(unitXY(u, c)[0])).y((u) => y(unitXY(u, c)[1])).addAll(vis)   // screen space: hit tests are pixel distances
-  status.textContent = `${c.label} · ${base.length} base, ${species.length} ${state.species}, ${vis.length} units (${units.filter((u) => u.restricted).length} restricted in all) · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  status.textContent = `${c.label} · ${base.length} base, ${species.length} ${state.species}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected) · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
 // ---- interaction: wheel = zoom, shift-drag = pan, drag = box zoom, double-click = reset; hover on the overlay canvas
 const zoom = d3.zoom().scaleExtent([1, 80]).filter((e) => e.type === 'wheel' || (e.type !== 'dblclick' && e.shiftKey)).on('zoom', (e) => { tx = e.transform; draw() })
@@ -149,7 +156,14 @@ const resetView = () => { d3.select(canvas).call(zoom.transform, d3.zoomIdentity
 d3.select(canvas).call(zoom).on('dblclick.zoom', null)
 canvas.addEventListener('dblclick', resetView)
 let box = null
-canvas.addEventListener('mousedown', (e) => { if (e.shiftKey || e.button !== 0) return; box = [e.offsetX, e.offsetY, e.offsetX, e.offsetY] })
+canvas.addEventListener('mousedown', (e) => { if (e.shiftKey || e.altKey || e.button !== 0) return; box = [e.offsetX, e.offsetY, e.offsetX, e.offsetY] })
+// option-click on a hovered unit toggles it in the selection
+canvas.addEventListener('click', (e) => {
+  if (!e.altKey || !quad) return
+  const u = quad.find(e.offsetX, e.offsetY, 10); if (!u) return
+  if (state.selection.has(u.id)) state.selection.delete(u.id); else state.selection.add(u.id)
+  $('selCount').textContent = state.selection.size; draw()
+})
 canvas.addEventListener('mousemove', (e) => {
   octx.clearRect(0, 0, W, H)
   if (box) { box[2] = e.offsetX; box[3] = e.offsetY; octx.fillStyle = 'rgba(31,78,156,.08)'; octx.strokeStyle = 'rgba(31,78,156,.6)'; octx.setLineDash([4, 3]); octx.fillRect(box[0], box[1], box[2] - box[0], box[3] - box[1]); octx.strokeRect(box[0], box[1], box[2] - box[0], box[3] - box[1]); return }
@@ -195,6 +209,8 @@ Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + '
   for (const id of ['baseMode', 'speciesMode', 'envelope', 'arrows', 'restricted']) $(id).addEventListener('change', () => { refill(); draw() })
   for (const r of document.querySelectorAll('input[type=range]')) r.addEventListener('input', draw)
   $('reset').addEventListener('click', resetView)
+  $('selMode').addEventListener('change', (e) => { state.selMode = e.target.value; draw() })
+  $('selClear').addEventListener('click', () => { state.selection.clear(); $('selCount').textContent = 0; draw() })
   new ResizeObserver(() => { size(); draw() }).observe(wrap)
 })
 </script>
