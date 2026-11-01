@@ -160,10 +160,12 @@ plane (shapely; 0 when inside) and stores it as `_custom.reference_point_distanc
 `sources/units/load.js` keeps it across reloads. The exports carry it, and both pages flag the units
 beyond a threshold (select 1 · 2 · **5** · 10 · 20 km): a dashed dark-red ring and a tooltip line in the
 scatterplot, a dark-red dashed polygon and the distance in the click read-out on the map, "⚠ n km" in
-the unit lists, a count in the status lines. **The database run is pending**: ArangoDB stopped during
-the session (connection refused on 8529, no process) before `distance.js --write` and the re-exports
-(`pair.js`, `units-index.js`, `map-index.js`) could run; until then no unit carries a distance and the
-pages show 0 flagged.
+the unit lists, a count in the status lines. Measured on all 3 669 units (2026-11-01): 3 175 reference
+points lie inside their polygon, 115 more than 1 km away, **46 more than 5 km, 25 more than 20 km**, the
+farthest 254 km (ROU00389; then IRL00009 220, CZE00084 219, CZE00156 197, LTU00013 156, SWE00356 151,
+IRL00008 151, CZE00183 140, SWE00407 126, IRL00010 115, ESP00384 114, SWE00062 111, POL00091 111,
+LTU00041 103, ESP00228 86, ESP00220 85, CZE00140 85, CZE00230 37, LTU00037 37, SVN00029 36, CZE00185 32,
+SVK00131 28, LTU00125 25, SWE00008 23, LTU00122 21). Of the 530 beech units 13 are flagged at 5 km.
 Not yet: the pair selector (needs
 the service or five times the export), the class of each unit's own cell (a service-side raster
 sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the
@@ -184,5 +186,5 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-10-31 | **Serving strategy (Milko agrees, Claude chooses):** two channels. **A Foxx service in `GeoService`** for everything that is a query — species layer, units, facet counts, manifest, click lookup, optional binned density; **static file hosting** (Phase 4) for the bulk: precomputed base layers per pair × source × period and the COG rasters read by byte range. Examples switch from exported files to the service once the scatterplot library is chosen. |
 | 2026-11-01 | **Figure 1 classification view built** (iteration 3, see §4): classes from the published EU-Trees4F binary maps, never recomputed; period pairing per the paper's 30-year lag; the view is labelled as a projection of present cells into the selected period's suitability. Pending Milko's review. |
 | 2026-11-01 | **Map → scatterplot link built** (iteration 4, see §4): panes as independent pages linked by `postMessage`; layers as index lists on one global cell order, the shape the service will serve. Pending Milko's review. |
-| 2026-11-01 | **Reference-point distance flag built** (iteration 5, see §4): threshold 5 km by default, selectable; distance stored on `ScatterUnits` under `_custom`; the database run and the re-export wait for ArangoDB to be back. Pending Milko's review. |
+| 2026-11-01 | **Reference-point distance flag built** (iteration 5, see §4): threshold 5 km by default, selectable; distance stored on `ScatterUnits` under `_custom` and exported; 46 of 3 669 units exceed 5 km, 25 exceed 20 km (list in §4), for the EUFGIS data-quality work. Pending Milko's review. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |

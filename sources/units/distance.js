@@ -18,15 +18,16 @@ try {
   writeFileSync('work/units-geometry.jsonl', rows.map((r) => JSON.stringify(r)).join('\n') + '\n')
   console.log(`${rows.length} units with a reference point and a polygon`)
   execFileSync('.venv/bin/python', ['-I', '-c', `
-import json
+import json, numpy as np
 from shapely.geometry import shape
-from shapely.ops import transform
+from shapely import transform
 from pyproj import Transformer
 to_laea = Transformer.from_crs('EPSG:4326', 'EPSG:3035', always_xy=True).transform
+laea = lambda g: transform(g, lambda c: np.column_stack(to_laea(c[:, 0], c[:, 1])))
 out = open('work/units-distance.jsonl', 'w')
 for line in open('work/units-geometry.jsonl'):
     r = json.loads(line)
-    poly = transform(to_laea, shape(r['geometry'])); pt = transform(to_laea, shape(r['point']))
+    poly = laea(shape(r['geometry'])); pt = laea(shape(r['point']))
     km = poly.distance(pt) / 1000.0
     out.write(json.dumps({'key': r['key'], 'km': round(km, 3), 'inside': km == 0}) + '\\n')
 `])
