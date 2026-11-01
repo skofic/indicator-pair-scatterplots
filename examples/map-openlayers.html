@@ -11,6 +11,7 @@
   header, #search, #info { flex: none }
   header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 16px; border-bottom: 1px solid #ddd }
   header label { display: inline-flex; gap: 6px; align-items: center }
+  body.embedded .host { display: none }
   #map { flex: 1 1 auto; min-height: 320px; margin: 0 8px }
   #info { padding: 6px 16px; font-size: 13px; color: #333; min-height: 2.6em; border-top: 1px solid #ddd; background: #fafafa }
   input.op { width: 70px; vertical-align: middle }
@@ -41,13 +42,13 @@
   <span class="legend"><i style="background:#1a7a1a"></i>presence<i style="background:#1f4e9c"></i>suitability<i style="background:rgba(255,214,0,.65)"></i>EU-Trees4F 2005<i style="background:rgba(233,30,99,.6)"></i>EU-Trees4F 2095<i style="border:2px dashed #6a1b9a;height:6px;width:10px"></i>chorology<i style="border:2px solid #e06a00;height:8px;width:10px"></i>units</span>
 </header>
 <div id="search">
-  <strong>Units</strong>
-  <label>Country <select id="country"><option value="">all</option></select></label>
-  <label>Species <select id="speciesSel"></select></label>
-  <label>Unit <select id="unitSel"><option value="">—</option></select></label>
-  <label><input type="checkbox" id="showRestricted" disabled> show restricted (never on the map)</label>
-  <label title="data-quality flag: the climate values are read at the reference point">flag &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km</label>
-  <span id="searchInfo"></span>
+  <strong class="host">Units</strong>
+  <label class="host">Country <select id="country"><option value="">all</option></select></label>
+  <label class="host">Species <select id="speciesSel"></select></label>
+  <label class="host">Unit <select id="unitSel"><option value="">—</option></select></label>
+  <label class="host"><input type="checkbox" id="showRestricted" disabled> show restricted (never on the map)</label>
+  <label class="host" title="data-quality flag: the climate values are read at the reference point">flag &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km</label>
+  <span id="searchInfo" class="host"></span>
   <span id="layersInfo" style="color:#555"></span>
 </div>
 <div id="map"></div>
@@ -136,12 +137,24 @@ Promise.all([fetch(DATA + 'units-index.json').then((r) => r.json()), fetch(DATA 
   $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill() })
   $('flagKm').addEventListener('change', () => { refill(); units.changed() })
   $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.unit = ''; refill(); showSpeciesLayers(state.species); post('species', { name: state.species }) })
-  $('unitSel').addEventListener('change', (e) => {
-    state.unit = e.target.value
-    const f = allUnits.find((f) => f.get('id') === state.unit)
-    if (f) map.getView().fit(f.getGeometry().getExtent(), { padding: [60, 60, 60, 60], maxZoom: 11, duration: 600 })
-    else if (state.unit) $('info').textContent = `${state.unit}: restricted coordinates, not shown on the map (its climate is in the scatterplot)`
-  })
+  $('unitSel').addEventListener('change', (e) => { state.unit = e.target.value; goToUnit() })
+  if (new URLSearchParams(location.search).get('embedded')) document.body.classList.add('embedded')
+})
+function goToUnit() {
+  const f = allUnits.find((f) => f.get('id') === state.unit)
+  if (f) map.getView().fit(f.getGeometry().getExtent(), { padding: [60, 60, 60, 60], maxZoom: 11, duration: 600 })
+  else if (state.unit) $('info').textContent = `${state.unit}: restricted coordinates, not shown on the map (its climate is in the scatterplot)`
+}
+// the host page's shared controls arrive as messages; a clear from the host or the scatterplot clears the drawing without echo
+window.addEventListener('message', (e) => {
+  if (!ix) return
+  if (e.data?.type === 'filter') {
+    const f = e.data, speciesChanged = f.species && f.species !== state.species
+    if (f.species) state.species = f.species; state.country = f.country ?? ''; state.unit = f.unit ?? ''
+    if (f.flagKm != null) $('flagKm').value = String(f.flagKm)
+    refill(); units.changed(); if (speciesChanged) showSpeciesLayers(state.species); goToUnit()
+  }
+  if (e.data?.type === 'clear-selection') drawn.getSource().clear()
 })
 // ---- map → scatterplot: the drawn geometry (WGS84 GeoJSON) goes to the parent page, which relays it to the scatterplot
 const post = (type, body) => { const msg = { type, ...body }; if (window.parent !== window) window.parent.postMessage(msg, '*'); if (window.opener) window.opener.postMessage(msg, '*') }
@@ -149,6 +162,7 @@ const wgs = new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjecti
 let drawInt = null
 $('draw').addEventListener('change', (e) => {
   if (drawInt) { map.removeInteraction(drawInt); drawInt = null }
+  drawn.getSource().clear(); post('map-selection', { geometry: null })
   const v = e.target.value; if (v === 'none') return
   drawInt = new ol.interaction.Draw({ source: drawn.getSource(), type: v === 'Box' ? 'Circle' : v, geometryFunction: v === 'Box' ? ol.interaction.Draw.createBox() : undefined })
   drawInt.on('drawstart', () => drawn.getSource().clear())

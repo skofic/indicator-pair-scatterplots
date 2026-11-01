@@ -4,20 +4,77 @@
 <meta charset="utf-8">
 <title>Map ↔ scatterplot</title>
 <style>
-  html, body { height: 100%; margin: 0 }
-  body { display: flex; flex-direction: column; font: 13px/1.4 system-ui, sans-serif; color: #222 }
-  #bar { flex: none; padding: 6px 14px; border-bottom: 1px solid #ddd; background: #f6f6f6 }
-  iframe { border: 0; flex: 1 1 50%; min-height: 0 }
-  #map { border-bottom: 3px solid #bbb }
+  html, body { height: 100%; margin: 0; overflow: hidden }
+  body { display: flex; flex-direction: column; font: 13px/1.4 system-ui, sans-serif; color: #222; background: #fff }
+  #bar { flex: none; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 6px 14px; border-bottom: 1px solid #bbb; background: #f6f6f6 }
+  label { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap }
+  #panes { flex: 1 1 auto; min-height: 0; display: grid; gap: 3px; background: #bbb }
+  /* the layout follows the window's shape: side by side when wider than tall, stacked when taller */
+  #panes.auto { grid-template-columns: 1fr 1fr }
+  @media (max-aspect-ratio: 5/4) { #panes.auto { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr } }
+  #panes.side { grid-template-columns: 1fr 1fr }
+  #panes.stack { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr }
+  iframe { border: 0; width: 100%; height: 100%; min-height: 0; background: #fff }
+  #info { color: #555 }
 </style>
 </head>
 <body>
-<div id="bar"><strong>Linked panes</strong> — draw a point, box or polygon on the map (Draw selector) or click it: the surveyed cells inside appear in the scatterplot in teal, moved to the selected period. The map's species choice follows into the scatterplot (three species exported). Two independent pages talking through <code>postMessage</code> relayed by this page, as portal panes would; nothing is shared but messages.</div>
-<iframe id="map" src="map-openlayers.html"></iframe>
-<iframe id="scatter" src="scatter-d3-canvas.html?species=Fagus%20sylvatica&climate=worldclim%7C2081-2100%7Cssp370"></iframe>
+<div id="bar">
+  <strong>Map ↔ scatterplot</strong>
+  <label>Species <select id="species"></select></label>
+  <label>Country <select id="country"><option value="">all</option></select></label>
+  <label>Unit <select id="unit"><option value="">—</option></select></label>
+  <label title="restricted units are never on the map"><input type="checkbox" id="restricted" checked> restricted units in the scatterplot</label>
+  <label title="data-quality flag: the climate values are read at the reference point">flag &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km from the polygon</label>
+  <span id="info"></span>
+  <button id="clear" style="display:none">clear the map selection</button>
+  <label style="margin-left:auto">Layout <select id="layout"><option value="auto">follows the window</option><option value="side">side by side</option><option value="stack">stacked</option></select></label>
+</div>
+<div id="panes" class="auto">
+  <iframe id="map" src="map-openlayers.html?embedded=1"></iframe>
+  <iframe id="scatter" src="scatter-d3-canvas.html?embedded=1&species=Fagus%20sylvatica&climate=worldclim%7C2081-2100%7Cssp370"></iframe>
+</div>
 <script>
-// the relay: in the portal, the host page (or a shared bus) does this and checks the origin of every message
-window.addEventListener('message', (e) => { if (e.data?.type === 'map-selection' || e.data?.type === 'species') document.getElementById('scatter').contentWindow.postMessage(e.data, '*') })
+// The host page owns the shared state (species, country, unit, restricted, flag threshold, layout) and relays the
+// selection messages between the two panes; the panes are independent pages that know nothing of each other.
+// In the portal the host checks the origin of every message.
+const $ = (id) => document.getElementById(id), DATA = '../work/examples/data/'
+const mapW = () => $('map').contentWindow, scatterW = () => $('scatter').contentWindow
+const state = { species: 'Fagus sylvatica', country: '', unit: '', restricted: true, flagKm: 5 }
+let ix, mapIndex, meta
+function send() { const msg = { type: 'filter', ...state }; mapW().postMessage(msg, '*'); scatterW().postMessage(msg, '*') }
+function refill() {
+  const { country, species } = state
+  const match = (u, c, s) => (!c || u.country === c) && (!s || u.species.includes(s))
+  const facet = (el, items, label, current, first) => { el.innerHTML = first; for (const [v, n] of items) el.add(new Option(`${label(v)} (${n})`, v, false, v === current)) }
+  const count = (list, pick) => { const m = new Map(); for (const u of list) for (const k of [].concat(pick(u))) m.set(k, (m.get(k) ?? 0) + 1); return [...m].sort((a, b) => a[0].localeCompare(b[0])) }
+  facet($('country'), count(ix.units.filter((u) => match(u, '', species)), (u) => u.country), (v) => v, country, '<option value="">all</option>')
+  facet($('species'), count(ix.units.filter((u) => match(u, country, '')), (u) => u.species), (v) => v + (mapIndex.species[v]?.atlas_rpp ? ' ●' : '') + (meta.species.includes(v) ? ' ▦' : ''), species, '')
+  const sel = ix.units.filter((u) => match(u, country, species)), flag = (u) => u.distance != null && u.distance > state.flagKm
+  const us = $('unit'); us.innerHTML = '<option value="">—</option>'
+  for (const u of sel) us.add(new Option(u.id + (u.restricted ? ' (restricted)' : '') + (flag(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state.unit))
+  $('info').textContent = `${sel.length} units, ${sel.filter((u) => u.restricted).length} restricted, ${sel.filter(flag).length} flagged · ● Atlas map · ▦ scatterplot data exported`
+}
+Promise.all([fetch(DATA + 'units-index.json'), fetch(DATA + 'map-index.json'), fetch(DATA + 'meta.json')].map((p) => p.then((r) => r.json()))).then(([a, b, c]) => {
+  ix = a; mapIndex = b; meta = c; refill()
+  $('species').addEventListener('change', (e) => { state.species = e.target.value; state.unit = ''; refill(); send() })
+  $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill(); send() })
+  $('unit').addEventListener('change', (e) => { state.unit = e.target.value; send() })
+  $('restricted').addEventListener('change', (e) => { state.restricted = e.target.checked; send() })
+  $('flagKm').addEventListener('change', (e) => { state.flagKm = Number(e.target.value); refill(); send() })
+  $('layout').addEventListener('change', (e) => { $('panes').className = e.target.value })
+  $('clear').addEventListener('click', () => { for (const w of [mapW(), scatterW()]) w.postMessage({ type: 'clear-selection' }, '*'); $('clear').style.display = 'none' })
+  // the panes load after this page: send the state once both are ready (the scatterplot asks for nothing, so wait for both loads)
+  let loaded = 0; for (const id of ['map', 'scatter']) $(id).addEventListener('load', () => { if (++loaded === 2) setTimeout(send, 800) })
+})
+window.addEventListener('message', (e) => {
+  const d = e.data; if (!d?.type) return
+  if (d.type === 'map-selection') {
+    if (e.source === mapW()) scatterW().postMessage(d, '*')          // the map drew or cleared something → the scatterplot
+    else if (e.source === scatterW()) mapW().postMessage({ type: 'clear-selection' }, '*')   // the scatterplot cleared → the map
+    $('clear').style.display = d.geometry ? '' : 'none'
+  }
+})
 </script>
 </body>
 </html>

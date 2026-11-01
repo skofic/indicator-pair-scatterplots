@@ -166,6 +166,22 @@ farthest 254 km (ROU00389; then IRL00009 220, CZE00084 219, CZE00156 197, LTU000
 IRL00008 151, CZE00183 140, SWE00407 126, IRL00010 115, ESP00384 114, SWE00062 111, POL00091 111,
 LTU00041 103, ESP00228 86, ESP00220 85, CZE00140 85, CZE00230 37, LTU00037 37, SVN00029 36, CZE00185 32,
 SVK00131 28, LTU00125 25, SWE00008 23, LTU00122 21). Of the 530 beech units 13 are flagged at 5 km.
+**Iteration 6 (2026-11-01, Milko's review of iterations 3–5):** clearing the map selection on either
+pane clears both (the scatterplot's clear travels back through the host); changing the draw mode clears
+both; a point sent from the map is a large teal mark with a ring and three expanding pulses on arrival;
+the View selector names why its second entry is unavailable (EU-Trees4F and a future period needed);
+the native sliders stay as they are (a stylesheet matter for the portal developers). **The joint page
+rebuilt** (`examples/linked.html`): a **shared bar** owned by the host page (species, country, unit,
+restricted units in the scatterplot, flag threshold, clear, layout), sent to both panes as one `filter`
+message, the panes hiding their own copies when embedded (`?embedded=1`); the **layout follows the
+window's shape** (side by side when wider than 5:4, stacked when taller, with a manual override), fixed
+to the viewport so only the map and the plot react to the wheel. Milko's two set-ups (full-screen
+browser on a second monitor; Safari in half a screen) both get near-square panes this way. Decisions
+recorded: defaults of the class view accepted (present position, potential variant, 2 °C × 200 mm, ≥ 100
+cells), 5 km threshold accepted, a `ui` namespace of dictionary terms for the panes' shared state and
+the unit distance descriptor to be requested at the Phase 3 close. Kept in mind for later: **detaching
+the map to its own tab or window** from the joint page (the messages already allow it: `window.open` +
+`postMessage`, or a `BroadcastChannel` for same-origin tabs).
 Not yet: the pair selector (needs
 the service or five times the export), the class of each unit's own cell (a service-side raster
 sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the
@@ -187,4 +203,5 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-01 | **Figure 1 classification view built** (iteration 3, see §4): classes from the published EU-Trees4F binary maps, never recomputed; period pairing per the paper's 30-year lag; the view is labelled as a projection of present cells into the selected period's suitability. Pending Milko's review. |
 | 2026-11-01 | **Map → scatterplot link built** (iteration 4, see §4): panes as independent pages linked by `postMessage`; layers as index lists on one global cell order, the shape the service will serve. Pending Milko's review. |
 | 2026-11-01 | **Reference-point distance flag built** (iteration 5, see §4): threshold 5 km by default, selectable; distance stored on `ScatterUnits` under `_custom` and exported; 46 of 3 669 units exceed 5 km, 25 exceed 20 km (list in §4), for the EUFGIS data-quality work. Pending Milko's review. |
+| 2026-11-01 | **Review of iterations 3–5 (Milko):** class-view defaults and the 5 km threshold accepted; a `ui` dictionary namespace for the panes' state plus the unit distance descriptor, requested at the Phase 3 close; the joint page gets shared controls and a layout that follows the window's shape; detaching the map to its own tab explored later. Built as iteration 6. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |

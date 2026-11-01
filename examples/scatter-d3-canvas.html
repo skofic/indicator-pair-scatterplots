@@ -16,9 +16,10 @@
   canvas, svg { position: absolute; left: 0; top: 0 }
   svg, #over { pointer-events: none }
   #tip { position: absolute; background: #fff; border: 1px solid #999; padding: 4px 8px; font-size: 12px; pointer-events: none; display: none; border-radius: 3px; z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.2) }
-  #status { padding: 4px 14px; color: #555; font-size: 12px; border-top: 1px solid #ddd; background: #fafafa; flex: none }
+  #status { padding: 4px 14px; color: #555; font-size: 12px; border-top: 1px solid #ddd; background: #fafafa; flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
   .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin: 0 3px 0 8px }
   .grid line { stroke: #000; stroke-opacity: .06 } .grid path { display: none }
+  body.embedded .host { display: none }
 </style>
 </head>
 <body>
@@ -33,7 +34,7 @@
   <label><input type="checkbox" id="envelope" checked> envelope (95 %): present dashed, selected solid</label>
   <label>Units <input type="range" class="op" data-layer="units" min="0" max="100" value="100" title="opacity"></label>
   <label><input type="checkbox" id="arrows" checked> arrows present → selected</label>
-  <label><input type="checkbox" id="restricted" checked> include restricted units</label>
+  <label class="host"><input type="checkbox" id="restricted" checked> include restricted units</label>
   <button id="reset" title="also: double-click the plot">reset view</button>
   <span id="classCtl" style="display:none">
     <label>Suitability <select id="variant"><option value="pot">potential (climate only)</option><option value="disp">with natural dispersal (MigClim)</option></select></label>
@@ -42,11 +43,11 @@
   </span>
 </div>
 <div class="bar" id="search">
-  <label>Species <select id="speciesSel"></select></label>
-  <label>Country <select id="country"><option value="">all</option></select></label>
-  <label>Unit <select id="unitSel"><option value="">—</option></select></label>
-  <span id="searchInfo"></span>
-  <label title="data-quality flag: the climate values are read at the reference point">flag units whose reference point is &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km from the polygon</label>
+  <label class="host">Species <select id="speciesSel"></select></label>
+  <label class="host">Country <select id="country"><option value="">all</option></select></label>
+  <label class="host">Unit <select id="unitSel"><option value="">—</option></select></label>
+  <span id="searchInfo" class="host"></span>
+  <label class="host" title="data-quality flag: the climate values are read at the reference point">flag units whose reference point is &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km from the polygon</label>
   <span id="mapSel" style="display:none">Map selection: <span id="mapSelInfo"></span> <button id="mapSelClear">clear</button></span>
   <label>Selection <span id="selCount">0</span> <select id="selMode"><option value="all">show all units</option><option value="only">only the selection</option><option value="hide">hide the selection</option></select> <button id="selClear">clear</button></label>
   <span id="legend"></span>
@@ -114,6 +115,8 @@ async function refresh() {
   if (domainProduct !== c.src) { fixDomain(await load(`base-${file(p)}.json`)); domainProduct = c.src; tx = d3.zoomIdentity }
   const avail = c.src === 'eutrees4f' && !c.present
   $('view').options[1].disabled = !avail; if (!avail && state.view === 'classes') { state.view = 'layers'; $('view').value = 'layers' }
+  $('view').options[1].text = avail ? 'suitability classes (EU-Trees4F Fig. 1)' : 'suitability classes — choose EU-Trees4F and a future period'
+  $('view').title = avail ? 'layers, or the cells classified from the EU-Trees4F suitability maps' : 'the suitability classes come from the EU-Trees4F maps: choose that product and a future period to enable them'
   $('classCtl').style.display = classView() ? '' : 'none'
   if (classView()) classes = (await load(`suitability-${slug(state.species)}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${$('variant').value}`] ?? ''
   $('legend').innerHTML = classView()
@@ -201,7 +204,8 @@ function draw() {
     ctx.save(); ctx.fillStyle = css('--map'); ctx.strokeStyle = css('--map'); ctx.lineWidth = 0.8
     if (future && $('arrows').checked) for (const i of state.mapSel.idx) { const a = basePresent[i], b = base[i]; if (a && b) arrow(x(a[0]), y(a[1]), x(b[0]), y(b[1]), 0.8, 5) }
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1
-    for (const i of state.mapSel.idx) { const b = base[i]; if (!b) continue; mapN++; ctx.beginPath(); ctx.rect(x(b[0]) - 2.5, y(b[1]) - 2.5, 5, 5); ctx.fill(); ctx.stroke() }
+    const single = state.mapSel.idx.length === 1
+    for (const i of state.mapSel.idx) { const b = base[i]; if (!b) continue; mapN++; ctx.beginPath(); if (single) { ctx.arc(x(b[0]), y(b[1]), 8, 0, 2 * Math.PI); ctx.fill(); ctx.lineWidth = 2; ctx.stroke(); ctx.strokeStyle = css('--map'); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x(b[0]), y(b[1]), 16, 0, 2 * Math.PI); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1 } else { ctx.rect(x(b[0]) - 2.5, y(b[1]) - 2.5, 5, 5); ctx.fill(); ctx.stroke() } }
     ctx.restore()
   }
   ctx.globalAlpha = op('units')
@@ -224,7 +228,19 @@ function draw() {
   quad = d3.quadtree().x((u) => x(unitPos(u)[0])).y((u) => y(unitPos(u)[1])).addAll(vis)   // screen space: hit tests are pixel distances
   const what = cv ? `suitability around ${FUT_MAP[c.period].slice(3)} (climate ${c.period}, ${SCEN[c.scenario]}, ${$('variant').value === 'pot' ? 'potential' : 'with dispersal'}) vs current: ${counts[1]} stable, ${counts[2]} decolonised, ${counts[3]} newly suitable of ${basePresent.length} cells` : `${base.length} base, ${species.length} ${state.species}`
   const mapWhat = (state.mapSel ? ` · map selection: ${state.mapSel.label}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} flagged (reference point > ${$('flagKm').value} km from the polygon)` : '')
-  status.textContent = `${c.label} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  status.title = status.textContent = `${c.label} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+}
+/** three expanding rings on the overlay canvas, so a point sent from the map is found at once */
+function pulse(i) {
+  const t0 = performance.now()
+  const frame = (t) => {
+    const b = base[i]; if (!b) return
+    const x = tx.rescaleX(x0), y = tx.rescaleY(y0), k = (t - t0) / 700
+    octx.clearRect(0, 0, W, H); if (k >= 3) return
+    const f = k % 1; octx.beginPath(); octx.arc(x(b[0]), y(b[1]), 10 + 30 * f, 0, 2 * Math.PI); octx.strokeStyle = `rgba(0,137,123,${1 - f})`; octx.lineWidth = 3; octx.stroke()
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
 }
 // ---- the map → scatterplot link: a GeoJSON Point or Polygon (WGS84) arrives by postMessage (or as ?point= / ?bbox=);
 // the cells inside are found here on the static cell list — in the product the service answers with the index list
@@ -245,9 +261,23 @@ async function selectFromMap(geom) {
     state.mapSel = { label: `area with ${idx.length} surveyed cells`, idx }
   } else return
   $('mapSel').style.display = ''; $('mapSelInfo').textContent = state.mapSel.label; draw()
+  if (idx.length === 1) pulse(idx[0])
+}
+const post = (msg) => { if (window.parent !== window) window.parent.postMessage(msg, '*') }
+/** the host page's shared controls: species, country, unit, restricted, flag threshold */
+async function applyFilter(f) {
+  if (f.species && meta.species.includes(f.species) && f.species !== state.species) { state.species = f.species; $('speciesSel').value = f.species }
+  const noData = f.species && !meta.species.includes(f.species)
+  state.country = f.country ?? ''; state.unit = f.unit ?? ''
+  if (f.restricted != null) $('restricted').checked = f.restricted
+  if (f.flagKm != null) $('flagKm').value = String(f.flagKm)
+  await refresh()
+  if (noData) status.textContent = `no scatterplot export for ${f.species} (examples hold ${meta.species.join(', ')}); showing ${state.species}`
 }
 window.addEventListener('message', (e) => {
   if (e.data?.type === 'map-selection') selectFromMap(e.data.geometry)
+  if (e.data?.type === 'clear-selection') selectFromMap(null)
+  if (e.data?.type === 'filter') applyFilter(e.data)
   if (e.data?.type === 'species' && meta?.species.includes(e.data.name) && e.data.name !== state.species) { state.species = e.data.name; $('speciesSel').value = state.species; state.country = ''; state.unit = ''; refresh() }
 })
 // ---- interaction: wheel = zoom, shift-drag = pan, drag = box zoom, double-click = reset; hover on the overlay canvas
@@ -305,7 +335,8 @@ Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + '
     if (pt?.length === 2) selectFromMap({ type: 'Point', coordinates: pt })
     else if (bb?.length === 4) selectFromMap({ type: 'Polygon', coordinates: [[[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]], [bb[0], bb[1]]]] })
   })
-  $('mapSelClear').addEventListener('click', () => selectFromMap(null))
+  $('mapSelClear').addEventListener('click', () => { selectFromMap(null); post({ type: 'map-selection', geometry: null }) })   // the host clears the map too
+  if (q.get('embedded')) document.body.classList.add('embedded')
   $('product').addEventListener('change', (e) => { state.climate = pick(e.target.value, null, null); fillSelectors(true); refresh() })
   $('scenario').addEventListener('change', (e) => { state.climate = pick(state.climate.src, e.target.value, state.climate.period); fillSelectors(true); refresh() })
   $('period').addEventListener('change', (e) => { state.climate = cl.find((c) => c.key === e.target.value); refresh() })
