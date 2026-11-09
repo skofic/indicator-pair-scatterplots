@@ -27,8 +27,11 @@ window.Dict = (() => {
     return terms
   }
   const unitGid = (g) => { const s = terms.get(g)?._data?._scalar; const d = s && Object.values(s)[0]; return d?._unit ?? null }
+  /** Markdown → plain text, for hover texts: links and images keep their words, emphasis, code and headings lose their marks */
+  const plain = (md) => String(md ?? '').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`#>]+/g, '').replace(/\s*\n+\s*/g, ' ').trim()
   const title = (g) => text(terms.get(g), '_title') || last(g)
-  const def = (g) => text(terms.get(g), '_definition')
+  // `_title` and `_definition` are text, `_description` is Markdown: the hover shows the definition, else the description as plain text
+  const def = (g) => text(terms.get(g), '_definition') || plain(text(terms.get(g), '_description'))
   const desc = (g) => text(terms.get(g), '_description')
   /** the stored / wire value of an element: its first alias (the period string, the class digit, the scenario key) */
   const aid = (g) => terms.get(g)?._code?._aid?.[0] ?? last(g)
@@ -63,5 +66,5 @@ window.Dict = (() => {
   /** validate a (partial) state against ui_layout_state; returns { ok, errors, warnings } */
   const validate = (doc) => post('/validate/document', { descriptor: 'ui_layout_state', document: doc }).catch((e) => ({ ok: null, errors: [{ message: e.message }], warnings: [] }))
 
-  return { BASE, LANG, load, title, def, desc, aid, unit, last, label, options, hover, labels, defaults, validate, terms }
+  return { BASE, LANG, load, title, def, desc, plain, aid, unit, last, label, options, hover, labels, defaults, validate, terms }
 })()

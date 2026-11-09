@@ -119,7 +119,7 @@ const classView = () => { const c = cur(); return is(K.view, 'classes') && c.src
 /** the three-level selector: source → scenario → period, never across sources */
 function fillClimate() {
   const c = cur(), prod = $('product'), sc = $K(K.scenario), pe = $K(K.period)
-  prod.innerHTML = ''; for (const d of [...new Map(climates.map((k) => [k.dataset, k]))].map((e) => e[1])) { const o = new Option(d.datasetTitle, d.dataset, false, d.dataset === c.dataset); if (d.datasetDescription) o.title = d.datasetDescription.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); prod.add(o) }   // Markdown links → their text
+  prod.innerHTML = ''; for (const d of [...new Map(climates.map((k) => [k.dataset, k]))].map((e) => e[1])) { const o = new Option(d.datasetTitle, d.dataset, false, d.dataset === c.dataset); if (d.datasetDescription) o.title = Dict.plain(d.datasetDescription); prod.add(o) }   // the record's definition, else its Markdown description as text
   Dict.hover(prod)
   Dict.options(sc, [...new Set(climates.filter((k) => k.dataset === c.dataset).map((k) => k.scenarioGid))], c.scenarioGid)
   Dict.options(pe, climates.filter((k) => k.dataset === c.dataset && k.scenarioGid === c.scenarioGid).map((k) => k.periodGid), c.periodGid)
