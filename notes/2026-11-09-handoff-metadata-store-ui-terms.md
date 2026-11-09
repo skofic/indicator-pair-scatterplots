@@ -585,3 +585,30 @@ Typos in the table noted in passing: "12961" for 1961; `ui_layout_scatterplot_vi
    request, validates it with `POST /validate/document`, and answers in the same vocabulary (the class
    digits are `…_view_classes_legend` aliases, the periods `env_climate_period` aliases).
 4. Record the metadata-store commit and the reload in `CLAUDE.md`, as for the two earlier handoffs.
+
+---
+
+## Addendum (2026-11-09, after the terms were created): two more terms
+
+Found while putting the panes on the vocabulary; same conventions as above, `data/ui/`.
+
+**`ui_layout_scatterplot_base_position`** — `ui_layout_scatterplot_base` · `position`. Title: *Base layer at*.
+Definition: *Draw the base layer at the present climate or at the selected period's.* Description: *The
+species layer is the species' realised niche, the climate of the places where it grows today, and never
+moves with the period (decided 2026-11-09): the units, the map-selected cells and the solid envelope are
+what the future period moves. The base layer, every surveyed cell, stays at the present climate by
+default, as the reference climate space. Moved to the selected period it shows Europe's future climate
+space against the species' present niche: the overlap is where the species' climate will still exist,
+and a niche left outside the future base is a climate that disappears from Europe. Shown only for a
+future period in the layers view.* `_data`: scalar enum, root `ui_layout_scatterplot_base_position`.
+Default `present`; add it to `ui_layout_state` (field and constant). Elements, nid
+`ui_layout_scatterplot_base_position`:
+
+| element | Title | Definition |
+|---|---|---|
+| `ui_layout_scatterplot_base_position_present` | Present climate | All surveyed cells at their reference-period values. |
+| `ui_layout_scatterplot_base_position_future` | Selected period | All surveyed cells at the selected period's values: Europe's future climate space. |
+
+**`ui_layout_label_source`** — label term under `ui_layout_label`. Title: *Source*. Definition: *The
+climate source whose values are shown: a dataset of the GeoService catalogue.* (The selector's values
+are dataset keys, `std_dataset_ids`, whose own title, "Dataset IDs", is not a label.)
