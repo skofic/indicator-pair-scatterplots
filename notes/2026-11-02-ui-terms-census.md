@@ -1,6 +1,6 @@
 # Census of the user-interface terms for the dictionary
 
-Date: 2026-11-02. Status: **draft for discussion** (step 1 of the order agreed on 2026-11-02:
+Date: 2026-11-02. Status: **decided** (Milko's annotated table 2026-11-02, four structural points 2026-11-09) and **superseded by the handoff note [`2026-11-09-handoff-metadata-store-ui-terms.md`](2026-11-09-handoff-metadata-store-ui-terms.md)**, which holds the final identifiers; kept as the record of the questions. Originally: **draft for discussion** (step 1 of the order agreed on 2026-11-02:
 census → decide namespaces and local identifiers with Milko → handoff note for the `metadata-store`
 Claude → terms loaded → Foxx service). Nothing here is final; every identifier is a proposal.
 
