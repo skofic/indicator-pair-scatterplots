@@ -14,7 +14,7 @@
   body.embedded .host { display: none }
   #map { flex: 1 1 auto; min-height: 320px; margin: 0 8px }
   #info { padding: 6px 16px; font-size: 13px; color: #333; min-height: 2.6em; border-top: 1px solid #ddd; background: #fafafa }
-  input.op { width: 70px; vertical-align: middle }
+  input[type=range] { width: 70px; vertical-align: middle }
   #search { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 8px 16px; background: #f6f6f6; border-bottom: 1px solid #ddd }
   #search select { max-width: 260px }
   .legend i { display: inline-block; width: 14px; height: 10px; vertical-align: -1px; margin: 0 4px 0 8px }
@@ -22,50 +22,43 @@
 </style>
 </head>
 <body>
+<!-- Every label is a dictionary term (data-term); every control is bound to a key of the pane state (data-key = the term's gid). -->
 <header>
-  <strong>OpenLayers</strong>
-  <label>Base map <select id="basemap">
-    <option value="none">none</option>
-    <option value="boundaries">country boundaries only (Natural Earth)</option>
-    <option value="hillshade">Esri hillshade only</option>
-    <option value="osm-gray" selected>OpenStreetMap, grey</option>
-    <option value="osm">OpenStreetMap, colour</option>
-    <option value="topo">OpenTopoMap (relief, contours)</option>
-  </select></label>
-  <label><input type="checkbox" id="rpp" checked> Atlas relative probability of presence (1 km COG) <input type="range" class="op" data-layer="rpp" min="0" max="100" value="85" title="opacity"></label>
-  <label><input type="checkbox" id="mhs"> Atlas maximum habitat suitability <input type="range" class="op" data-layer="mhs" min="0" max="100" value="85" title="opacity"></label>
-  <label><input type="checkbox" id="t4cur"> EU-Trees4F current, realised (10 km) <input type="range" class="op" data-layer="t4cur" min="0" max="100" value="100" title="opacity"></label>
-  <label><input type="checkbox" id="t4fut"> EU-Trees4F 2095 RCP 8.5, natural dispersal <input type="range" class="op" data-layer="t4fut" min="0" max="100" value="100" title="opacity"></label>
-  <label><input type="checkbox" id="choro" checked> chorology (native range) <input type="range" class="op" data-layer="choro" min="0" max="100" value="100" title="opacity"></label>
-  <label><input type="checkbox" id="units" checked> units <input type="range" class="op" data-layer="units" min="0" max="100" value="100" title="opacity"></label>
-  <label>Draw <select id="draw"><option value="none">off (a click sends a point)</option><option value="Point">point</option><option value="Box">box</option><option value="Polygon">polygon</option></select> <button id="drawClear">clear</button></label>
-  <span class="legend"><i style="background:#1a7a1a"></i>presence<i style="background:#1f4e9c"></i>suitability<i style="background:rgba(255,214,0,.65)"></i>EU-Trees4F 2005<i style="background:rgba(233,30,99,.6)"></i>EU-Trees4F 2095<i style="border:2px dashed #6a1b9a;height:6px;width:10px"></i>chorology<i style="border:2px solid #e06a00;height:8px;width:10px"></i>units</span>
+  <strong data-term="ui_layout_map"></strong>
+  <label><span data-term="ui_layout_map_layer_base"></span> <select data-key="ui_layout_map_layer_base"></select></label>
+  <label><input type="checkbox" data-key="ui_layout_map_layer_rpp"> <span data-term="ui_layout_map_layer_rpp"></span> <input type="range" data-key="ui_layout_map_layer_rpp_opacity" min="0" max="100"></label>
+  <label><input type="checkbox" data-key="ui_layout_map_layer_mhs"> <span data-term="ui_layout_map_layer_mhs"></span> <input type="range" data-key="ui_layout_map_layer_mhs_opacity" min="0" max="100"></label>
+  <label><input type="checkbox" data-key="ui_layout_map_layer_t4-current"> <span data-term="ui_layout_map_layer_t4-current"></span> <input type="range" data-key="ui_layout_map_layer_t4-current_opacity" min="0" max="100"></label>
+  <label><input type="checkbox" data-key="ui_layout_map_layer_t4-future"> <span data-term="ui_layout_map_layer_t4-future"></span> <span id="t4futWhich" style="color:#777"></span> <input type="range" data-key="ui_layout_map_layer_t4-future_opacity" min="0" max="100"></label>
+  <label><input type="checkbox" data-key="ui_layout_map_layer_chorology"> <span data-term="ui_layout_map_layer_chorology"></span> <input type="range" data-key="ui_layout_map_layer_chorology_opacity" min="0" max="100"></label>
+  <label><input type="checkbox" data-key="ui_layout_map_layer_units"> <span data-term="ui_layout_map_layer_units"></span> <input type="range" data-key="ui_layout_map_layer_units_opacity" min="0" max="100"></label>
+  <label><span data-term="ui_layout_map_draw-mode"></span> <select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></label>
+  <span class="legend"><i style="background:#1a7a1a"></i><span data-term="ui_layout_map_label_presence"></span><i style="background:#1f4e9c"></i><span data-term="ui_layout_map_label_suitability"></span><i style="background:rgba(255,214,0,.65)"></i><span data-term="ui_layout_map_label_t4-current"></span><i style="background:rgba(233,30,99,.6)"></i><span data-term="ui_layout_map_label_t4-future"></span><i style="border:2px dashed #6a1b9a;height:6px;width:10px"></i><span data-term="ui_layout_map_label_chorology"></span><i style="border:2px solid #e06a00;height:8px;width:10px"></i><span data-term="ui_layout_map_label_units"></span></span>
 </header>
 <div id="search">
-  <strong class="host">Units</strong>
-  <label class="host">Country <select id="country"><option value="">all</option></select></label>
-  <label class="host">Species <select id="speciesSel"></select></label>
-  <label class="host">Unit <select id="unitSel"><option value="">—</option></select></label>
-  <label class="host"><input type="checkbox" id="showRestricted" disabled> show restricted (never on the map)</label>
-  <label class="host" title="data-quality flag: the climate values are read at the reference point">flag &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km</label>
+  <label class="host"><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
+  <label class="host"><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
+  <label class="host"><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
+  <label class="host"><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   <span id="searchInfo" class="host"></span>
   <span id="layersInfo" style="color:#555"></span>
 </div>
 <div id="map"></div>
-<div id="info">Click the map to read the values at that location — the values are what the scatterplot would be asked to show.</div>
+<div id="info" data-term="ui_layout_map_label_click"></div>
 <script src="https://cdn.jsdelivr.net/npm/proj4@2.15.0/dist/proj4.js"></script>
 <!-- the OpenLayers full build does not bundle the GeoTIFF reader: it expects the `GeoTIFF` global from geotiff.js -->
 <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ol@10.2.1/dist/ol.js"></script>
+<script src="dictionary.js"></script>
 <script>
 // The view works in the Atlas rasters' native projection (ETRS89-LAEA, EPSG:3035), so the 1 km COGs are never
 // warped; the OSM base tiles and the vectors (WGS84) are reprojected by OpenLayers.
 proj4.defs('EPSG:3035', '+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs')
 ol.proj.proj4.register(proj4)
 const laea = ol.proj.get('EPSG:3035'); laea.setExtent([1896628.62, 1507846.05, 7104179.80, 6829874.45])   // EPSG:3035 projected bounds; the Atlas rasters span x 2.5–7.4 M, y 1.3–5.6 M
-const DATA = '../work/examples/data/', $ = (id) => document.getElementById(id)
+const DATA = '../work/examples/data/', $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`)
 const cogSource = (path) => new ol.source.GeoTIFF({ sources: [{ url: '../' + path }], normalize: false, interpolate: false })
-const cog = (style) => new ol.layer.WebGLTile({ style, opacity: 0.85 })
+const cog = (style) => new ol.layer.WebGLTile({ style, opacity: 0.85, visible: false })   // shown by applyLayers() once the state is known
 // Atlas RPP: Float32 0…1 with −1 = uncertain / no data; MHS: 0…1; EU-Trees4F bin: 0/1 Int16 on the 10 km INSPIRE grid
 const ramp = (from, to) => ['interpolate', ['linear'], ['band', 1], 0, [255, 255, 255, 0], 0.05, [...from, 0.25], 1, [...to, 1]]
 const rpp = cog({ color: ['case', ['<', ['band', 1], 0], [0, 0, 0, 0], ramp([200, 230, 180], [26, 122, 26])] })
@@ -74,6 +67,7 @@ const mhs = cog({ color: ramp([200, 215, 240], [31, 78, 156]) })
 // as potential ("pot"), natural dispersal ("disp") and their land-use clips.
 const bin = (rgba) => cog({ color: ['case', ['>=', ['band', 1], 1], rgba, [0, 0, 0, 0]] })
 const t4cur = bin([255, 214, 0, 0.65]), t4fut = bin([233, 30, 99, 0.6])
+const T4FUT = 'fut2095|rcp85|disp'   // the future layer shown until the map gets the period selector
 const gj = new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' })
 const choro = new ol.layer.Vector({ source: new ol.source.Vector(), style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#6a1b9a', width: 2.5, lineDash: [8, 5] }), fill: new ol.style.Fill({ color: 'rgba(106,27,154,.05)' }) }) })
 // the user's drawn point or area, sent to the scatterplot pane (see linked.html)
@@ -81,106 +75,130 @@ const drawn = new ol.layer.Vector({ source: new ol.source.Vector(), style: new o
 const unitStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#e06a00', width: 2 }), fill: new ol.style.Fill({ color: 'rgba(224,106,0,.25)' }), image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#e06a00' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) })
 // flagged = the climate reference point lies farther than the threshold from the polygon (data quality): dark-red dashed outline
 const flagStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b71c1c', width: 2.5, lineDash: [6, 4] }), fill: new ol.style.Fill({ color: 'rgba(183,28,28,.2)' }), image: new ol.style.Circle({ radius: 5, fill: new ol.style.Fill({ color: '#b71c1c' }), stroke: new ol.style.Stroke({ color: '#fff', width: 1 }) }) })
-const flagged = (f) => f.get('distance') != null && f.get('distance') > Number($('flagKm').value)
+
+// ---- the pane state, keyed by dictionary gids (ui_layout_state)
+const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', flag: 'gcu_loc_climate_flag', base: 'ui_layout_map_layer_base', draw: 'ui_layout_map_draw-mode', sel: 'ui_layout_map_selection' }
+const LAYER = { rpp: 'ui_layout_map_layer_rpp', mhs: 'ui_layout_map_layer_mhs', t4cur: 'ui_layout_map_layer_t4-current', t4fut: 'ui_layout_map_layer_t4-future', choro: 'ui_layout_map_layer_chorology', units: 'ui_layout_map_layer_units' }
+const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
+const OPT = { [K.base]: E('ui_layout_map_layer_base', 'none', 'boundary', 'hillshade', 'gray', 'osm', 'topo'), [K.draw]: E('ui_layout_map_draw-mode', 'none', 'point', 'box', 'polygon') }
+const LBL = { restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', unit: 'ui_layout_label_unit', neverOnMap: 'ui_layout_map_label_never-on-map', click: 'ui_layout_map_label_click', presence: 'ui_layout_map_label_presence', suitability: 'ui_layout_map_label_suitability', t4cur: 'ui_layout_map_label_t4-current', t4fut: 'ui_layout_map_label_t4-future', chorology: 'ui_layout_map_label_chorology', units: 'ui_layout_map_label_units' }
+let state = {}
+const last = Dict.last
+const flagged = (f) => f.get('distance') != null && f.get('distance') > state[K.flag]
 const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: (f) => flagged(f) ? flagStyle : unitStyle })
 const layers = { rpp, mhs, t4cur, t4fut, choro, units }
-// base maps (raster tiles in Web Mercator, reprojected by OpenLayers to EPSG:3035)
+// base maps (raster tiles in Web Mercator, reprojected by OpenLayers to EPSG:3035), keyed by the element's last segment
 const xyz = (url, attributions) => new ol.layer.Tile({ source: new ol.source.XYZ({ url, attributions, crossOrigin: 'anonymous', maxZoom: 17 }), opacity: 0.7 })
 const basemaps = {
-  boundaries: new ol.layer.Vector({ source: new ol.source.Vector({ url: '../maps/basemap/ne_50m_admin_0_countries.geojson', format: new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' }) }),
+  boundary: new ol.layer.Vector({ source: new ol.source.Vector({ url: '../maps/basemap/ne_50m_admin_0_countries.geojson', format: new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' }) }),
     style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#8a8a8a', width: 0.8 }), fill: new ol.style.Fill({ color: '#f4f4f0' }) }), background: '#dfe9f3' }),
-  'osm-gray': new ol.layer.Tile({ source: new ol.source.OSM({ crossOrigin: 'anonymous' }), opacity: 0.7, className: 'basemap-gray' }),
+  gray: new ol.layer.Tile({ source: new ol.source.OSM({ crossOrigin: 'anonymous' }), opacity: 0.7, className: 'basemap-gray' }),
   topo: xyz('https://tile.opentopomap.org/{z}/{x}/{y}.png', '© OpenStreetMap contributors, SRTM | © OpenTopoMap (CC-BY-SA)'),
   hillshade: xyz('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', 'Esri, USGS, NOAA'),
   osm: new ol.layer.Tile({ source: new ol.source.OSM(), opacity: 0.7 }),
 }
-for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === 'osm-gray')
 const map = new ol.Map({ target: 'map', layers: [...Object.values(basemaps), ...Object.values(layers), drawn],
   view: new ol.View({ projection: laea, center: ol.proj.fromLonLat([10, 50], laea), zoom: 4 }) })
-$('basemap').addEventListener('change', (e) => { for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === e.target.value) })
-for (const [id, l] of Object.entries(layers)) { l.setVisible($(id).checked); $(id).addEventListener('change', (e) => l.setVisible(e.target.checked)) }
-for (const r of document.querySelectorAll('input.op')) { const l = layers[r.dataset.layer]; l.setOpacity(r.value / 100); r.addEventListener('input', () => l.setOpacity(r.value / 100)) }
+/** the state → the map: base map, layer visibility and opacity */
+function applyLayers() {
+  for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === last(state[K.base]))
+  for (const [id, l] of Object.entries(layers)) { l.setVisible(!!state[LAYER[id]] && !!l.getSource()); l.setOpacity((state[LAYER[id] + '_opacity'] ?? 100) / 100) }   // a raster layer without a source is never rendered
+}
 
 // ---- species → map layers (from the ScatterMaps manifest), units → vector layer; the search pane filters live
 let ix, mapIndex, allUnits = []
-const state = { country: '', species: 'Fagus sylvatica', unit: '' }
 function showSpeciesLayers(name) {
-  const e = mapIndex.species[name] ?? { eutrees4f: {}, chorology: [] }
-  const set = (layer, path) => { layer.setSource(path ? cogSource(path) : null); $(layer === rpp ? 'rpp' : layer === mhs ? 'mhs' : layer === t4cur ? 't4cur' : 't4fut').parentElement.style.opacity = path ? 1 : 0.4 }
-  set(rpp, e.atlas_rpp); set(mhs, e.atlas_mhs); set(t4cur, e.eutrees4f['cur2005|cur|nat']); set(t4fut, e.eutrees4f['fut2095|rcp85|disp'])
+  const e = mapIndex.species[name] ?? { eutrees4f: {}, chorology: [] }, T = Dict.title
+  const set = (layer, gid, path) => { layer.setSource(path ? cogSource(path) : null); $K(gid).parentElement.style.opacity = path ? 1 : 0.4 }
+  set(rpp, LAYER.rpp, e.atlas_rpp); set(mhs, LAYER.mhs, e.atlas_mhs); set(t4cur, LAYER.t4cur, e.eutrees4f['cur2005|cur|nat']); set(t4fut, LAYER.t4fut, e.eutrees4f[T4FUT])
+  applyLayers()
   choro.getSource().clear()
   for (const c of e.chorology.filter((c) => c.layer.startsWith('native range'))) fetch('../' + c.path).then((r) => r.json()).then((g) => choro.getSource().addFeatures(gj.readFeatures(g)))
-  $('layersInfo').textContent = `${name}: ` + [e.atlas_rpp && 'Atlas presence', e.atlas_mhs && 'Atlas suitability', Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length} binary layers)`, e.chorology.length && 'chorology'].filter(Boolean).join(', ') || `${name}: no map layer in any source`
+  $('layersInfo').textContent = `${name}: ` + [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(', ')
 }
 function refill() {
-  const { country, species } = state
+  const country = state[K.country] ? Dict.aid(state[K.country]) : '', species = state[K.species], T = Dict.title
   const match = (u, c, s) => (!c || u.country === c) && (!s || u.species.includes(s))
   const sel = ix.units.filter((u) => match(u, country, species))
   // facets: each list counts the units that match the OTHER selections (metadata-store behaviour)
-  const facet = (el, items, key, label, current) => {
-    el.innerHTML = '<option value="">all</option>'
-    for (const [v, n] of items) el.add(new Option(`${label(v)} (${n})`, v, false, v === current))
-  }
   const count = (list, pick) => { const m = new Map(); for (const u of list) for (const k of [].concat(pick(u))) m.set(k, (m.get(k) ?? 0) + 1); return [...m].sort((a, b) => a[0].localeCompare(b[0])) }
-  facet($('country'), count(ix.units.filter((u) => match(u, '', species)), (u) => u.country), 'country', (v) => v, country)
-  facet($('speciesSel'), count(ix.units.filter((u) => match(u, country, '')), (u) => u.species), 'species', (v) => v + (mapIndex.species[v]?.atlas_rpp ? ' ●' : ''), species)
-  const unitSel = $('unitSel'); unitSel.innerHTML = '<option value="">—</option>'
-  const km = Number($('flagKm').value), flag = (u) => u.distance != null && u.distance > km
-  for (const u of sel) unitSel.add(new Option(u.id + (u.restricted ? ' (restricted)' : '') + (flag(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state.unit))
-  $('searchInfo').textContent = `${sel.length} units, ${sel.filter((u) => u.restricted).length} restricted (not on the map), ${sel.filter(flag).length} flagged (reference point > ${km} km from the polygon) · ● species with an Atlas map`
+  const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const [v, n] of count(ix.units.filter((u) => match(u, '', species)), (u) => u.country)) cs.add(new Option(`${T('ISO_3166_1_' + v)} (${n})`, 'ISO_3166_1_' + v, false, 'ISO_3166_1_' + v === state[K.country]))
+  const ss = $K(K.species); ss.innerHTML = ''; for (const [v, n] of count(ix.units.filter((u) => match(u, country, '')), (u) => u.species)) ss.add(new Option(`${v}${mapIndex.species[v]?.atlas_rpp ? ' ●' : ''} (${n})`, v, false, v === species))
+  const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'
+  const flag = (u) => u.distance != null && u.distance > state[K.flag]
+  for (const u of sel) us.add(new Option(u.id + (u.restricted ? ` (${T(LBL.restricted)})` : '') + (flag(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
+  $('searchInfo').textContent = `${sel.length} ${T(LBL.unit).toLowerCase()}s, ${sel.filter((u) => u.restricted).length} ${T(LBL.restricted)}, ${sel.filter(flag).length} ${T(LBL.flagged)} (> ${state[K.flag]} km) · ● ${T(LBL.presence)}`
   const ids = new Set(sel.map((u) => u.id))
   units.getSource().clear(); units.getSource().addFeatures(allUnits.filter((f) => ids.has(f.get('id'))))
 }
-Promise.all([fetch(DATA + 'units-index.json').then((r) => r.json()), fetch(DATA + 'map-index.json').then((r) => r.json()), fetch(DATA + 'units-geo-all.geojson').then((r) => r.json())]).then(([a, b, g]) => {
-  ix = a; mapIndex = b; allUnits = gj.readFeatures(g)
-  refill(); showSpeciesLayers(state.species)
-  $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill() })
-  $('flagKm').addEventListener('change', () => { refill(); units.changed() })
-  $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.unit = ''; refill(); showSpeciesLayers(state.species); post('species', { name: state.species }) })
-  $('unitSel').addEventListener('change', (e) => { state.unit = e.target.value; goToUnit() })
-  if (new URLSearchParams(location.search).get('embedded')) document.body.classList.add('embedded')
-})
 function goToUnit() {
-  const f = allUnits.find((f) => f.get('id') === state.unit)
+  const f = allUnits.find((f) => f.get('id') === state[K.unit])
   if (f) map.getView().fit(f.getGeometry().getExtent(), { padding: [60, 60, 60, 60], maxZoom: 11, duration: 600 })
-  else if (state.unit) $('info').textContent = `${state.unit}: restricted coordinates, not shown on the map (its climate is in the scatterplot)`
+  else if (state[K.unit]) $('info').textContent = `${state[K.unit]}: ${Dict.title(LBL.neverOnMap)}`
 }
-// the host page's shared controls arrive as messages; a clear from the host or the scatterplot clears the drawing without echo
-window.addEventListener('message', (e) => {
-  if (!ix) return
-  if (e.data?.type === 'filter') {
-    const f = e.data, speciesChanged = f.species && f.species !== state.species
-    if (f.species) state.species = f.species; state.country = f.country ?? ''; state.unit = f.unit ?? ''
-    if (f.flagKm != null) $('flagKm').value = String(f.flagKm)
-    refill(); units.changed(); if (speciesChanged) showSpeciesLayers(state.species); goToUnit()
+// ---- controls bound to state keys
+const read = (el) => el.type === 'checkbox' ? el.checked : el.type === 'range' || el.dataset.key === K.flag ? Number(el.value) : (el.value === '' ? null : el.value)
+const ON = {
+  [K.species]: () => { state[K.country] = null; state[K.unit] = null; refill(); showSpeciesLayers(state[K.species]); post({ [K.species]: state[K.species] }) },
+  [K.country]: () => { state[K.unit] = null; refill() }, [K.unit]: goToUnit, [K.flag]: () => { refill(); units.changed() },
+  [K.draw]: setDraw, [K.base]: applyLayers,
+}
+function bindControls() {
+  for (const el of document.querySelectorAll('[data-key]')) {
+    const k = el.dataset.key
+    if (el.tagName === 'SELECT' && OPT[k]) Dict.options(el, OPT[k], state[k])
+    el.title ||= Dict.def(k)
+    el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { state[k] = read(el); (ON[k] ?? applyLayers)() })
   }
-  if (e.data?.type === 'clear-selection') drawn.getSource().clear()
-})
-// ---- map → scatterplot: the drawn geometry (WGS84 GeoJSON) goes to the parent page, which relays it to the scatterplot
-const post = (type, body) => { const msg = { type, ...body }; if (window.parent !== window) window.parent.postMessage(msg, '*'); if (window.opener) window.opener.postMessage(msg, '*') }
+}
+function syncControls() { for (const el of document.querySelectorAll('[data-key]')) { const v = state[el.dataset.key]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = v } }
+// ---- map → scatterplot: the drawn geometry (WGS84 GeoJSON) goes to the parent page as ui_layout_map_selection
+const post = (partial) => { const msg = { type: 'state', ...partial }; if (window.parent !== window) window.parent.postMessage(msg, '*'); if (window.opener) window.opener.postMessage(msg, '*') }
 const wgs = new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' })
 let drawInt = null
-$('draw').addEventListener('change', (e) => {
+function setDraw() {   // changing the mode clears the drawing on both panes
   if (drawInt) { map.removeInteraction(drawInt); drawInt = null }
-  drawn.getSource().clear(); post('map-selection', { geometry: null })
-  const v = e.target.value; if (v === 'none') return
-  drawInt = new ol.interaction.Draw({ source: drawn.getSource(), type: v === 'Box' ? 'Circle' : v, geometryFunction: v === 'Box' ? ol.interaction.Draw.createBox() : undefined })
+  drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null })
+  const v = last(state[K.draw]); if (v === 'none') return
+  const type = { point: 'Point', box: 'Circle', polygon: 'Polygon' }[v]
+  drawInt = new ol.interaction.Draw({ source: drawn.getSource(), type, geometryFunction: v === 'box' ? ol.interaction.Draw.createBox() : undefined })
   drawInt.on('drawstart', () => drawn.getSource().clear())
-  drawInt.on('drawend', (ev) => { const g = JSON.parse(wgs.writeGeometry(ev.feature.getGeometry())); post('map-selection', { geometry: g }); $('info').innerHTML = `${g.type} sent to the scatterplot` })
+  drawInt.on('drawend', (ev) => { const g = JSON.parse(wgs.writeGeometry(ev.feature.getGeometry())); state[K.sel] = g; post({ [K.sel]: g }); $('info').textContent = `${g.type} → ${Dict.title('ui_layout_scatterplot_label_map-selection')}` })
   map.addInteraction(drawInt)
-})
-$('drawClear').addEventListener('click', () => { drawn.getSource().clear(); post('map-selection', { geometry: null }) })
+}
 map.on('singleclick', (e) => {
   if (drawInt) return
-  const [lon, lat] = ol.proj.toLonLat(e.coordinate, laea)
-  drawn.getSource().clear(); drawn.getSource().addFeature(new ol.Feature(new ol.geom.Point(e.coordinate))); post('map-selection', { geometry: { type: 'Point', coordinates: [lon, lat] } })
+  const [lon, lat] = ol.proj.toLonLat(e.coordinate, laea), T = Dict.title
+  drawn.getSource().clear(); drawn.getSource().addFeature(new ol.Feature(new ol.geom.Point(e.coordinate)))
+  state[K.sel] = { type: 'Point', coordinates: [lon, lat] }; post({ [K.sel]: state[K.sel] })
   const read = (l) => { if (!l.getSource()) return null; const d = l.getData(e.pixel); return d ? d[0] : null }
   const parts = [`<b>${lat.toFixed(4)}, ${lon.toFixed(4)}</b>`]
-  for (const [name, l] of [['Atlas presence', rpp], ['Atlas suitability', mhs], ['EU-Trees4F 2005', t4cur], ['EU-Trees4F 2095 RCP 8.5', t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${name}: ${v < 0 ? 'no data' : v.toFixed(2)}`) }
+  for (const [g, l] of [[LBL.presence, rpp], [LBL.suitability, mhs], [LBL.t4cur, t4cur], [LBL.t4fut, t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${T(g)}: ${v < 0 ? '—' : v.toFixed(2)}`) }
   const hit = map.getFeaturesAtPixel(e.pixel, { layerFilter: (l) => l === units })
-  if (hit.length) parts.push(`unit <b>${hit[0].get('id')}</b> (${hit[0].get('species').join(', ')})` + (hit[0].get('distance') != null ? `, reference point ${hit[0].get('distance').toFixed(1)} km from the polygon${flagged(hit[0]) ? ' <span style="color:#b71c1c">⚠</span>' : ''}` : ''))
-  parts.push('→ sent to the scatterplot as a point (its surveyed cell, if any); in the product the Foxx service returns the containing climate cell')
+  if (hit.length) parts.push(`<b>${hit[0].get('id')}</b> (${hit[0].get('species').join(', ')})` + (hit[0].get('distance') != null ? `, ${T('gcu_loc_climate_distance')} ${hit[0].get('distance').toFixed(1)} km${flagged(hit[0]) ? ' <span style="color:#b71c1c">⚠</span>' : ''}` : ''))
   $('info').innerHTML = parts.join(' · ')
+})
+// the host page's state arrives as messages; a cleared selection from the host or the scatterplot clears the drawing without echo
+window.addEventListener('message', (e) => {
+  if (e.data?.type !== 'state' || !ix) return
+  const p = e.data, speciesChanged = p[K.species] && p[K.species] !== state[K.species]
+  for (const [k, v] of Object.entries(p)) if (k !== 'type') state[k] = v
+  if (K.sel in p && !p[K.sel]) drawn.getSource().clear()
+  syncControls(); applyLayers(); refill(); units.changed(); if (speciesChanged) showSpeciesLayers(state[K.species]); if (K.unit in p) goToUnit()
+})
+// ---- start: the dictionary's defaults, then the URL (any state key by its gid), then the data
+const parse = (v) => { if (v === 'true') return true; if (v === 'false') return false; if (/^[\[{]/.test(v)) { try { return JSON.parse(v) } catch { return v } } return v !== '' && !isNaN(v) ? Number(v) : v }
+Promise.all([fetch(DATA + 'units-index.json').then((r) => r.json()), fetch(DATA + 'map-index.json').then((r) => r.json()), fetch(DATA + 'units-geo-all.geojson').then((r) => r.json()), Dict.defaults()]).then(async ([a, b, g, defaults]) => {
+  ix = a; mapIndex = b; allUnits = gj.readFeatures(g)
+  state = { ...defaults, [K.species]: 'Fagus sylvatica' }
+  const q = new URLSearchParams(location.search)
+  for (const k of [...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity')]) if (q.has(k)) state[k] = parse(q.get(k))
+  if (q.get('embedded')) document.body.classList.add('embedded')
+  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), ...ix.countries.map((c) => 'ISO_3166_1_' + c.code), 'ui_layout_map', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', 'gcu_loc_climate_distance', 'ui_layout_scatterplot_label_map-selection'])
+  await Dict.labels(); bindControls(); syncControls(); applyLayers()
+  $('t4futWhich').textContent = '(2095, RCP 8.5, ' + Dict.title('ui_layout_scatterplot_view_classes_variant_dispersal').toLowerCase() + ')'
+  refill(); showSpeciesLayers(state[K.species])
+  $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
 })
 </script>
 </body>

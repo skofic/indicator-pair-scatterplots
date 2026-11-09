@@ -22,14 +22,19 @@ const slug = (s) => s.replace(/\s+/g, '_')
 const TITLE = { eutrees4f: 'EU-Trees4F (WorldClim 1.4 + EURO-CORDEX, 10 km)', worldclim: 'WorldClim 2.1 (1 km)', chelsa: 'CHELSA 2.1 (1 km)' }
 export const ORDER = 'FOR d IN @@c SORT d._key'   // the global cell order, shared with suitability.js
 
-/** Every climate block: { key, src, period, scenario, path (AQL into d.properties), label, present } */
-export function climates() {
+// the dictionary's period sections per source (env_climate_period_<section>_<period>) and the Dataset record codes
+const SECTION = { eutrees4f: 'worldclim14', worldclim: 'worldclim21', chelsa: 'chelsa' }
+const DATASET_CODE = { eutrees4f: 'EU-TREES4F_PREDICTORS_2022', worldclim: 'WORLDCLIM_V2.1', chelsa: 'CHELSA_V2.1' }
+/** Every climate block: { key, src, period, scenario, path (AQL into d.properties), label, present, dataset (the Dataset
+ *  record _key, the pane's source value), datasetTitle, periodGid, scenarioGid (the dictionary terms the pane state holds) } */
+export function climates(datasets = {}) {
   const out = []
+  const gids = (src, period, scenario) => ({ dataset: datasets[src]?.key ?? null, datasetTitle: datasets[src]?.title ?? TITLE[src], periodGid: `env_climate_period_${SECTION[src]}_${period}`, scenarioGid: `env_climate_scenario_${scenario || 'historical'}` })
   for (const [src, S] of Object.entries(SOURCES)) {
-    out.push({ key: `${src}|${S.period}|`, src, period: S.period, scenario: '', path: `d.properties.${src}["${S.period}"]`, label: `${TITLE[src]} · ${S.period}`, present: true })
+    out.push({ key: `${src}|${S.period}|`, src, period: S.period, scenario: '', path: `d.properties.${src}["${S.period}"]`, label: `${TITLE[src]} · ${S.period}`, present: true, ...gids(src, S.period, '') })
     for (const p of S.future?.periods ?? []) {
-      if (S.future.scenarios) for (const sc of S.future.scenarios) out.push({ key: `${src}|${p}|${sc}`, src, period: p, scenario: sc, path: `d.properties.${src}["${p}"]["${sc}"]`, label: `${TITLE[src]} · ${p} · ${sc.toUpperCase().replace('RCP', 'RCP ').replace('45', '4.5').replace('85', '8.5')}`, present: false })
-      else out.push({ key: `${src}|${p}|${S.future.ssp}`, src, period: p, scenario: S.future.ssp, path: `d.properties.${src}["${p}"]["${S.future.model}"]["${S.future.ssp}"]`, label: `${TITLE[src]} · ${p} · ${S.future.model} SSP3-7.0`, present: false })
+      if (S.future.scenarios) for (const sc of S.future.scenarios) out.push({ key: `${src}|${p}|${sc}`, src, period: p, scenario: sc, path: `d.properties.${src}["${p}"]["${sc}"]`, label: `${TITLE[src]} · ${p} · ${sc.toUpperCase().replace('RCP', 'RCP ').replace('45', '4.5').replace('85', '8.5')}`, present: false, ...gids(src, p, sc) })
+      else out.push({ key: `${src}|${p}|${S.future.ssp}`, src, period: p, scenario: S.future.ssp, path: `d.properties.${src}["${p}"]["${S.future.model}"]["${S.future.ssp}"]`, label: `${TITLE[src]} · ${p} · ${S.future.model} SSP3-7.0`, present: false, ...gids(src, p, S.future.ssp) })
     }
   }
   return out
@@ -37,7 +42,9 @@ export function climates() {
 if (process.argv[1].endsWith('pair.js')) try {
   const { db, collections: C } = connect(loadCredentials())
   const q = (a, b = {}) => db.query(a, b, { batchSize: 10000 }).then((c) => c.all())
-  const cl = climates()
+  const datasets = {}
+  for (const [src, code] of Object.entries(DATASET_CODE)) { const d = (await q(`FOR d IN @@c FILTER d.std_dataset_code == @code RETURN { key: d._key, title: d._info._title.ISO_639_3_eng }`, { '@c': C.dataset, code }))[0]; if (!d) throw new Error(`no Dataset record ${code}`); datasets[src] = d }
+  const cl = climates(datasets)
   const meta = { pair: { key: pairKey, ...pair, x: X, y: Y }, species: speciesList, counts: {}, exported: new Date().toISOString() }
   const rows = await q(`${ORDER} RETURN [d._key, d.geometry_point.coordinates]`, { '@c': C.occurrences })
   const cells = rows.map((r) => r[1]), index = new Map(rows.map((r, i) => [r[0], i]))

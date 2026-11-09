@@ -25,109 +25,147 @@
 </style>
 </head>
 <body>
+<!-- Every label is a dictionary term (data-term: text = _title, hover = _definition); every control is bound to a key of
+     the pane state (data-key = the term's gid), whose values are the gids of the enumeration elements. -->
 <div class="bar">
-  <strong>D3 + Canvas</strong>
-  <label>View <select id="view"><option value="layers">layers</option><option value="classes">suitability classes (EU-Trees4F Fig. 1)</option></select></label>
-  <label>Product <select id="product"></select></label>
-  <label>Scenario <select id="scenario"></select></label>
-  <label>Period <select id="period"></select></label>
-  <label>Base <select id="baseMode"><option value="points">points</option><option value="hex">hexagon density</option><option value="none">hidden</option></select> <input type="range" id="hexR" min="2" max="10" value="4" title="hexagon radius"> <input type="range" class="op" data-layer="base" min="0" max="100" value="100" title="opacity"></label>
-  <label>Species <select id="speciesMode"><option value="points">points</option><option value="hex">hexagon density</option><option value="none">hidden</option></select> <input type="range" class="op" data-layer="species" min="0" max="100" value="100" title="opacity"></label>
-  <label><input type="checkbox" id="envelope" checked> envelope (95 %): present dashed, selected solid</label>
-  <label>Units <input type="range" class="op" data-layer="units" min="0" max="100" value="100" title="opacity"></label>
-  <label><input type="checkbox" id="arrows" checked> arrows present → selected</label>
-  <label class="host"><input type="checkbox" id="restricted" checked> include restricted units</label>
-  <button id="reset" title="also: double-click the plot">reset view</button>
+  <strong data-term="ui_layout_scatterplot"></strong>
+  <label><span data-term="ui_layout_scatterplot_view"></span> <select data-key="ui_layout_scatterplot_view"></select></label>
+  <label><span id="sourceLabel">Source</span> <select id="product"></select></label>
+  <label><span data-term="env_climate_scenario"></span> <select data-key="env_climate_scenario"></select></label>
+  <label><span data-term="env_climate_period"></span> <select data-key="env_climate_period"></select></label>
+  <label><span data-term="ui_layout_scatterplot_base_mode"></span> <select data-key="ui_layout_scatterplot_base_mode"></select> <input type="range" data-key="ui_layout_scatterplot_layer_radius" min="2" max="10"> <input type="range" data-key="ui_layout_scatterplot_base_opacity" min="0" max="100"></label>
+  <label><span data-term="ui_layout_scatterplot_species_mode"></span> <select data-key="ui_layout_scatterplot_species_mode"></select> <input type="range" data-key="ui_layout_scatterplot_species_opacity" min="0" max="100"></label>
+  <label><input type="checkbox" data-key="ui_layout_scatterplot_species_envelope"> <span data-term="ui_layout_scatterplot_species_envelope"></span></label>
+  <label><span data-term="ui_layout_scatterplot_units_opacity"></span> <input type="range" data-key="ui_layout_scatterplot_units_opacity" min="0" max="100"></label>
+  <label><input type="checkbox" data-key="ui_layout_scatterplot_layer_arrows"> <span data-term="ui_layout_scatterplot_layer_arrows"></span></label>
+  <label class="host"><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
+  <button id="reset" data-term="ui_layout_label_reset"></button>
   <span id="classCtl" style="display:none">
-    <label>Suitability <select id="variant"><option value="pot">potential (climate only)</option><option value="disp">with natural dispersal (MigClim)</option></select></label>
-    <label>Cells at <select id="classPos"><option value="present">present climate</option><option value="future">selected period</option></select></label>
-    <label>Bins <select id="binSize"><option value="0.5,50">0.5 °C × 50 mm</option><option value="1,100">1 °C × 100 mm</option><option value="2,200" selected>2 °C × 200 mm</option></select> ≥ <select id="binMin"><option>10</option><option>30</option><option selected>100</option><option>300</option></select> cells</label>
+    <label><span data-term="ui_layout_scatterplot_view_classes_variant"></span> <select data-key="ui_layout_scatterplot_view_classes_variant"></select></label>
+    <label><span data-term="ui_layout_scatterplot_view_classes_position"></span> <select data-key="ui_layout_scatterplot_view_classes_position"></select></label>
+    <label><span data-term="ui_layout_scatterplot_view_classes_bin"></span> <select data-key="ui_layout_scatterplot_view_classes_bin"></select> ≥ <select data-key="ui_layout_scatterplot_view_classes_bin_min"><option>10</option><option>30</option><option>100</option><option>300</option></select> <span data-term="ui_layout_scatterplot_view_classes_bin_min"></span></label>
   </span>
 </div>
 <div class="bar" id="search">
-  <label class="host">Species <select id="speciesSel"></select></label>
-  <label class="host">Country <select id="country"><option value="">all</option></select></label>
-  <label class="host">Unit <select id="unitSel"><option value="">—</option></select></label>
+  <label class="host"><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
+  <label class="host"><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
+  <label class="host"><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
   <span id="searchInfo" class="host"></span>
-  <label class="host" title="data-quality flag: the climate values are read at the reference point">flag units whose reference point is &gt; <select id="flagKm"><option>1</option><option>2</option><option selected>5</option><option>10</option><option>20</option></select> km from the polygon</label>
-  <span id="mapSel" style="display:none">Map selection: <span id="mapSelInfo"></span> <button id="mapSelClear">clear</button></span>
-  <label>Selection <span id="selCount">0</span> <select id="selMode"><option value="all">show all units</option><option value="only">only the selection</option><option value="hide">hide the selection</option></select> <button id="selClear">clear</button></label>
+  <label class="host"><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
+  <span id="mapSel" style="display:none"><span data-term="ui_layout_scatterplot_label_map-selection"></span>: <span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
+  <label><span data-term="ui_layout_scatterplot_label_selection"></span> <span id="selCount">0</span> <select data-key="ui_layout_scatterplot_units_mode"></select> <button id="selClear" data-term="ui_layout_label_clear"></button></label>
   <span id="legend"></span>
-  <span style="color:#777">drag = zoom to box · wheel = zoom · shift-drag = pan · double-click = reset · option-click a unit = add to / remove from the selection</span>
+  <span style="color:#777" data-term="ui_layout_scatterplot_label_hints"></span>
 </div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div><div id="disabled"></div></div>
 <div id="status">loading…</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
+<script src="dictionary.js"></script>
 <script>
-const DATA = '../work/examples/data/', $ = (id) => document.getElementById(id), css = (v) => getComputedStyle(document.body).getPropertyValue(v)
+const DATA = '../work/examples/data/', $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`), css = (v) => getComputedStyle(document.body).getPropertyValue(v)
 const M = { top: 10, right: 16, bottom: 44, left: 62 }
 const wrap = $('wrap'), canvas = $('c'), over = $('over'), svg = d3.select('#s'), tip = $('tip'), status = $('status'), ctx = canvas.getContext('2d'), octx = over.getContext('2d')
 let W = 0, H = 0, tx = d3.zoomIdentity
 const x0 = d3.scaleLinear(), y0 = d3.scaleLinear()
 const gGX = svg.append('g').attr('class', 'grid'), gGY = svg.append('g').attr('class', 'grid'), gX = svg.append('g'), gY = svg.append('g'), xl = svg.append('text').attr('text-anchor', 'middle'), yl = svg.append('text').attr('text-anchor', 'middle')
-const cache = {}, state = { species: 'Fagus sylvatica', climate: null, country: '', unit: '', hover: null, selection: new Set(), selMode: 'all', view: 'layers' }
-let climates, meta, units = [], base = [], basePresent = [], speciesIdx = [], species = [], speciesPresent = [], quad, domainProduct = null, cells = null
+
+// ---- the pane state: one object keyed by dictionary gids (ui_layout_state); its values are element gids, numbers,
+// booleans, arrays; it is what a deep link, a message from the host page and a preset view carry
+const K = {
+  species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag',
+  dataset: 'std_dataset_ids', scenario: 'env_climate_scenario', period: 'env_climate_period', X: 'ui_layout_scatterplot_X', Y: 'ui_layout_scatterplot_Y',
+  view: 'ui_layout_scatterplot_view', baseMode: 'ui_layout_scatterplot_base_mode', baseOp: 'ui_layout_scatterplot_base_opacity',
+  speciesMode: 'ui_layout_scatterplot_species_mode', speciesOp: 'ui_layout_scatterplot_species_opacity', envelope: 'ui_layout_scatterplot_species_envelope',
+  unitsMode: 'ui_layout_scatterplot_units_mode', unitsOp: 'ui_layout_scatterplot_units_opacity', selection: 'ui_layout_scatterplot_units_selection',
+  radius: 'ui_layout_scatterplot_layer_radius', arrows: 'ui_layout_scatterplot_layer_arrows', zoom: 'ui_layout_scatterplot_zoom',
+  variant: 'ui_layout_scatterplot_view_classes_variant', position: 'ui_layout_scatterplot_view_classes_position', bin: 'ui_layout_scatterplot_view_classes_bin', binMin: 'ui_layout_scatterplot_view_classes_bin_min',
+  mapSel: 'ui_layout_map_selection',
+}
+const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)   // the elements of an enumeration, in display order
+const OPT = {
+  [K.view]: E('ui_layout_scatterplot_view', 'layer', 'classes'),
+  [K.baseMode]: E('ui_layout_scatterplot_base', 'point', 'hex', 'none'),
+  [K.speciesMode]: E('ui_layout_scatterplot_species', 'point', 'hex', 'none'),
+  [K.unitsMode]: E('ui_layout_scatterplot_units', 'all', 'only', 'hide'),
+  [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'),
+  [K.variant]: E('ui_layout_scatterplot_view_classes_variant', 'potential', 'dispersal'),
+  [K.position]: E('ui_layout_scatterplot_view_classes_position', 'present', 'future'),
+  [K.bin]: E('ui_layout_scatterplot_view_classes_bin', '0-5x50', '1x100', '2x200'),
+}
+const LEGEND = E('ui_layout_scatterplot_view_classes_legend', '0', '1', '2', '3')
+const LBL = { base: 'ui_layout_scatterplot_label_base', species: 'ui_layout_scatterplot_label_species', unitsPresent: 'ui_layout_scatterplot_label_units-present', unitsFuture: 'ui_layout_scatterplot_label_units-future', mapSel: 'ui_layout_scatterplot_label_map-selection', envPresent: 'ui_layout_scatterplot_label_envelope-present', envFuture: 'ui_layout_scatterplot_label_envelope-future', binArrows: 'ui_layout_scatterplot_label_bin-arrows', projection: 'ui_layout_scatterplot_label_projection', restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', noData: 'ui_layout_label_no-data' }
+const NUMERIC = new Set([K.flag, K.binMin, K.radius, K.baseOp, K.speciesOp, K.unitsOp])
+let state = {}
+const last = Dict.last, is = (k, lid) => last(state[k]) === lid   // is(K.baseMode, 'hex')
+
+const cache = {}, run = { mapIdx: [], mapLabel: '' }
+let climates, meta, units = [], base = [], basePresent = [], speciesIdx = [], species = [], speciesPresent = [], quad, domainDataset = null, cells = null
 // every file follows one global cell order (pair.js): base = the pair per cell at the selected climate (null = no value),
-// basePresent = the same at the product's present, speciesIdx = the cells holding the species, cells = [lon, lat] per cell
+// basePresent = the same at the source's present, speciesIdx = the cells holding the species, cells = [lon, lat] per cell
 let classes = ''   // class view: one class digit per cell
 const pts = (idx, b) => { const o = []; for (const i of idx) if (b[i]) o.push(b[i]); return o }
 // EU-Trees4F pairs each future map with the climate of the previous 30 years (paper, Methods: the current map, cur2005, is driven by 1961-1990)
 const FUT_MAP = { '1991-2020': 'fut2035', '2021-2050': 'fut2065', '2051-2080': 'fut2095' }
-const CLASS = { 1: ['stable', '--stable'], 2: ['decolonised', '--lost'], 3: ['newly suitable', '--new'] }
-const classView = () => state.view === 'classes' && state.climate.src === 'eutrees4f' && !state.climate.present
+const CLASS_VAR = { 1: '--stable', 2: '--lost', 3: '--new' }
 const slug = (s) => s.replace(/\s+/g, '_'), file = (c) => `${c.src}-${c.period}${c.scenario ? '-' + c.scenario : ''}`
 const load = async (name) => { if (!cache[name]) { const t = performance.now(); cache[name] = await (await fetch(DATA + name)).json(); status.textContent = `${name}: ${cache[name].length ?? Object.keys(cache[name]).length} rows in ${Math.round(performance.now() - t)} ms` } return cache[name] }
-const presentOf = (c) => climates.find((k) => k.src === c.src && k.present)
-const PRODUCT = { eutrees4f: 'EU-Trees4F (WorldClim 1.4 + EURO-CORDEX, 10 km)', worldclim: 'WorldClim 2.1 (1 km)', chelsa: 'CHELSA 2.1 (1 km)' }
-const SCEN = { '': 'present (reference)', rcp45: 'RCP 4.5', rcp85: 'RCP 8.5', ssp370: 'MPI-ESM1-2-HR · SSP3-7.0' }
-const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : ''
 
-// ---- the three-level climate selector: product → scenario → period, never across products
-function fillSelectors(keep) {
-  const prod = $('product'), scen = $('scenario'), per = $('period')
-  const c = state.climate
-  if (!keep) { prod.innerHTML = ''; for (const k of Object.keys(PRODUCT)) prod.add(new Option(PRODUCT[k], k, false, k === c.src)) }
-  scen.innerHTML = ''; for (const s of [...new Set(climates.filter((k) => k.src === c.src).map((k) => k.scenario))]) scen.add(new Option(SCEN[s] ?? s, s, false, s === c.scenario))
-  per.innerHTML = ''; for (const k of climates.filter((k) => k.src === c.src && k.scenario === c.scenario)) per.add(new Option(k.period, k.key, false, k.key === c.key))
+// ---- the climate: the state holds a dataset key, a scenario gid and a period gid; climates.json maps them to the files
+const cur = () => climates.find((k) => k.dataset === state[K.dataset]?.[0] && k.scenarioGid === state[K.scenario] && k.periodGid === state[K.period])
+const presentOf = (c) => climates.find((k) => k.dataset === c.dataset && k.present)
+const setClimate = (c) => { state[K.dataset] = [c.dataset]; state[K.scenario] = c.scenarioGid; state[K.period] = c.periodGid }
+const classView = () => { const c = cur(); return is(K.view, 'classes') && c.src === 'eutrees4f' && !c.present }
+/** the three-level selector: source → scenario → period, never across sources */
+function fillClimate() {
+  const c = cur(), prod = $('product'), sc = $K(K.scenario), pe = $K(K.period)
+  prod.innerHTML = ''; for (const d of [...new Map(climates.map((k) => [k.dataset, k.datasetTitle]))]) prod.add(new Option(d[1], d[0], false, d[0] === c.dataset))
+  Dict.options(sc, [...new Set(climates.filter((k) => k.dataset === c.dataset).map((k) => k.scenarioGid))], c.scenarioGid)
+  Dict.options(pe, climates.filter((k) => k.dataset === c.dataset && k.scenarioGid === c.scenarioGid).map((k) => k.periodGid), c.periodGid)
 }
-function pick(src, scenario, period) {
-  const cs = climates.filter((k) => k.src === src && (scenario == null || k.scenario === scenario))
-  return cs.find((k) => k.period === period) ?? cs.find((k) => k.present) ?? cs[0]
-}
-
+const axisLabel = (g) => Dict.title(g) + (Dict.unit(g) ? ` (${Dict.unit(g)})` : '')
 function size() {
   W = wrap.clientWidth; H = wrap.clientHeight
   for (const [cv, cx] of [[canvas, ctx], [over, octx]]) { cv.width = W * devicePixelRatio; cv.height = H * devicePixelRatio; cv.style.width = W + 'px'; cv.style.height = H + 'px'; cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0) }
   svg.attr('width', W).attr('height', H)
   x0.range([M.left, W - M.right]); y0.range([H - M.bottom, M.top])
-  xl.attr('x', (M.left + W - M.right) / 2).attr('y', H - 8).text(cap(meta?.pair.title.split(' × ')[0])); yl.attr('transform', `translate(13,${(M.top + H - M.bottom) / 2}) rotate(-90)`).text(cap(meta?.pair.title.split(' × ')[1]))
+  xl.attr('x', (M.left + W - M.right) / 2).attr('y', H - 8).text(axisLabel(state[K.X])); yl.attr('transform', `translate(13,${(M.top + H - M.bottom) / 2}) rotate(-90)`).text(axisLabel(state[K.Y]))
 }
-/** the axes are fixed per product from its present base, padded for the future shift, and never move on a period change */
+/** the axes are fixed per source from its present base, padded for the future shift, and never move on a period change */
 function fixDomain(presentBase) {
   const xe = d3.extent(presentBase, (d) => d?.[0]), ye = d3.max(presentBase, (d) => d?.[1])
   x0.domain([Math.floor(xe[0] - 1), Math.ceil(xe[1] + 6)]); y0.domain([0, Math.ceil(ye * 1.1 / 500) * 500])
 }
 async function refresh() {
-  const c = state.climate, p = presentOf(c)
+  const c = cur(), p = presentOf(c)
   base = await load(`base-${file(c)}.json`); basePresent = c.present ? base : await load(`base-${file(p)}.json`)
-  speciesIdx = await load(`species-${slug(state.species)}.json`)
+  speciesIdx = await load(`species-${slug(state[K.species])}.json`)
   species = pts(speciesIdx, base); speciesPresent = c.present ? species : pts(speciesIdx, basePresent)
-  units = await load(`units-${slug(state.species)}.json`)
-  if (domainProduct !== c.src) { fixDomain(await load(`base-${file(p)}.json`)); domainProduct = c.src; tx = d3.zoomIdentity }
-  const avail = c.src === 'eutrees4f' && !c.present
-  $('view').options[1].disabled = !avail; if (!avail && state.view === 'classes') { state.view = 'layers'; $('view').value = 'layers' }
-  $('view').options[1].text = avail ? 'suitability classes (EU-Trees4F Fig. 1)' : 'suitability classes — choose EU-Trees4F and a future period'
-  $('view').title = avail ? 'layers, or the cells classified from the EU-Trees4F suitability maps' : 'the suitability classes come from the EU-Trees4F maps: choose that product and a future period to enable them'
+  units = await load(`units-${slug(state[K.species])}.json`)
+  await Dict.load(units.map((u) => 'ISO_3166_1_' + u.id.slice(0, 3)))   // country names for the list
+  if (domainDataset !== c.dataset) { fixDomain(await load(`base-${file(p)}.json`)); domainDataset = c.dataset; tx = d3.zoomIdentity; state[K.zoom] = null }
+  const avail = c.src === 'eutrees4f' && !c.present, view = $K(K.view)
+  view.options[1].disabled = !avail; if (!avail && is(K.view, 'classes')) { state[K.view] = OPT[K.view][0]; view.value = state[K.view] }
+  view.options[1].text = Dict.title(OPT[K.view][1]) + (avail ? '' : ' — ' + Dict.def(OPT[K.view][1]).replace(/\.$/, '').toLowerCase().replace(/^cells/, 'EU-Trees4F future periods only; cells'))
   $('classCtl').style.display = classView() ? '' : 'none'
-  if (classView()) classes = (await load(`suitability-${slug(state.species)}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${$('variant').value}`] ?? ''
-  $('legend').innerHTML = classView()
-    ? `<span class="sw" style="background:var(--base)"></span>all cells, present and selected period<span class="sw" style="background:var(--stable)"></span>stable<span class="sw" style="background:var(--lost)"></span>decolonised<span class="sw" style="background:var(--new)"></span>newly suitable<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period<span class="sw" style="background:var(--map)"></span>map selection · arrows = mean climate shift per bin, thick = whole species envelope`
-    : `<span class="sw" style="background:var(--base)"></span>all EU-Forest cells<span class="sw" style="background:var(--species)"></span>species<span class="sw" style="background:var(--unit)"></span>units, present<span class="sw" style="background:var(--future)"></span>units, selected period<span class="sw" style="background:var(--map)"></span>map selection <span class="sw" style="border:1.5px dashed #b71c1c;background:none;width:9px;height:9px"></span>reference point far from the polygon`
-  refill(); draw()
+  if (classView()) classes = (await load(`suitability-${slug(state[K.species])}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${Dict.aid(state[K.variant])}`] ?? ''
+  const sw = (v) => `<span class="sw" style="background:var(${v})"></span>`, T = Dict.title
+  $('legend').innerHTML = (classView()
+    ? `${sw('--base')}${T(LBL.base)}${sw('--stable')}${T(LEGEND[1])}${sw('--lost')}${T(LEGEND[2])}${sw('--new')}${T(LEGEND[3])}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} · ${T(LBL.binArrows)}`
+    : `${sw('--base')}${T(LBL.base)}${sw('--species')}${T(LBL.species)}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} <span class="sw" style="border:1.5px dashed #b71c1c;background:none;width:9px;height:9px"></span>${T(LBL.flagged)}`)
+    + (c.present ? '' : ` · <i>${T(LBL.projection)}</i>`)
+  fillClimate(); refill(); syncControls(); draw()
 }
 /** where a unit is drawn: the class view keeps everything in the present climate space (the arrows show the shift) */
-const unitPos = (u) => classView() ? unitXY(u, presentOf(state.climate)) : unitXY(u, state.climate)
+const unitXY = (u, c) => u.values[c.key]
+const unitPos = (u) => classView() ? unitXY(u, presentOf(cur())) : unitXY(u, cur())
+const flagged = (u) => u.distance != null && u.distance > state[K.flag]
+const selected = (id) => (state[K.selection] ?? []).includes(id)
+function visibleUnits() {
+  const c = cur(), country = state[K.country] ? Dict.aid(state[K.country]) : ''
+  return units.filter((u) => (!country || u.id.startsWith(country)) && (!state[K.unit] || u.id === state[K.unit]) && (!is(K.level, 'public') || !u.restricted) && unitXY(u, c)
+    && (is(K.unitsMode, 'all') || (is(K.unitsMode, 'only') ? selected(u.id) : !selected(u.id))))
+}
 function arrow(ax, ay, bx, by, w, head) {
   ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke()
   const ang = Math.atan2(by - ay, bx - ax); ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - head * Math.cos(ang - 0.4), by - head * Math.sin(ang - 0.4)); ctx.lineTo(bx - head * Math.cos(ang + 0.4), by - head * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill()
@@ -136,17 +174,16 @@ function arrow(ax, ay, bx, by, w, head) {
  *  cells drawn at their present or future pair values; arrows = mean shift present → future of the species' current
  *  envelope (classes stable + decolonised) per climate bin, the thick arrow for the whole envelope */
 function drawClasses(x, y, drawHex, r, op) {
-  const bm = $('baseMode').value
-  if (bm === 'hex') drawHex(basePresent.filter(Boolean).concat(base.filter(Boolean)), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
-  else if (bm === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of basePresent) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); for (const d of base) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
-  const pos = $('classPos').value === 'present' ? basePresent : base, n = classes.length, counts = [0, 0, 0, 0]
-  if ($('speciesMode').value !== 'none') {
-    ctx.globalAlpha = op('species')
-    for (const k of [1, 3, 2]) { ctx.fillStyle = css(CLASS[k][1]); const ch = String(k); for (let i = 0; i < n; i++) if (classes[i] === ch) { counts[k]++; const d = pos[i]; if (d) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2) } }
+  if (is(K.baseMode, 'hex')) drawHex(basePresent.filter(Boolean).concat(base.filter(Boolean)), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op(K.baseOp))
+  else if (is(K.baseMode, 'point')) { ctx.globalAlpha = op(K.baseOp); ctx.fillStyle = css('--base'); for (const d of basePresent) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); for (const d of base) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
+  const pos = is(K.position, 'present') ? basePresent : base, n = classes.length, counts = [0, 0, 0, 0]
+  if (!is(K.speciesMode, 'none')) {
+    ctx.globalAlpha = op(K.speciesOp)
+    for (const k of [1, 3, 2]) { ctx.fillStyle = css(CLASS_VAR[k]); const ch = String(k); for (let i = 0; i < n; i++) if (classes[i] === ch) { counts[k]++; const d = pos[i]; if (d) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2) } }
     ctx.globalAlpha = 1
   } else for (let i = 0; i < n; i++) counts[classes.charCodeAt(i) - 48]++
-  if ($('arrows').checked) {
-    const [bx, by] = $('binSize').value.split(',').map(Number), min = Number($('binMin').value), bins = new Map(), all = [0, 0, 0, 0, 0]
+  if (state[K.arrows]) {
+    const [bx, by] = Dict.aid(state[K.bin]).split(',').map(Number), min = state[K.binMin], bins = new Map(), all = [0, 0, 0, 0, 0]
     for (let i = 0; i < n; i++) {
       if (classes[i] !== '1' && classes[i] !== '2') continue
       const a = basePresent[i], b = base[i]; if (!a || !b) continue
@@ -160,16 +197,8 @@ function drawClasses(x, y, drawHex, r, op) {
   }
   return counts
 }
-const unitXY = (u, c) => u.values[c.key]
-const flagged = (u) => u.distance != null && u.distance > Number($('flagKm').value)
-function visibleUnits() {
-  const s = state.selection, m = state.selMode
-  return units.filter((u) => (state.country === '' || u.id.startsWith(state.country)) && (!state.unit || u.id === state.unit) && ($('restricted').checked || !u.restricted) && unitXY(u, state.climate)
-    && (m === 'all' || (m === 'only' ? s.has(u.id) : !s.has(u.id))))
-}
-
 /** the 95 % envelope as a smooth closed contour: a blurred pixel histogram of the points, cut at the density
- *  level whose cells hold 95 % of the mass (the same rule as the Plotly page), traced with d3.contours */
+ *  level whose cells hold 95 % of the mass, traced with d3.contours */
 function envelopePath(points, x, y) {
   const cell = 4, nx = Math.ceil(W / cell), ny = Math.ceil(H / cell), g = new Float64Array(nx * ny)
   for (const d of points) { const i = Math.floor(x(d[0]) / cell), j = Math.floor(y(d[1]) / cell); if (i >= 0 && i < nx && j >= 0 && j < ny) g[j * nx + i]++ }
@@ -184,42 +213,42 @@ function envelopePath(points, x, y) {
 }
 function draw() {
   if (!base.length && !species.length) return
-  const x = tx.rescaleX(x0), y = tx.rescaleY(y0), t0 = performance.now(), op = (l) => Number(document.querySelector(`input.op[data-layer=${l}]`).value) / 100
+  const x = tx.rescaleX(x0), y = tx.rescaleY(y0), t0 = performance.now(), op = (k) => state[k] / 100, T = Dict.title
   ctx.clearRect(0, 0, W, H); ctx.save(); ctx.beginPath(); ctx.rect(M.left, M.top, W - M.left - M.right, H - M.top - M.bottom); ctx.clip()
   const drawHex = (pts, r, interp, alpha) => { const hex = d3.hexbin().x((d) => x(d[0])).y((d) => y(d[1])).radius(r).extent([[M.left, M.top], [W - M.right, H - M.bottom]]); const bins = hex(pts); const color = d3.scaleSequentialLog(interp).domain([1, d3.max(bins, (b) => b.length)]); const path = new Path2D(hex.hexagon()); ctx.globalAlpha = alpha; for (const b of bins) { ctx.fillStyle = color(b.length); ctx.save(); ctx.translate(b.x, b.y); ctx.fill(path); ctx.restore() } ctx.globalAlpha = 1 }
-  const r = Number($('hexR').value), cv = classView()
+  const r = state[K.radius], cv = classView(), c = cur(), p = presentOf(c), future = !c.present
   let counts = null
   if (cv) counts = drawClasses(x, y, drawHex, r, op)
-  else if ($('baseMode').value === 'hex') drawHex(base.filter(Boolean), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op('base'))
-  else if ($('baseMode').value === 'points') { ctx.globalAlpha = op('base'); ctx.fillStyle = css('--base'); for (const d of base) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
+  else if (is(K.baseMode, 'hex')) drawHex(base.filter(Boolean), r, (t) => d3.interpolateGreys(0.15 + 0.7 * t), op(K.baseOp))
+  else if (is(K.baseMode, 'point')) { ctx.globalAlpha = op(K.baseOp); ctx.fillStyle = css('--base'); for (const d of base) if (d) ctx.fillRect(x(d[0]) - 0.75, y(d[1]) - 0.75, 1.5, 1.5); ctx.globalAlpha = 1 }
   if (cv) {}
-  else if ($('speciesMode').value === 'hex') drawHex(species, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op('species'))
-  else if ($('speciesMode').value === 'points') { ctx.globalAlpha = op('species'); ctx.fillStyle = css('--species'); for (const d of species) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2); ctx.globalAlpha = 1 }
-  if ($('envelope').checked) {
+  else if (is(K.speciesMode, 'hex')) drawHex(species, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op(K.speciesOp))
+  else if (is(K.speciesMode, 'point')) { ctx.globalAlpha = op(K.speciesOp); ctx.fillStyle = css('--species'); for (const d of species) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2); ctx.globalAlpha = 1 }
+  if (state[K.envelope]) {
     ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'
-    if (!state.climate.present) { ctx.setLineDash([7, 5]); ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent, x, y)) }
-    ctx.setLineDash([]); ctx.strokeStyle = state.climate.present ? '#0d2a66' : '#8e0038'; ctx.stroke(envelopePath(species, x, y)); ctx.restore()
+    if (future) { ctx.setLineDash([7, 5]); ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent, x, y)) }
+    ctx.setLineDash([]); ctx.strokeStyle = future ? '#8e0038' : '#0d2a66'; ctx.stroke(envelopePath(species, x, y)); ctx.restore()
   }
-  const vis = visibleUnits(), c = state.climate, p = presentOf(c), future = !c.present
+  const vis = visibleUnits()
   let mapN = 0
-  if (state.mapSel) {
+  if (state[K.mapSel]) {
     ctx.save(); ctx.fillStyle = css('--map'); ctx.strokeStyle = css('--map'); ctx.lineWidth = 0.8
-    if (future && $('arrows').checked) for (const i of state.mapSel.idx) { const a = basePresent[i], b = base[i]; if (a && b) arrow(x(a[0]), y(a[1]), x(b[0]), y(b[1]), 0.8, 5) }
+    if (future && state[K.arrows]) for (const i of run.mapIdx) { const a = basePresent[i], b = base[i]; if (a && b) arrow(x(a[0]), y(a[1]), x(b[0]), y(b[1]), 0.8, 5) }
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1
-    const single = state.mapSel.idx.length === 1
-    for (const i of state.mapSel.idx) { const b = base[i]; if (!b) continue; mapN++; ctx.beginPath(); if (single) { ctx.arc(x(b[0]), y(b[1]), 8, 0, 2 * Math.PI); ctx.fill(); ctx.lineWidth = 2; ctx.stroke(); ctx.strokeStyle = css('--map'); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x(b[0]), y(b[1]), 16, 0, 2 * Math.PI); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1 } else { ctx.rect(x(b[0]) - 2.5, y(b[1]) - 2.5, 5, 5); ctx.fill(); ctx.stroke() } }
+    const single = run.mapIdx.length === 1
+    for (const i of run.mapIdx) { const b = base[i]; if (!b) continue; mapN++; ctx.beginPath(); if (single) { ctx.arc(x(b[0]), y(b[1]), 8, 0, 2 * Math.PI); ctx.fill(); ctx.lineWidth = 2; ctx.stroke(); ctx.strokeStyle = css('--map'); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x(b[0]), y(b[1]), 16, 0, 2 * Math.PI); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1 } else { ctx.rect(x(b[0]) - 2.5, y(b[1]) - 2.5, 5, 5); ctx.fill(); ctx.stroke() } }
     ctx.restore()
   }
-  ctx.globalAlpha = op('units')
-  if ($('arrows').checked && future) {
+  ctx.globalAlpha = op(K.unitsOp)
+  if (state[K.arrows] && future) {
     ctx.strokeStyle = 'rgba(224,106,0,.3)'; ctx.fillStyle = 'rgba(224,106,0,.5)'; ctx.lineWidth = 0.8
     for (const u of vis) { const a = unitXY(u, p), b = unitXY(u, c); if (!a || !b) continue; arrow(x(a[0]), y(a[1]), x(b[0]), y(b[1]), 0.8, 6) }
   }
   if (cv) { ctx.fillStyle = css('--future'); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; for (const u of vis) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 2.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() } }
   ctx.fillStyle = css(future && !cv ? '--future' : '--unit'); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1
-  for (const u of vis) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state.unit === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
+  for (const u of vis) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state[K.unit] === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
   ctx.strokeStyle = '#111'; ctx.lineWidth = 2
-  for (const u of vis) if (state.selection.has(u.id)) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
+  for (const u of vis) if (selected(u.id)) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
   // the data-quality flag: a dashed dark-red ring on units whose reference point lies far from their polygon
   ctx.strokeStyle = '#b71c1c'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); let nFlag = 0
   for (const u of vis) if (flagged(u)) { nFlag++; const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 8, 0, 2 * Math.PI); ctx.stroke() }
@@ -228,9 +257,9 @@ function draw() {
   gX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x)); gY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y))
   gGX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x).tickSize(-(H - M.top - M.bottom)).tickFormat('')); gGY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y).tickSize(-(W - M.left - M.right)).tickFormat(''))
   quad = d3.quadtree().x((u) => x(unitPos(u)[0])).y((u) => y(unitPos(u)[1])).addAll(vis)   // screen space: hit tests are pixel distances
-  const what = cv ? `suitability around ${FUT_MAP[c.period].slice(3)} (climate ${c.period}, ${SCEN[c.scenario]}, ${$('variant').value === 'pot' ? 'potential' : 'with dispersal'}) vs current: ${counts[1]} stable, ${counts[2]} decolonised, ${counts[3]} newly suitable of ${basePresent.length} cells` : `${base.length} base, ${species.length} ${state.species}`
-  const mapWhat = (state.mapSel ? ` · map selection: ${state.mapSel.label}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} flagged (reference point > ${$('flagKm').value} km from the polygon)` : '')
-  status.title = status.textContent = `${c.label} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} restricted in all, ${state.selection.size} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  const what = cv ? `${T(OPT[K.view][1])} ${FUT_MAP[c.period].slice(3)} (${T(state[K.period])}, ${T(state[K.scenario])}, ${T(state[K.variant])}): ${counts[1]} ${T(LEGEND[1])}, ${counts[2]} ${T(LEGEND[2])}, ${counts[3]} ${T(LEGEND[3])} of ${basePresent.length}` : `${base.length} ${T(LBL.base)}, ${species.length} ${state[K.species]}`
+  const mapWhat = (state[K.mapSel] ? ` · ${T(LBL.mapSel)}: ${run.mapLabel}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} ${T(LBL.flagged)} (> ${state[K.flag]} km)` : '')
+  status.title = status.textContent = `${c.datasetTitle} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} ${T(LBL.restricted)} in all, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
 /** three expanding rings on the overlay canvas, so a point sent from the map is found at once */
 function pulse(i) {
@@ -244,10 +273,11 @@ function pulse(i) {
   }
   requestAnimationFrame(frame)
 }
-// ---- the map → scatterplot link: a GeoJSON Point or Polygon (WGS84) arrives by postMessage (or as ?point= / ?bbox=);
-// the cells inside are found here on the static cell list — in the product the service answers with the index list
+// ---- the map → scatterplot link: ui_layout_map_selection, a GeoJSON Point or Polygon (WGS84), arrives in a state message
+// (or as ?point= / ?bbox=); the cells inside are found here on the static cell list — in the product the service answers
 async function selectFromMap(geom) {
-  if (!geom) { state.mapSel = null; $('mapSel').style.display = 'none'; draw(); return }
+  state[K.mapSel] = geom ?? null
+  if (!geom) { run.mapIdx = []; $('mapSel').style.display = 'none'; draw(); return }
   cells ??= await load('cells.json')
   const idx = []
   if (geom.type === 'Point') {
@@ -256,37 +286,66 @@ async function selectFromMap(geom) {
     // 1 km cells: the containing cell's centre lies within 0.71 km; beyond that the nearest surveyed cell up to 5 km is
     // shown with its distance (the product looks the point up in the full climate grid instead)
     const km = Math.sqrt(bd); if (km <= 5) idx.push(best)
-    state.mapSel = { label: `point ${lat.toFixed(3)}, ${lon.toFixed(3)}` + (km <= 0.71 ? '' : km <= 5 ? ` — nearest surveyed cell ${km.toFixed(1)} km away` : ' — no surveyed cell within 5 km'), idx }
+    run.mapLabel = `${lat.toFixed(3)}, ${lon.toFixed(3)}` + (km <= 0.71 ? '' : km <= 5 ? ` — nearest surveyed cell ${km.toFixed(1)} km away` : ' — no surveyed cell within 5 km')
   } else if (geom.type === 'Polygon') {
     const ring = geom.coordinates[0], bx = d3.extent(ring, (p) => p[0]), by = d3.extent(ring, (p) => p[1])
     for (let i = 0; i < cells.length; i++) { const c = cells[i]; if (c[0] >= bx[0] && c[0] <= bx[1] && c[1] >= by[0] && c[1] <= by[1] && d3.polygonContains(ring, c)) idx.push(i) }
-    state.mapSel = { label: `area with ${idx.length} surveyed cells`, idx }
+    run.mapLabel = `${idx.length} surveyed cells`
   } else return
-  $('mapSel').style.display = ''; $('mapSelInfo').textContent = state.mapSel.label; draw()
+  run.mapIdx = idx
+  $('mapSel').style.display = ''; $('mapSelInfo').textContent = run.mapLabel; draw()
   if (idx.length === 1) pulse(idx[0])
 }
-const post = (msg) => { if (window.parent !== window) window.parent.postMessage(msg, '*') }
-/** the host page's shared controls: species, country, unit, restricted, flag threshold */
-async function applyFilter(f) {
-  if (f.species && meta.species.includes(f.species) && f.species !== state.species) { state.species = f.species; $('speciesSel').value = f.species }
-  const noData = f.species && !meta.species.includes(f.species)
-  state.country = f.country ?? ''; state.unit = f.unit ?? ''
-  if (f.restricted != null) $('restricted').checked = f.restricted
-  if (f.flagKm != null) $('flagKm').value = String(f.flagKm)
+// ---- messages: the host page (or the map, through it) sends partial states; this page sends its own changes back
+const post = (partial) => { if (window.parent !== window) window.parent.postMessage({ type: 'state', ...partial }, '*') }
+async function applyState(partial) {
+  const noData = partial[K.species] && !meta.species.includes(partial[K.species])
+  for (const [k, v] of Object.entries(partial)) if (k !== 'type' && k !== K.mapSel && !(k === K.species && noData)) state[k] = v
   // a species without scatterplot data invalidates the plot: the pane is disabled, not left showing another species
-  document.body.classList.toggle('disabled', noData)
-  $('disabled').innerHTML = noData ? `<div><b>${f.species}</b><br>no scatterplot data for this species<br><small>the examples hold ${meta.species.join(', ')}; the service will serve every species of the sources</small></div>` : ''
+  document.body.classList.toggle('disabled', !!noData)
+  $('disabled').innerHTML = noData ? `<div><b>${partial[K.species]}</b><br>${Dict.title(LBL.noData)}<br><small>${Dict.def(LBL.noData)} ${meta.species.join(', ')}</small></div>` : ''
+  if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))   // an incomplete or unknown climate triple falls back
   if (!noData) await refresh()
+  if (K.mapSel in partial) await selectFromMap(partial[K.mapSel])
 }
-window.addEventListener('message', (e) => {
-  if (e.data?.type === 'map-selection') selectFromMap(e.data.geometry)
-  if (e.data?.type === 'clear-selection') selectFromMap(null)
-  if (e.data?.type === 'filter') applyFilter(e.data)
-  if (e.data?.type === 'species' && meta?.species.includes(e.data.name) && e.data.name !== state.species) { state.species = e.data.name; $('speciesSel').value = state.species; state.country = ''; state.unit = ''; refresh() }
-})
+window.addEventListener('message', (e) => { if (e.data?.type === 'state' && meta) applyState(e.data) })
+
+// ---- controls: every [data-key] element reads and writes its state key; enumerations get their options from the dictionary
+const ON = {   // what a change of a key does beyond storing it (default: redraw)
+  [K.view]: refresh, [K.variant]: refresh, [K.scenario]: () => { const c = cur() ?? climates.find((k) => k.dataset === state[K.dataset][0] && k.scenarioGid === state[K.scenario]); setClimate(c); refresh() }, [K.period]: refresh,
+  [K.species]: () => { state[K.country] = null; state[K.unit] = null; refresh() }, [K.country]: () => { state[K.unit] = null; refill(); draw() }, [K.unit]: draw,
+  [K.flag]: () => { refill(); draw() }, [K.level]: () => { refill(); draw() }, [K.unitsMode]: draw,
+}
+const read = (el) => el.type === 'checkbox' ? el.checked : (el.type === 'range' || NUMERIC.has(el.dataset.key)) ? Number(el.value) : (el.value === '' ? null : el.value)
+function bindControls() {
+  for (const el of document.querySelectorAll('[data-key]')) {
+    const k = el.dataset.key
+    if (el.tagName === 'SELECT' && OPT[k]) Dict.options(el, OPT[k], state[k])
+    el.title ||= Dict.def(k)
+    el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { state[k] = read(el); (ON[k] ?? draw)() })
+  }
+  $('product').addEventListener('change', (e) => { setClimate(climates.find((k) => k.dataset === e.target.value && k.present)); refresh() })
+  $('product').title = Dict.def(K.dataset)
+}
+function syncControls() { for (const el of document.querySelectorAll('[data-key]')) { const v = state[el.dataset.key]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = Array.isArray(v) ? v[0] : v } }
+function refill() {
+  const sel = units.filter((u) => !is(K.level, 'public') || !u.restricted), T = Dict.title
+  const countries = [...new Set(sel.map((u) => 'ISO_3166_1_' + u.id.slice(0, 3)))].sort()
+  const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const g of countries) cs.add(new Option(`${T(g)} (${sel.filter((u) => u.id.startsWith(Dict.aid(g))).length})`, g, false, g === state[K.country]))
+  const country = state[K.country] ? Dict.aid(state[K.country]) : ''
+  const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !country || u.id.startsWith(country))) us.add(new Option(u.id + (u.restricted ? ` (${T(LBL.restricted)})` : '') + (flagged(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
+  const sp = $K(K.species); if (!sp.options.length) for (const s of meta.species) sp.add(new Option(s, s, false, s === state[K.species]))
+  $('searchInfo').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s · ${state[K.species]}`
+  $('selCount').textContent = (state[K.selection] ?? []).length
+}
 // ---- interaction: wheel = zoom, shift-drag = pan, drag = box zoom, double-click = reset; hover on the overlay canvas
-const zoom = d3.zoom().scaleExtent([1, 80]).filter((e) => e.type === 'wheel' || (e.type !== 'dblclick' && e.shiftKey)).on('zoom', (e) => { tx = e.transform; draw() })
+const zoom = d3.zoom().scaleExtent([1, 80]).filter((e) => e.type === 'wheel' || (e.type !== 'dblclick' && e.shiftKey)).on('zoom', (e) => { tx = e.transform; const x = tx.rescaleX(x0), y = tx.rescaleY(y0); state[K.zoom] = tx.k === 1 ? null : [x.invert(M.left), x.invert(W - M.right), y.invert(H - M.bottom), y.invert(M.top)]; draw() })
 const resetView = () => { d3.select(canvas).call(zoom.transform, d3.zoomIdentity) }
+/** show the data window [x0, x1, y0, y1]: screen = k · x0(d) + t  ⇒  t = corner − k · x0(corner data) */
+function zoomTo([dx0, dx1, dy0, dy1]) {
+  const nk = Math.min(80, (W - M.left - M.right) / (x0(dx1) - x0(dx0)), (H - M.top - M.bottom) / (y0(dy0) - y0(dy1)))
+  d3.select(canvas).call(zoom.transform, d3.zoomIdentity.translate(M.left - nk * x0(dx0), M.top - nk * y0(dy1)).scale(nk))
+}
 d3.select(canvas).call(zoom).on('dblclick.zoom', null)
 canvas.addEventListener('dblclick', resetView)
 let box = null
@@ -295,8 +354,8 @@ canvas.addEventListener('mousedown', (e) => { if (e.shiftKey || e.altKey || e.bu
 canvas.addEventListener('click', (e) => {
   if (!e.altKey || !quad) return
   const u = quad.find(e.offsetX, e.offsetY, 10); if (!u) return
-  if (state.selection.has(u.id)) state.selection.delete(u.id); else state.selection.add(u.id)
-  $('selCount').textContent = state.selection.size; draw()
+  const s = state[K.selection] ?? []; state[K.selection] = selected(u.id) ? s.filter((id) => id !== u.id) : [...s, u.id]
+  $('selCount').textContent = state[K.selection].length; draw()
 })
 canvas.addEventListener('mousemove', (e) => {
   octx.clearRect(0, 0, W, H)
@@ -304,59 +363,42 @@ canvas.addEventListener('mousemove', (e) => {
   if (!quad) return
   const u = quad.find(e.offsetX, e.offsetY, 10)
   if (u) {
-    const c = state.climate, q = unitXY(u, c), p = unitXY(u, presentOf(c)), d = unitPos(u), x = tx.rescaleX(x0), y = tx.rescaleY(y0)
+    const c = cur(), q = unitXY(u, c), p = unitXY(u, presentOf(c)), d = unitPos(u), x = tx.rescaleX(x0), y = tx.rescaleY(y0), ux = Dict.unit(state[K.X]), uy = Dict.unit(state[K.Y]), T = Dict.title
     octx.beginPath(); octx.arc(x(d[0]), y(d[1]), 7, 0, 2 * Math.PI); octx.strokeStyle = '#222'; octx.lineWidth = 2; octx.stroke()
     tip.style.display = 'block'; tip.style.left = Math.min(e.offsetX + 14, W - 220) + 'px'; tip.style.top = e.offsetY + 14 + 'px'
-    tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ' (restricted)' : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ reference point ${u.distance.toFixed(1)} km from the unit polygon</span>` : ''}<br>${q[0].toFixed(1)} °C · ${Math.round(q[1])} mm` + (c.present ? '' : `<br>present: ${p[0].toFixed(1)} °C · ${Math.round(p[1])} mm`) + `<br>${u.species.join(', ')}`
+    tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ` (${T(LBL.restricted)})` : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${u.distance.toFixed(1)} km</span>` : ''}<br>${q[0].toFixed(1)} ${ux} · ${Math.round(q[1])} ${uy}` + (c.present ? '' : `<br>${T(state[K.period])}; ${T(LBL.unitsPresent)}: ${p[0].toFixed(1)} ${ux} · ${Math.round(p[1])} ${uy}`) + `<br>${u.species.join(', ')}`
   } else tip.style.display = 'none'
 })
 window.addEventListener('mouseup', (e) => {
   if (!box) return
   const [ax, ay, bx, by] = box; box = null; octx.clearRect(0, 0, W, H)
   if (Math.abs(bx - ax) < 6 || Math.abs(by - ay) < 6) return
-  const x = tx.rescaleX(x0), y = tx.rescaleY(y0), X0 = Math.min(ax, bx), X1 = Math.max(ax, bx), Y0 = Math.min(ay, by), Y1 = Math.max(ay, by)
-  const k = Math.min((W - M.left - M.right) / (X1 - X0), (H - M.top - M.bottom) / (Y1 - Y0), 80 / tx.k)
-  // the box's data corners go to the plot's corners: screen = k · x0(d) + t  ⇒  t = corner − k · x0(corner data)
-  const dx0 = x.invert(X0), dy1 = y.invert(Y0), nk = Math.min(80, tx.k * k)
-  d3.select(canvas).call(zoom.transform, d3.zoomIdentity.translate(M.left - nk * x0(dx0), M.top - nk * y0(dy1)).scale(nk))
+  const x = tx.rescaleX(x0), y = tx.rescaleY(y0)
+  zoomTo([x.invert(Math.min(ax, bx)), x.invert(Math.max(ax, bx)), y.invert(Math.max(ay, by)), y.invert(Math.min(ay, by))])
 })
 canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; octx.clearRect(0, 0, W, H) })
-function refill() {
-  const sel = units.filter((u) => $('restricted').checked || !u.restricted)
-  const countries = [...new Set(sel.map((u) => u.id.slice(0, 3)))].sort()
-  const cs = $('country'); cs.innerHTML = '<option value="">all</option>'; for (const c of countries) cs.add(new Option(`${c} (${sel.filter((u) => u.id.startsWith(c)).length})`, c, false, c === state.country))
-  const us = $('unitSel'); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !state.country || u.id.startsWith(state.country))) us.add(new Option(u.id + (u.restricted ? ' (restricted)' : '') + (flagged(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state.unit))
-  $('searchInfo').textContent = `${sel.length} units of ${state.species}`
-}
-Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + 'meta.json').then((r) => r.json())]).then(([cl, m]) => {
+
+// ---- start: the dictionary's defaults, then the URL (any state key by its gid; shorthand species / point / bbox), then the data
+const parse = (v) => { if (v === 'true') return true; if (v === 'false') return false; if (/^[\[{]/.test(v)) { try { return JSON.parse(v) } catch { return v } } return v !== '' && !isNaN(v) ? Number(v) : v }
+Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + 'meta.json').then((r) => r.json()), Dict.defaults()]).then(async ([cl, m, defaults]) => {
   climates = cl; meta = m
-  const q = new URLSearchParams(location.search); if (q.get('species') && m.species.includes(q.get('species'))) state.species = q.get('species')
-  state.climate = cl.find((c) => c.key === q.get('climate')) ?? cl.find((c) => c.key === 'worldclim|1970-2000|')
-  for (const s of m.species) $('speciesSel').add(new Option(s, s, false, s === state.species))
-  fillSelectors(false); size()
-  refresh().then(() => {
-    const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
-    if (pt?.length === 2) selectFromMap({ type: 'Point', coordinates: pt })
-    else if (bb?.length === 4) selectFromMap({ type: 'Polygon', coordinates: [[[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]], [bb[0], bb[1]]]] })
-  })
-  $('mapSelClear').addEventListener('click', () => { selectFromMap(null); post({ type: 'map-selection', geometry: null }) })   // the host clears the map too
+  state = { ...defaults, [K.species]: m.species[0], [K.X]: m.pair.x, [K.Y]: m.pair.y, [K.selection]: [] }
+  const q = new URLSearchParams(location.search)
+  for (const k of Object.values(K)) if (q.has(k)) state[k] = parse(q.get(k))
+  if (q.get('species') && m.species.includes(q.get('species'))) state[K.species] = q.get('species')
+  if (!cur()) setClimate(cl.find((k) => k.src === 'worldclim' && k.present))
   if (q.get('embedded')) document.body.classList.add('embedded')
-  $('product').addEventListener('change', (e) => { state.climate = pick(e.target.value, null, null); fillSelectors(true); refresh() })
-  $('scenario').addEventListener('change', (e) => { state.climate = pick(state.climate.src, e.target.value, state.climate.period); fillSelectors(true); refresh() })
-  $('period').addEventListener('change', (e) => { state.climate = cl.find((c) => c.key === e.target.value); refresh() })
-  $('speciesSel').addEventListener('change', (e) => { state.species = e.target.value; state.country = ''; state.unit = ''; refresh() })
-  if (q.get('view') === 'classes') { state.view = 'classes'; $('view').value = 'classes' }
-  $('view').addEventListener('change', (e) => { state.view = e.target.value; refresh() })
-  $('variant').addEventListener('change', refresh)
-  for (const id of ['classPos', 'binSize', 'binMin']) $(id).addEventListener('change', draw)
-  $('country').addEventListener('change', (e) => { state.country = e.target.value; state.unit = ''; refill(); draw() })
-  $('unitSel').addEventListener('change', (e) => { state.unit = e.target.value; draw() })
-  $('flagKm').addEventListener('change', () => { refill(); draw() })
-  for (const id of ['baseMode', 'speciesMode', 'envelope', 'arrows', 'restricted']) $(id).addEventListener('change', () => { refill(); draw() })
-  for (const r of document.querySelectorAll('input[type=range]')) r.addEventListener('input', draw)
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...cl.flatMap((k) => [k.periodGid, k.scenarioGid]), state[K.X], state[K.Y], 'ui_layout_scatterplot', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_unit', 'ui_layout_scatterplot_label_hints', 'ui_layout_scatterplot_label_selection'])
+  await Dict.labels(); bindControls(); size()
+  await refresh()
+  if (state[K.zoom]) zoomTo(state[K.zoom])
+  const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
+  if (pt?.length === 2) selectFromMap({ type: 'Point', coordinates: pt })
+  else if (bb?.length === 4) selectFromMap({ type: 'Polygon', coordinates: [[[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]], [bb[0], bb[1]]]] })
+  else if (state[K.mapSel]) selectFromMap(state[K.mapSel])
+  $('mapSelClear').addEventListener('click', () => { selectFromMap(null); post({ [K.mapSel]: null }) })   // the host clears the map too
   $('reset').addEventListener('click', resetView)
-  $('selMode').addEventListener('change', (e) => { state.selMode = e.target.value; draw() })
-  $('selClear').addEventListener('click', () => { state.selection.clear(); $('selCount').textContent = 0; draw() })
+  $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; draw() })
   new ResizeObserver(() => { size(); draw() }).observe(wrap)
 })
 </script>

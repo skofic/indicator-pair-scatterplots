@@ -187,6 +187,27 @@ host through `window.opener` with the same messages (the host hides the map pane
 the page; closing the window brings the map back). Two pages opened by hand in two tabs cannot talk,
 since they have no common host; a `BroadcastChannel` would allow that for same-origin tabs if ever
 needed.
+**Iteration 8 (2026-11-09): the panes speak the dictionary.** The terms created in `metadata-store` on
+2026-11-09 ([`2026-11-09-metadata-store-ui-terms-created.md`](2026-11-09-metadata-store-ui-terms-created.md))
+are now what the three pages run on. `examples/dictionary.js` is the panes' access to the `metadata`
+database's `/ui` service (read-only, anonymous, answers cross-origin): one `POST /term/bulk` per page
+for every term it names, `POST /validate/document` with `compute: true` for the dictionary's defaults
+of `ui_layout_state`. **Every label, option text, hover text, legend entry and axis legend comes from a
+term**: `data-term` elements take `_info._title` as text and `_info._definition` as hover, selects take
+their options from the enumeration elements in a declared order (value = gid, hover = definition), the
+axes show the climate descriptor's title and unit symbol (`unit_*._code._symbol_print`), the status
+and tooltips are composed from label terms. **The pane state is keyed by gids** (`species`,
+`gcu_id_country` with `ISO_3166_1_*` values, `gcu_id_number`, `gcu_loc_coordinates-restriction_level`,
+`gcu_loc_climate_flag`, `std_dataset_ids`, `env_climate_scenario`, `env_climate_period`,
+`ui_layout_scatterplot_*`, `ui_layout_map_*`), starts from the dictionary's defaults, accepts any key as
+a URL parameter, and is what the host page and the panes exchange (`{ type: 'state', …partial }`; the
+map selection is `ui_layout_map_selection`, a geometry or null). `climates.json` now carries the dataset
+key and the period and scenario gids per climate, so the files are found from the state. `?lang=<ISO
+639-3>` switches every text once the terms carry that language; `?dict=` points at another dictionary
+service. Observed defaults: the standalone scatterplot opens at the public restriction level (restricted
+units hidden), the joint page sets the values level for both panes. Still hard-coded: the word "Source"
+for the dataset selector (no label term; `std_dataset_ids`'s title is "Dataset IDs"), the EU-Trees4F
+future map's fixed period on the map, the interaction hints' language-independent symbols.
 Not yet: the pair selector (needs
 the service or five times the export), the class of each unit's own cell (a service-side raster
 sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the
@@ -210,4 +231,5 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-01 | **Reference-point distance flag built** (iteration 5, see §4): threshold 5 km by default, selectable; distance stored on `ScatterUnits` under `_custom` and exported; 46 of 3 669 units exceed 5 km, 25 exceed 20 km (list in §4), for the EUFGIS data-quality work. Pending Milko's review. |
 | 2026-11-01 | **Review of iterations 3–5 (Milko):** class-view defaults and the 5 km threshold accepted; a `ui` dictionary namespace for the panes' state plus the unit distance descriptor, requested at the Phase 3 close; the joint page gets shared controls and a layout that follows the window's shape; detaching the map to its own tab explored later. Built as iteration 6. |
 | 2026-11-01 | **Next step (Milko): define the `ui` terms for the dictionary** before the Serve Plan. Noted by Milko: the dictionary is multilingual, so interface terms give a multilingual user interface for free (labels, option texts, tooltips from the terms' `_info` in each language). |
+| 2026-11-09 | **The panes run on the dictionary terms** (iteration 8): labels, options, hovers, legends and axis legends from `metadata/ui`; the state keyed by gids and validated against `ui_layout_state`; `dictionary.js` shared by the three pages. Next: `gcu_loc_climate_distance` on `ScatterUnits`, then the Foxx service taking a `ui_layout_state`. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |
