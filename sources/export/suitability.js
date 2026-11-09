@@ -27,11 +27,18 @@ try {
   if (Number(v.split(':')[0]) !== cells.length) throw new Error(`cells.json (${cells.length}) and ScatterOccurrences (${v}) differ: re-run pair.js`)
   console.log(`${cells.length} cells (global order ${v}); ${species.length} species${write ? ', writing PanesSuitability' : ''}`)
   const coll = db.collection('PanesSuitability')
+  const { existsSync } = await import('node:fs')
+  // the rasters are named with EU-Trees4F's names; four of them (Aria edulis, Cormus domestica, Borkhausenia intermedia,
+  // Torminalis glaberrima) are folded into their Sorbus names in ScatterSpecies, so the file is looked up under the
+  // accepted name and then under its aliases
+  const aliases = new Map((await db.query('FOR s IN ScatterSpecies RETURN [s.species, s._custom.aliases || []]').then((c) => c.all())))
   for (const sp of species) {
+    const fileName = [sp, ...(aliases.get(sp) ?? [])].find((n) => existsSync(`maps/eutrees4f/ens_sdms/bin/${n.replace(' ', '_')}_ens-sdms_cur2005_bin_pot.tif`))
+    if (!fileName) { console.warn(`  ${sp}: no EU-Trees4F binary maps (cur2005 pot missing), skipped`); continue }
     const out = execFileSync('.venv/bin/python', ['-I', '-c', `
 import json, sys, numpy as np, rasterio, rasterio.warp
 pts = json.load(open('work/examples/data/cells.json')); lons = np.array([p[0] for p in pts]); lats = np.array([p[1] for p in pts])
-D = 'maps/eutrees4f/ens_sdms/bin/'; sp = '${sp.replace(' ', '_')}'
+D = 'maps/eutrees4f/ens_sdms/bin/'; sp = '${fileName.replace(' ', '_')}'
 def sample(f):
     with rasterio.open(D + f) as ds:
         r, c = rasterio.transform.rowcol(ds.transform, *rasterio.warp.transform('EPSG:4326', ds.crs, lons, lats))
@@ -47,7 +54,7 @@ for period in ('fut2035', 'fut2065', 'fut2095'):
             cls = np.where((cur == 1) & (fut == 1), 1, np.where((cur == 1) & (fut == 0), 2, np.where((cur == 0) & (fut == 1), 3, 0)))
             out[f'{period}|{rcp}|{variant}'] = ''.join(map(str, cls.tolist()))
 json.dump(out, open('work/examples/data/suitability-${sp.replace(' ', '_')}.json', 'w'))
-c = out['fut2095|rcp85|pot']; print('${sp}: current suitable', int((cur == 1).sum()), '| 2095 RCP 8.5 pot: stable', c.count('1'), 'decolonised', c.count('2'), 'new', c.count('3'))
+c = out['fut2095|rcp85|pot']; print('${sp}${fileName !== sp ? ' (files: ' + fileName + ')' : ''}: current suitable', int((cur == 1).sum()), '| 2095 RCP 8.5 pot: stable', c.count('1'), 'decolonised', c.count('2'), 'new', c.count('3'))
 `], { encoding: 'utf8' })
     process.stdout.write(out)
     if (write) {

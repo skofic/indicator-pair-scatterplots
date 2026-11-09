@@ -224,7 +224,10 @@ custom pair possible), axes fixed per source × pair; the **map's EU-Trees4F fut
 scenario selector** and the variant; the unit polygons come on demand when a unit is chosen, the
 overview shows reference points; the exported files under `work/examples/data/` are no longer read by
 the pages (they stay as the pipeline's fixtures). `PanesSuitability` is filled by
-`sources/export/suitability.js --write` (three species first, `--all` for the 67 EU-Trees4F species).
+`sources/export/suitability.js --write --all`: all 67 EU-Trees4F species, 804 documents. Found on the way: EU-Trees4F
+names four Sorbus species by their modern genera (Aria edulis, Cormus domestica, Borkhausenia intermedia,
+Torminalis glaberrima); the loader looks the rasters up under the species' aliases, and the maps manifest
+now folds those names into the accepted ones, so the map shows their EU-Trees4F layers too.
 Known limit: the arrow-bin sizes of the classes view are named in °C × mm whatever the pair.
 Not yet: the class of each unit's own cell (a service-side raster sample, so that restricted units get
 it too). **Built 2026-10-31**, to be opened by Milko: start the

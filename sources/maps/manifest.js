@@ -17,6 +17,8 @@ const dryRun = process.argv.includes('--dry-run')
 const files = (dir, ext) => existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(ext)).map((f) => `${dir}/${f}`) : []
 // gdalinfo takes ~0.3 s per file; results are cached by path + mtime in work/gdalinfo-cache.json.
 import { readFileSync, writeFileSync } from 'node:fs'
+const aliases = JSON.parse(readFileSync('data/species-aliases.json', 'utf8')); delete aliases._comment
+const accepted = (n) => aliases[n] ?? n   // the same folding as sources/species/build.js
 const CACHE = 'work/gdalinfo-cache.json'
 const cache = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : {}
 function gdalinfo(path) {
@@ -36,7 +38,7 @@ export function manifestDocs(keys) {
   // EU-Trees4F: <Species>_<ens>_[rcp]_<period>_<type>_<distrib>[_lu].tif
   for (const ens of ['ens_sdms', 'ens_clim']) for (const kind of ['prob', 'bin']) for (const f of files(`maps/eutrees4f/${ens}/${kind}`, '.tif')) {
     const b = f.split('/').pop().replace('.tif', ''); const parts = b.split('_')
-    const species = `${parts[0]} ${parts[1]}`; const rest = parts.slice(2)
+    const species = accepted(`${parts[0]} ${parts[1]}`); const rest = parts.slice(2)   // EU-Trees4F names folded into the accepted ones (Aria edulis → Sorbus aria, …)
     const scenario = rest.find((p) => /^rcp\d+$/.test(p)) ?? null, period = rest.find((p) => /^(cur|fut)\d{4}$/.test(p)) ?? null
     const variant = rest.find((p) => ['pot', 'nat', 'disp'].includes(p)) ?? null, lu = rest.includes('lu')
     docs.push({ _key: md5(f), species, std_dataset_ids: [keys['SCATTER_MAPS'], keys['EU-TREES4F_MAPS_2022']].filter(Boolean),
@@ -44,7 +46,7 @@ export function manifestDocs(keys) {
   }
   // Atlas: maps/atlas/<rpp|mhs>/tif/<Genus-species>_<rpp|mhs>.tif  (after unzip)
   for (const kind of ['rpp', 'mhs']) for (const f of files(`maps/atlas/${kind}/tif`, '.tif')) {
-    const m = f.split('/').pop().match(SPECIES_RE); const species = m ? `${m[1]} ${m[2]}` : f
+    const m = f.split('/').pop().match(SPECIES_RE); const species = accepted(m ? `${m[1]} ${m[2]}` : f)
     docs.push({ _key: md5(f), species, std_dataset_ids: [keys['SCATTER_MAPS'], keys[kind === 'rpp' ? 'ATLAS_RPP_2016' : 'ATLAS_MHS_2016']].filter(Boolean),
       _custom: { source: `atlas_${kind}`, layer: kind === 'rpp' ? 'relative probability of presence' : 'maximum habitat suitability', period: '2016', path: f, format: 'COG', ...gdalinfo(f), licence: 'European Commission reuse policy (Decision 2011/833/EU), CC BY 4.0', citation: 'de Rigo et al. 2016, European Atlas of Forest Tree Species; per-layer DOI in the JRC Data Catalogue' } })
   }
@@ -52,7 +54,7 @@ export function manifestDocs(keys) {
   for (const f of files('maps/chorology/geojson', '.geojson')) {
     const b = f.split('/').pop().replace('.geojson', ''); const parts = b.split('_')
     const geom = parts.pop(); const syn = parts[parts.length - 1] === 'syn' && parts.pop()
-    const species = `${parts[0]} ${parts[1]}`; const subspecies = parts.length > 2 ? parts.slice(2).join(' ') : null
+    const species = accepted(`${parts[0]} ${parts[1]}`); const subspecies = parts.length > 2 ? parts.slice(2).join(' ') : null
     docs.push({ _key: md5(f), species, std_dataset_ids: [keys['SCATTER_MAPS'], keys['ATLAS_CHOROLOGY_2017']].filter(Boolean),
       _custom: { source: 'atlas_chorology', layer: syn ? 'introduced / synanthropic occurrences' : geom === 'plg' ? 'native range (polygons)' : 'isolated populations (points)', subspecies, geometry: geom === 'plg' ? 'Polygon' : 'Point', path: f, format: 'GeoJSON', crs: 'EPSG:4326', size_bytes: statSync(f).size, licence: 'CC BY 4.0', citation: 'Caudullo, Welk & San-Miguel-Ayanz 2017, doi:10.1016/j.dib.2017.05.007' } })
   }
