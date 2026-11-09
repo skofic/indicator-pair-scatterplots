@@ -1,6 +1,6 @@
 # The Foxx service of the map and scatterplot panes — design
 
-Date: 2026-11-09. Status: **draft for Milko's review**, step 2 of the order agreed on 2026-11-02 (terms →
+Date: 2026-11-09. Status: **built the same day** in [`skofic/indicator-pair-scatterplots-service`](https://github.com/skofic/indicator-pair-scatterplots-service) (installed at `/panes`, 16 tests pass); Milko's standard applied: setup creates the `Scatter*` collections and named indexes idempotently; teardown spares the data unless configured. Of §10, points 1, 3 and 4 are resolved as proposed (mount `/panes`; base from the cache collection; level and country as query parameters or headers); point 2 (the suitability string's property) is open. Written as step 2 of the order agreed on 2026-11-02 (terms →
 service → layout polish → Serve Plan). Decisions it rests on: the service is this project's own and the
 future base of the new GeoService service (2026-10-30); the serving strategy of 2026-10-31 (a Foxx
 service for everything that is a query, static hosting for the bulk; restriction levels `hidden` /
