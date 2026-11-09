@@ -588,7 +588,7 @@ Typos in the table noted in passing: "12961" for 1961; `ui_layout_scatterplot_vi
 
 ---
 
-## Addendum (2026-11-09, after the terms were created): two more terms
+## Addendum (2026-11-09, after the terms were created): two more terms — **created by Milko the same day, verified**
 
 Found while putting the panes on the vocabulary; same conventions as above, `data/ui/`.
 

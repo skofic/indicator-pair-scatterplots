@@ -30,7 +30,7 @@
 <div class="bar">
   <strong data-term="ui_layout_scatterplot"></strong>
   <label><span data-term="ui_layout_scatterplot_view"></span> <select data-key="ui_layout_scatterplot_view"></select></label>
-  <label><span id="sourceLabel">Source</span> <select id="product"></select></label>
+  <label><span data-term="ui_layout_label_source"></span> <select id="product"></select></label>
   <label><span data-term="env_climate_scenario"></span> <select data-key="env_climate_scenario"></select></label>
   <label><span data-term="env_climate_period"></span> <select data-key="env_climate_period"></select></label>
   <label><span data-term="ui_layout_scatterplot_base_mode"></span> <select data-key="ui_layout_scatterplot_base_mode"></select> <input type="range" data-key="ui_layout_scatterplot_layer_radius" min="2" max="10"> <input type="range" data-key="ui_layout_scatterplot_base_opacity" min="0" max="100"></label>
@@ -80,7 +80,7 @@ const K = {
   speciesMode: 'ui_layout_scatterplot_species_mode', speciesOp: 'ui_layout_scatterplot_species_opacity', envelope: 'ui_layout_scatterplot_species_envelope',
   unitsMode: 'ui_layout_scatterplot_units_mode', unitsOp: 'ui_layout_scatterplot_units_opacity', selection: 'ui_layout_scatterplot_units_selection',
   radius: 'ui_layout_scatterplot_layer_radius', arrows: 'ui_layout_scatterplot_layer_arrows', zoom: 'ui_layout_scatterplot_zoom',
-  basePos: 'ui_layout_scatterplot_base_position',   // requested from the dictionary on 2026-11-09 (handoff addendum): present | future
+  basePos: 'ui_layout_scatterplot_base_position',
   variant: 'ui_layout_scatterplot_view_classes_variant', position: 'ui_layout_scatterplot_view_classes_position', bin: 'ui_layout_scatterplot_view_classes_bin', binMin: 'ui_layout_scatterplot_view_classes_bin_min',
   mapSel: 'ui_layout_map_selection',
 }
@@ -335,7 +335,7 @@ function bindControls() {
     el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { state[k] = read(el); (ON[k] ?? draw)() })
   }
   $('product').addEventListener('change', (e) => { setClimate(climates.find((k) => k.dataset === e.target.value && k.present)); refresh() })
-  $('product').dataset.fieldDef = Dict.def(K.dataset); $('sourceLabel').title = Dict.def(K.dataset)
+  $('product').dataset.fieldDef = Dict.def('ui_layout_label_source')
 }
 function syncControls() { for (const el of document.querySelectorAll('[data-key]')) { const v = state[el.dataset.key]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = Array.isArray(v) ? v[0] : v } }
 function refill() {
@@ -393,7 +393,7 @@ canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; octx.c
 const parse = (v) => { if (v === 'true') return true; if (v === 'false') return false; if (/^[\[{]/.test(v)) { try { return JSON.parse(v) } catch { return v } } return v !== '' && !isNaN(v) ? Number(v) : v }
 Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + 'meta.json').then((r) => r.json()), Dict.defaults()]).then(async ([cl, m, defaults]) => {
   climates = cl; meta = m
-  state = { ...defaults, [K.species]: m.species[0], [K.X]: m.pair.x, [K.Y]: m.pair.y, [K.selection]: [], [K.basePos]: OPT[K.basePos][0] }
+  state = { ...defaults, [K.species]: m.species[0], [K.X]: m.pair.x, [K.Y]: m.pair.y, [K.selection]: [] }   // every other default comes from ui_layout_state
   const q = new URLSearchParams(location.search)
   for (const k of Object.values(K)) if (q.has(k)) state[k] = parse(q.get(k))
   if (q.get('species') && m.species.includes(q.get('species'))) state[K.species] = q.get('species')

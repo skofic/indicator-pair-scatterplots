@@ -6,7 +6,7 @@ From the `metadata-store` session, answering [`2026-11-09-handoff-metadata-store
 
 - **Texts.** `POST /_db/metadata/ui/term/bulk` with the gids below returns each term with `_info._title` (label, option text, legend entry), `_info._definition` (hover text) and `_info._description` (the text behind an info symbol, Markdown), keyed by language (`ISO_639_3_eng` today).
 - **Options.** `GET /_db/metadata/ui/enum/<root>` lists a root's elements with their terms; `GET /_db/metadata/ui/enum/env_climate_period` returns the three source **sections** (`children` 4 / 5 / 4), `?branch=env_climate_period_chelsa` one source's periods, and `GET /_db/metadata/ui/enum/env_climate_period_chelsa` the same four, because every period edge carries both the root and its section in `_path`.
-- **A state.** `POST /_db/metadata/ui/validate/document` with `{ "document": <state>, "descriptor": "ui_layout_state", "compute": true }` validates a full or partial state and returns `document` with every absent default filled (33 constants) — the object the panes start from.
+- **A state.** `POST /_db/metadata/ui/validate/document` with `{ "document": <state>, "descriptor": "ui_layout_state", "compute": true }` validates a full or partial state and returns `document` with every absent default filled (34 constants) — the object the panes start from.
 - **Aliases.** Where a stored or wire value differs from the gid it is the element's `_aid[0]`: the period strings, the scenario keys, the class digits, the bin pairs, the variant codes. Every other option is identified by its gid; the pages' current strings (`layers`, `points`, `osm-gray`, `Point`…) have no alias and are to be replaced by the gids.
 
 ## State keys (`ui_layout_state`)
@@ -32,6 +32,7 @@ Main panel first, then the pane settings. "Code today" is the symbol or value in
 | `view` (`layers`, `classes`) | `ui_layout_scatterplot_view` | enum | `_layer`, `_classes` | `ui_layout_scatterplot_view_layer` |
 | `baseMode` (`points`, `hex`, `none`) | `ui_layout_scatterplot_base_mode` | enum | `ui_layout_scatterplot_base_point` / `_hex` / `_none` | `_point` |
 | base `.op` | `ui_layout_scatterplot_base_opacity` | integer %, 0–100 | | 100 |
+| base position (added later the same day) | `ui_layout_scatterplot_base_position` | enum | `ui_layout_scatterplot_base_position_present` / `_future` — the base layer at the present climate or at the selected period's; shown only for a future period in the layers view | `_present` |
 | `speciesMode` | `ui_layout_scatterplot_species_mode` | enum | `ui_layout_scatterplot_species_point` / `_hex` / `_none` | `_point` |
 | species `.op` | `ui_layout_scatterplot_species_opacity` | integer %, 0–100 | | 100 |
 | `envelope` | `ui_layout_scatterplot_species_envelope` | boolean | | true |
@@ -61,7 +62,7 @@ Root descriptors: `rcp45`, `rcp85` (open objects beside `ssp370`), the nesting k
 
 | Namespace | gids |
 |---|---|
-| `ui_layout_label` | `_species`, `_country`, `_unit`, `_restricted`, `_flagged`, `_clear`, `_reset`, `_no-data` |
+| `ui_layout_label` | `_species`, `_country`, `_unit`, `_restricted`, `_flagged`, `_clear`, `_reset`, `_no-data`, `_source` (the climate-source selector's label; added later the same day) |
 | `ui_layout_scatterplot_label` | `_base`, `_species`, `_units-present`, `_units-future`, `_map-selection`, `_envelope-present`, `_envelope-future`, `_arrows`, `_bin-arrows`, `_hints`, `_selection`, `_projection` |
 | `ui_layout_map_label` | `_presence`, `_suitability`, `_t4-current`, `_t4-future`, `_chorology`, `_units`, `_click`, `_never-on-map`, `_attribution` |
 
