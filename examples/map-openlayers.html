@@ -83,8 +83,8 @@ const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
 const OPT = { [K.base]: E('ui_layout_map_layer_base', 'none', 'boundary', 'hillshade', 'gray', 'osm', 'topo'), [K.draw]: E('ui_layout_map_draw-mode', 'none', 'point', 'box', 'polygon') }
 const LBL = { restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', unit: 'ui_layout_label_unit', neverOnMap: 'ui_layout_map_label_never-on-map', click: 'ui_layout_map_label_click', presence: 'ui_layout_map_label_presence', suitability: 'ui_layout_map_label_suitability', t4cur: 'ui_layout_map_label_t4-current', t4fut: 'ui_layout_map_label_t4-future', chorology: 'ui_layout_map_label_chorology', units: 'ui_layout_map_label_units' }
 let state = {}
-const last = Dict.last
-const flagged = (f) => f.get('distance') != null && f.get('distance') > state[K.flag]
+const last = Dict.last, DIST = 'gcu_loc_climate_distance'
+const flagged = (f) => f.get(DIST) != null && f.get(DIST) > state[K.flag]
 const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: (f) => flagged(f) ? flagStyle : unitStyle })
 const layers = { rpp, mhs, t4cur, t4fut, choro, units }
 // base maps (raster tiles in Web Mercator, reprojected by OpenLayers to EPSG:3035), keyed by the element's last segment
@@ -125,8 +125,8 @@ function refill() {
   const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const [v, n] of count(ix.units.filter((u) => match(u, '', species)), (u) => u.country)) cs.add(new Option(`${T('ISO_3166_1_' + v)} (${n})`, 'ISO_3166_1_' + v, false, 'ISO_3166_1_' + v === state[K.country]))
   const ss = $K(K.species); ss.innerHTML = ''; for (const [v, n] of count(ix.units.filter((u) => match(u, country, '')), (u) => u.species)) ss.add(new Option(`${v}${mapIndex.species[v]?.atlas_rpp ? ' ●' : ''} (${n})`, v, false, v === species))
   const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'
-  const flag = (u) => u.distance != null && u.distance > state[K.flag]
-  for (const u of sel) us.add(new Option(u.id + (u.restricted ? ` (${T(LBL.restricted)})` : '') + (flag(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
+  const flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
+  for (const u of sel) us.add(new Option(u.id + (u.restricted ? ` (${T(LBL.restricted)})` : '') + (flag(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
   $('searchInfo').textContent = `${sel.length} ${T(LBL.unit).toLowerCase()}s, ${sel.filter((u) => u.restricted).length} ${T(LBL.restricted)}, ${sel.filter(flag).length} ${T(LBL.flagged)} (> ${state[K.flag]} km) · ● ${T(LBL.presence)}`
   for (const el of [cs, ss, us]) Dict.hover(el)
   const ids = new Set(sel.map((u) => u.id))

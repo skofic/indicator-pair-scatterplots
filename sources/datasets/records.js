@@ -130,11 +130,11 @@ RECORDS.push(
     std_date_submission: today, std_date_start: '1961', std_date_end: '2100',
     _info: {
       _title: eng('Indicator pair scatterplots: gene conservation units in present and future climate'),
-      _description: eng('One document per EUFGIS gene conservation unit (3 669) at its climate reference point, with the unit number, its target species, the coordinate-restriction flag and the same per-source, per-period indicator blocks as ScatterOccurrences. Restricted units carry climate values only: no point and no cell reference. Rebuilt from GeoService.Units by a refresh command; the top layer of the scatterplots, the layer the visualisation exists for.'),
+      _description: eng('One document per EUFGIS gene conservation unit (3 669) at its climate reference point, with the unit number, its target species, the coordinate-restriction flag, the climate reference point (gcu_loc_climate) and its distance from the unit polygon (gcu_loc_climate_distance, km on the EPSG:3035 plane, 0 when inside: a data-quality fact), and the same per-source, per-period indicator blocks as ScatterOccurrences. Restricted units carry climate values and the distance only: no point and no cell reference. Rebuilt from GeoService.Units by a refresh command; the top layer of the scatterplots, the layer the visualisation exists for.'),
       _references: { _url: ['[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'] },
     },
     std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_gcu', std_dataset_scope: 'std_dataset_scope_shape' },
-    std_dataset_prop: { _collection_list: ['ScatterUnits'], std_terms: ['gcu_id_number', 'species_list', 'gcu_loc_coordinates-restriction', 'geometry_point', 'geometry_hash', ...SCATTER_TERMS()], std_terms_key: ['gcu_id_number'] },
+    std_dataset_prop: { _collection_list: ['ScatterUnits'], std_terms: ['gcu_id_number', 'species_list', 'gcu_loc_coordinates-restriction', 'gcu_loc_climate', 'gcu_loc_climate_distance', 'geometry_point', 'geometry_hash', ...SCATTER_TERMS()], std_terms_key: ['gcu_id_number'] },
   },
   {
     std_dataset_code: 'SCATTER_SPECIES',

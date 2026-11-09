@@ -98,6 +98,7 @@ const OPT = {
 }
 const LEGEND = E('ui_layout_scatterplot_view_classes_legend', '0', '1', '2', '3')
 const LBL = { base: 'ui_layout_scatterplot_label_base', species: 'ui_layout_scatterplot_label_species', unitsPresent: 'ui_layout_scatterplot_label_units-present', unitsFuture: 'ui_layout_scatterplot_label_units-future', mapSel: 'ui_layout_scatterplot_label_map-selection', envPresent: 'ui_layout_scatterplot_label_envelope-present', envFuture: 'ui_layout_scatterplot_label_envelope-future', binArrows: 'ui_layout_scatterplot_label_bin-arrows', projection: 'ui_layout_scatterplot_label_projection', restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', noData: 'ui_layout_label_no-data' }
+const DIST = 'gcu_loc_climate_distance'   // the unit fact the flag is read from
 const NUMERIC = new Set([K.flag, K.binMin, K.radius, K.baseOp, K.speciesOp, K.unitsOp])
 let state = {}
 const last = Dict.last, is = (k, lid) => last(state[k]) === lid   // is(K.baseMode, 'hex')
@@ -164,7 +165,7 @@ async function refresh() {
 /** where a unit is drawn: the class view keeps everything in the present climate space (the arrows show the shift) */
 const unitXY = (u, c) => u.values[c.key]
 const unitPos = (u) => classView() ? unitXY(u, presentOf(cur())) : unitXY(u, cur())
-const flagged = (u) => u.distance != null && u.distance > state[K.flag]
+const flagged = (u) => u[DIST] != null && u[DIST] > state[K.flag]
 const selected = (id) => (state[K.selection] ?? []).includes(id)
 function visibleUnits() {
   const c = cur(), country = state[K.country] ? Dict.aid(state[K.country]) : ''
@@ -343,7 +344,7 @@ function refill() {
   const countries = [...new Set(sel.map((u) => 'ISO_3166_1_' + u.id.slice(0, 3)))].sort()
   const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const g of countries) cs.add(new Option(`${T(g)} (${sel.filter((u) => u.id.startsWith(Dict.aid(g))).length})`, g, false, g === state[K.country]))
   const country = state[K.country] ? Dict.aid(state[K.country]) : ''
-  const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !country || u.id.startsWith(country))) us.add(new Option(u.id + (u.restricted ? ` (${T(LBL.restricted)})` : '') + (flagged(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
+  const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !country || u.id.startsWith(country))) us.add(new Option(u.id + (u.restricted ? ` (${T(LBL.restricted)})` : '') + (flagged(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
   const sp = $K(K.species); if (!sp.options.length) for (const s of meta.species) sp.add(new Option(s, s, false, s === state[K.species]))
   for (const el of [cs, us, sp]) Dict.hover(el)
   $('searchInfo').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s · ${state[K.species]}`
@@ -377,7 +378,7 @@ canvas.addEventListener('mousemove', (e) => {
     const c = cur(), q = unitXY(u, c), p = unitXY(u, presentOf(c)), d = unitPos(u), x = tx.rescaleX(x0), y = tx.rescaleY(y0), ux = Dict.unit(state[K.X]), uy = Dict.unit(state[K.Y]), T = Dict.title
     octx.beginPath(); octx.arc(x(d[0]), y(d[1]), 7, 0, 2 * Math.PI); octx.strokeStyle = '#222'; octx.lineWidth = 2; octx.stroke()
     tip.style.display = 'block'; tip.style.left = Math.min(e.offsetX + 14, W - 220) + 'px'; tip.style.top = e.offsetY + 14 + 'px'
-    tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ` (${T(LBL.restricted)})` : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${u.distance.toFixed(1)} km</span>` : ''}<br>${q[0].toFixed(1)} ${ux} · ${Math.round(q[1])} ${uy}` + (c.present ? '' : `<br>${T(state[K.period])}; ${T(LBL.unitsPresent)}: ${p[0].toFixed(1)} ${ux} · ${Math.round(p[1])} ${uy}`) + `<br>${u.species.join(', ')}`
+    tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ` (${T(LBL.restricted)})` : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${u[DIST].toFixed(1)} km</span>` : ''}<br>${q[0].toFixed(1)} ${ux} · ${Math.round(q[1])} ${uy}` + (c.present ? '' : `<br>${T(state[K.period])}; ${T(LBL.unitsPresent)}: ${p[0].toFixed(1)} ${ux} · ${Math.round(p[1])} ${uy}`) + `<br>${u.species.join(', ')}`
   } else tip.style.display = 'none'
 })
 window.addEventListener('mouseup', (e) => {
