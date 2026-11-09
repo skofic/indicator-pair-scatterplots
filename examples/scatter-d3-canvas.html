@@ -12,6 +12,7 @@
   #search { background: #f6f6f6 }
   label { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap }
   input[type=range] { width: 64px; vertical-align: middle }
+  select { max-width: 280px }
   #wrap { position: relative; flex: 1 1 auto; min-height: 320px; margin: 4px 12px; overflow: hidden; cursor: crosshair }
   canvas, svg { position: absolute; left: 0; top: 0 }
   svg, #over { pointer-events: none }
@@ -26,13 +27,16 @@
 </head>
 <body>
 <!-- Every label is a dictionary term (data-term: text = _title, hover = _definition); every control is bound to a key of
-     the pane state (data-key = the term's gid), whose values are the gids of the enumeration elements. -->
+     the pane state (data-key = the term's gid), whose values are the gids of the enumeration elements. The data comes
+     from the panes' Foxx service (service.js), the texts from the dictionary service (dictionary.js). -->
 <div class="bar">
   <strong data-term="ui_layout_scatterplot"></strong>
   <label><span data-term="ui_layout_scatterplot_view"></span> <select data-key="ui_layout_scatterplot_view"></select></label>
   <label><span data-term="ui_layout_label_source"></span> <select id="product"></select></label>
   <label><span data-term="env_climate_scenario"></span> <select data-key="env_climate_scenario"></select></label>
   <label><span data-term="env_climate_period"></span> <select data-key="env_climate_period"></select></label>
+  <label><span data-term="ui_layout_scatterplot_X"></span> <select data-key="ui_layout_scatterplot_X"></select></label>
+  <label><span data-term="ui_layout_scatterplot_Y"></span> <select data-key="ui_layout_scatterplot_Y"></select></label>
   <label><span data-term="ui_layout_scatterplot_base_mode"></span> <select data-key="ui_layout_scatterplot_base_mode"></select> <input type="range" data-key="ui_layout_scatterplot_layer_radius" min="2" max="10"> <input type="range" data-key="ui_layout_scatterplot_base_opacity" min="0" max="100"></label>
   <label id="basePosCtl"><span data-term="ui_layout_scatterplot_base_position"></span> <select data-key="ui_layout_scatterplot_base_position"></select></label>
   <label><span data-term="ui_layout_scatterplot_species_mode"></span> <select data-key="ui_layout_scatterplot_species_mode"></select> <input type="range" data-key="ui_layout_scatterplot_species_opacity" min="0" max="100"></label>
@@ -63,8 +67,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
 <script src="dictionary.js"></script>
+<script src="service.js"></script>
 <script>
-const DATA = '../work/examples/data/', $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`), css = (v) => getComputedStyle(document.body).getPropertyValue(v)
+const $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`), css = (v) => getComputedStyle(document.body).getPropertyValue(v)
 const M = { top: 10, right: 16, bottom: 44, left: 62 }
 const wrap = $('wrap'), canvas = $('c'), over = $('over'), svg = d3.select('#s'), tip = $('tip'), status = $('status'), ctx = canvas.getContext('2d'), octx = over.getContext('2d')
 let W = 0, H = 0, tx = d3.zoomIdentity
@@ -72,15 +77,14 @@ const x0 = d3.scaleLinear(), y0 = d3.scaleLinear()
 const gGX = svg.append('g').attr('class', 'grid'), gGY = svg.append('g').attr('class', 'grid'), gX = svg.append('g'), gY = svg.append('g'), xl = svg.append('text').attr('text-anchor', 'middle'), yl = svg.append('text').attr('text-anchor', 'middle')
 
 // ---- the pane state: one object keyed by dictionary gids (ui_layout_state); its values are element gids, numbers,
-// booleans, arrays; it is what a deep link, a message from the host page and a preset view carry
+// booleans, arrays; it is what a deep link, a message from the host page, a preset view and a service request carry
 const K = {
   species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag',
   dataset: 'std_dataset_ids', scenario: 'env_climate_scenario', period: 'env_climate_period', X: 'ui_layout_scatterplot_X', Y: 'ui_layout_scatterplot_Y',
-  view: 'ui_layout_scatterplot_view', baseMode: 'ui_layout_scatterplot_base_mode', baseOp: 'ui_layout_scatterplot_base_opacity',
+  view: 'ui_layout_scatterplot_view', baseMode: 'ui_layout_scatterplot_base_mode', baseOp: 'ui_layout_scatterplot_base_opacity', basePos: 'ui_layout_scatterplot_base_position',
   speciesMode: 'ui_layout_scatterplot_species_mode', speciesOp: 'ui_layout_scatterplot_species_opacity', envelope: 'ui_layout_scatterplot_species_envelope',
   unitsMode: 'ui_layout_scatterplot_units_mode', unitsOp: 'ui_layout_scatterplot_units_opacity', selection: 'ui_layout_scatterplot_units_selection',
   radius: 'ui_layout_scatterplot_layer_radius', arrows: 'ui_layout_scatterplot_layer_arrows', zoom: 'ui_layout_scatterplot_zoom',
-  basePos: 'ui_layout_scatterplot_base_position',
   variant: 'ui_layout_scatterplot_view_classes_variant', position: 'ui_layout_scatterplot_view_classes_position', bin: 'ui_layout_scatterplot_view_classes_bin', binMin: 'ui_layout_scatterplot_view_classes_bin_min',
   mapSel: 'ui_layout_map_selection',
 }
@@ -88,47 +92,49 @@ const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)   // the elements o
 const OPT = {
   [K.view]: E('ui_layout_scatterplot_view', 'layer', 'classes'),
   [K.baseMode]: E('ui_layout_scatterplot_base', 'point', 'hex', 'none'),
+  [K.basePos]: E('ui_layout_scatterplot_base_position', 'present', 'future'),
   [K.speciesMode]: E('ui_layout_scatterplot_species', 'point', 'hex', 'none'),
   [K.unitsMode]: E('ui_layout_scatterplot_units', 'all', 'only', 'hide'),
   [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'),
   [K.variant]: E('ui_layout_scatterplot_view_classes_variant', 'potential', 'dispersal'),
   [K.position]: E('ui_layout_scatterplot_view_classes_position', 'present', 'future'),
-  [K.basePos]: E('ui_layout_scatterplot_base_position', 'present', 'future'),
   [K.bin]: E('ui_layout_scatterplot_view_classes_bin', '0-5x50', '1x100', '2x200'),
 }
 const LEGEND = E('ui_layout_scatterplot_view_classes_legend', '0', '1', '2', '3')
-const LBL = { base: 'ui_layout_scatterplot_label_base', species: 'ui_layout_scatterplot_label_species', unitsPresent: 'ui_layout_scatterplot_label_units-present', unitsFuture: 'ui_layout_scatterplot_label_units-future', mapSel: 'ui_layout_scatterplot_label_map-selection', envPresent: 'ui_layout_scatterplot_label_envelope-present', envFuture: 'ui_layout_scatterplot_label_envelope-future', binArrows: 'ui_layout_scatterplot_label_bin-arrows', projection: 'ui_layout_scatterplot_label_projection', restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', noData: 'ui_layout_label_no-data' }
+const LBL = { base: 'ui_layout_scatterplot_label_base', species: 'ui_layout_scatterplot_label_species', unitsPresent: 'ui_layout_scatterplot_label_units-present', unitsFuture: 'ui_layout_scatterplot_label_units-future', mapSel: 'ui_layout_scatterplot_label_map-selection', envPresent: 'ui_layout_scatterplot_label_envelope-present', envFuture: 'ui_layout_scatterplot_label_envelope-future', binArrows: 'ui_layout_scatterplot_label_bin-arrows', projection: 'ui_layout_scatterplot_label_projection', restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', noData: 'ui_layout_label_no-data', unit: 'ui_layout_label_unit' }
 const DIST = 'gcu_loc_climate_distance'   // the unit fact the flag is read from
 const NUMERIC = new Set([K.flag, K.binMin, K.radius, K.baseOp, K.speciesOp, K.unitsOp])
 let state = {}
 const last = Dict.last, is = (k, lid) => last(state[k]) === lid   // is(K.baseMode, 'hex')
 
-const cache = {}, run = { mapIdx: [], mapLabel: '' }
-let climates, meta, units = [], base = [], basePresent = [], speciesIdx = [], species = [], speciesPresent = [], quad, domainDataset = null, cells = null
-// every file follows one global cell order (pair.js): base = the pair per cell at the selected climate (null = no value),
-// basePresent = the same at the source's present, speciesIdx = the cells holding the species, cells = [lon, lat] per cell
+// ---- data: everything comes from the service in the global cell order (base = the pair per cell, null where absent;
+// species = index list; selection = index list); the present base is kept for the arrows and the fixed reference layers
+const run = { mapIdx: [], mapLabel: '', point: null }
+let cat, climates, units = [], base = [], basePresent = [], speciesIdx = [], species = [], speciesPresent = [], quad, domainKey = null
 let classes = ''   // class view: one class digit per cell
 const pts = (idx, b) => { const o = []; for (const i of idx) if (b[i]) o.push(b[i]); return o }
-// EU-Trees4F pairs each future map with the climate of the previous 30 years (paper, Methods: the current map, cur2005, is driven by 1961-1990)
-const FUT_MAP = { '1991-2020': 'fut2035', '2021-2050': 'fut2065', '2051-2080': 'fut2095' }
 const CLASS_VAR = { 1: '--stable', 2: '--lost', 3: '--new' }
-const slug = (s) => s.replace(/\s+/g, '_'), file = (c) => `${c.src}-${c.period}${c.scenario ? '-' + c.scenario : ''}`
-const load = async (name) => { if (!cache[name]) { const t = performance.now(); cache[name] = await (await fetch(DATA + name)).json(); status.textContent = `${name}: ${cache[name].length ?? Object.keys(cache[name]).length} rows in ${Math.round(performance.now() - t)} ms` } return cache[name] }
+const FUT_MAP = { '1991-2020': '2035', '2021-2050': '2065', '2051-2080': '2095' }   // EU-Trees4F: the map centred on a year is driven by the climate of the previous 30 years
+const busy = (what) => { status.textContent = what }
 
-// ---- the climate: the state holds a dataset key, a scenario gid and a period gid; climates.json maps them to the files
-const cur = () => climates.find((k) => k.dataset === state[K.dataset]?.[0] && k.scenarioGid === state[K.scenario] && k.periodGid === state[K.period])
-const presentOf = (c) => climates.find((k) => k.dataset === c.dataset && k.present)
-const setClimate = (c) => { state[K.dataset] = [c.dataset]; state[K.scenario] = c.scenarioGid; state[K.period] = c.periodGid }
+// ---- the climate: the state holds a dataset key, a scenario gid and a period gid; the catalogue maps them to climates
+const cur = () => climates.find((k) => k[K.dataset] === state[K.dataset]?.[0] && k[K.scenario] === state[K.scenario] && k[K.period] === state[K.period])
+const presentOf = (c) => climates.find((k) => k[K.dataset] === c[K.dataset] && k.present)
+const setClimate = (c) => { state[K.dataset] = [c[K.dataset]]; state[K.scenario] = c[K.scenario]; state[K.period] = c[K.period] }
+const stateFor = (c) => ({ ...state, [K.dataset]: [c[K.dataset]], [K.period]: c[K.period], [K.scenario]: c[K.scenario] })
 const classView = () => { const c = cur(); return is(K.view, 'classes') && c.src === 'eutrees4f' && !c.present }
-/** the three-level selector: source → scenario → period, never across sources */
+/** the three-level selector: source → scenario → period, never across sources; the axis selectors */
 function fillClimate() {
   const c = cur(), prod = $('product'), sc = $K(K.scenario), pe = $K(K.period)
-  prod.innerHTML = ''; for (const d of [...new Map(climates.map((k) => [k.dataset, k]))].map((e) => e[1])) { const o = new Option(d.datasetTitle, d.dataset, false, d.dataset === c.dataset); if (d.datasetDescription) o.title = Dict.plain(d.datasetDescription); prod.add(o) }   // the record's definition, else its Markdown description as text
+  prod.innerHTML = ''; for (const d of cat.datasets) { const o = new Option(d.title, d[K.dataset], false, d[K.dataset] === c[K.dataset]); if (d.definition) o.title = Dict.plain(d.definition); prod.add(o) }
   Dict.hover(prod)
-  Dict.options(sc, [...new Set(climates.filter((k) => k.dataset === c.dataset).map((k) => k.scenarioGid))], c.scenarioGid)
-  Dict.options(pe, climates.filter((k) => k.dataset === c.dataset && k.scenarioGid === c.scenarioGid).map((k) => k.periodGid), c.periodGid)
+  Dict.options(sc, [...new Set(climates.filter((k) => k[K.dataset] === c[K.dataset]).map((k) => k[K.scenario]))], c[K.scenario])
+  Dict.options(pe, climates.filter((k) => k[K.dataset] === c[K.dataset] && k[K.scenario] === c[K.scenario]).map((k) => k[K.period]), c[K.period])
+  Dict.options($K(K.X), cat.axes[K.X], state[K.X]); Dict.options($K(K.Y), cat.axes[K.Y], state[K.Y])
+  for (const sel of [$K(K.X), $K(K.Y)]) for (const o of sel.options) o.text = axisLabel(o.value)
 }
 const axisLabel = (g) => Dict.title(g) + (Dict.unit(g) ? ` (${Dict.unit(g)})` : '')
+const fmt = (v) => Number(v).toFixed(Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2)
 function size() {
   W = wrap.clientWidth; H = wrap.clientHeight
   for (const [cv, cx] of [[canvas, ctx], [over, octx]]) { cv.width = W * devicePixelRatio; cv.height = H * devicePixelRatio; cv.style.width = W + 'px'; cv.style.height = H + 'px'; cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0) }
@@ -136,41 +142,46 @@ function size() {
   x0.range([M.left, W - M.right]); y0.range([H - M.bottom, M.top])
   xl.attr('x', (M.left + W - M.right) / 2).attr('y', H - 8).text(axisLabel(state[K.X])); yl.attr('transform', `translate(13,${(M.top + H - M.bottom) / 2}) rotate(-90)`).text(axisLabel(state[K.Y]))
 }
-/** the axes are fixed per source from its present base, padded for the future shift, and never move on a period change */
+/** the axes are fixed per source and pair from its present base, padded for the future shift (more on the right, where warming goes), and never move on a period change */
 function fixDomain(presentBase) {
-  const xe = d3.extent(presentBase, (d) => d?.[0]), ye = d3.max(presentBase, (d) => d?.[1])
-  x0.domain([Math.floor(xe[0] - 1), Math.ceil(xe[1] + 6)]); y0.domain([0, Math.ceil(ye * 1.1 / 500) * 500])
+  const xe = d3.extent(presentBase, (d) => d?.[0]), ye = d3.extent(presentBase, (d) => d?.[1])
+  const xr = xe[1] - xe[0], yr = ye[1] - ye[0]
+  x0.domain([xe[0] - 0.05 * xr, xe[1] + 0.25 * xr]).nice(); y0.domain([ye[0] > 0 ? 0 : ye[0] - 0.1 * yr, ye[1] + 0.1 * yr]).nice()
 }
 async function refresh() {
-  const c = cur(), p = presentOf(c)
-  base = await load(`base-${file(c)}.json`); basePresent = c.present ? base : await load(`base-${file(p)}.json`)
-  speciesIdx = await load(`species-${slug(state[K.species])}.json`)
+  const c = cur(), p = presentOf(c), sp = state[K.species]
+  busy('…')
+  base = await Svc.base(state); basePresent = c.present ? base : await Svc.base(stateFor(p))
+  speciesIdx = await Svc.speciesCells(sp)
   species = pts(speciesIdx, base); speciesPresent = c.present ? species : pts(speciesIdx, basePresent)
-  units = await load(`units-${slug(state[K.species])}.json`)
-  await Dict.load(units.map((u) => 'ISO_3166_1_' + u.id.slice(0, 3)))   // country names for the list
-  if (domainDataset !== c.dataset) { fixDomain(await load(`base-${file(p)}.json`)); domainDataset = c.dataset; tx = d3.zoomIdentity; state[K.zoom] = null }
+  units = await Svc.units(sp, state, state[K.level])
+  await Dict.load(units.map((u) => 'ISO_3166_1_' + u.gcu_id_number.slice(0, 3)))   // country names for the list
+  const dk = `${c[K.dataset]}|${state[K.X]}|${state[K.Y]}`
+  if (domainKey !== dk) { fixDomain(basePresent); domainKey = dk; tx = d3.zoomIdentity; state[K.zoom] = null; size() }
   const avail = c.src === 'eutrees4f' && !c.present, view = $K(K.view)
   view.options[1].disabled = !avail; if (!avail && is(K.view, 'classes')) { state[K.view] = OPT[K.view][0]; view.value = state[K.view] }
-  view.options[1].text = Dict.title(OPT[K.view][1]) + (avail ? '' : ' — ' + Dict.def(OPT[K.view][1]).replace(/\.$/, '').toLowerCase().replace(/^cells/, 'EU-Trees4F future periods only; cells'))
+  view.options[1].text = Dict.title(OPT[K.view][1]) + (avail ? '' : ' — EU-Trees4F, future period')
   $('classCtl').style.display = classView() ? '' : 'none'
   $('basePosCtl').style.display = !c.present && !classView() ? '' : 'none'
-  if (classView()) classes = (await load(`suitability-${slug(state[K.species])}.json`))[`${FUT_MAP[c.period]}|${c.scenario}|${Dict.aid(state[K.variant])}`] ?? ''
+  classes = ''
+  if (classView()) { const r = await Svc.classes(sp, state, state[K.variant]); classes = r ? r.cells : '' }
   const sw = (v) => `<span class="sw" style="background:var(${v})"></span>`, T = Dict.title
   $('legend').innerHTML = (classView()
     ? `${sw('--base')}${T(LBL.base)}${sw('--stable')}${T(LEGEND[1])}${sw('--lost')}${T(LEGEND[2])}${sw('--new')}${T(LEGEND[3])}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} · ${T(LBL.binArrows)}`
     : `${sw('--base')}${T(LBL.base)}${c.present ? '' : ` (${T(state[K.basePos]).toLowerCase()})`}${sw('--species')}${T(LBL.species)}${c.present ? '' : ` (${T(LBL.unitsPresent).split(',').pop().trim()})`}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} <span class="sw" style="border:1.5px dashed #b71c1c;background:none;width:9px;height:9px"></span>${T(LBL.flagged)}`)
     + (c.present ? '' : ` · <i>${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}, ${T(LBL.envFuture)}</i>`)
-  fillClimate(); refill(); syncControls(); draw()
+  fillClimate(); refill(); syncControls()
+  if (state[K.mapSel]) await selectFromMap(state[K.mapSel], { quiet: true })
+  draw()
 }
-/** where a unit is drawn: the class view keeps everything in the present climate space (the arrows show the shift) */
 const unitXY = (u, c) => u.values[c.key]
 const unitPos = (u) => classView() ? unitXY(u, presentOf(cur())) : unitXY(u, cur())
 const flagged = (u) => u[DIST] != null && u[DIST] > state[K.flag]
 const selected = (id) => (state[K.selection] ?? []).includes(id)
 function visibleUnits() {
   const c = cur(), country = state[K.country] ? Dict.aid(state[K.country]) : ''
-  return units.filter((u) => (!country || u.id.startsWith(country)) && (!state[K.unit] || u.id === state[K.unit]) && (!is(K.level, 'public') || !u.restricted) && unitXY(u, c)
-    && (is(K.unitsMode, 'all') || (is(K.unitsMode, 'only') ? selected(u.id) : !selected(u.id))))
+  return units.filter((u) => (!country || u.gcu_id_number.startsWith(country)) && (!state[K.unit] || u.gcu_id_number === state[K.unit]) && unitXY(u, c)
+    && (is(K.unitsMode, 'all') || (is(K.unitsMode, 'only') ? selected(u.gcu_id_number) : !selected(u.gcu_id_number))))
 }
 function arrow(ax, ay, bx, by, w, head) {
   ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke()
@@ -225,8 +236,7 @@ function draw() {
   const r = state[K.radius], cv = classView(), c = cur(), p = presentOf(c), future = !c.present
   // The species cloud is the reference: the realised niche, the climate of the places where the species grows today;
   // it never moves (decided 2026-11-09). What moves to the selected period: the units, the map-selected cells, the
-  // solid envelope (where today's species sites will sit) and, on request, the base layer (Europe's future climate
-  // space against the present niche). The classes view keeps its own rule (EU-Trees4F Figure 1).
+  // solid envelope and, on request, the base layer. The classes view keeps its own rule (EU-Trees4F Figure 1).
   const baseShown = future && is(K.basePos, 'future') ? base : basePresent
   let counts = null
   if (cv) counts = drawClasses(x, y, drawHex, r, op)
@@ -235,7 +245,7 @@ function draw() {
   if (cv) {}
   else if (is(K.speciesMode, 'hex')) drawHex(speciesPresent, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op(K.speciesOp))
   else if (is(K.speciesMode, 'point')) { ctx.globalAlpha = op(K.speciesOp); ctx.fillStyle = css('--species'); for (const d of speciesPresent) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2); ctx.globalAlpha = 1 }
-  if (state[K.envelope]) {
+  if (state[K.envelope] && speciesPresent.length) {
     ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'
     if (future) { ctx.setLineDash([7, 5]); ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent, x, y)) }
     ctx.setLineDash([]); ctx.strokeStyle = future ? '#8e0038' : '#0d2a66'; ctx.stroke(envelopePath(species, x, y)); ctx.restore()
@@ -248,6 +258,8 @@ function draw() {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1
     const single = run.mapIdx.length === 1
     for (const i of run.mapIdx) { const b = base[i]; if (!b) continue; mapN++; ctx.beginPath(); if (single) { ctx.arc(x(b[0]), y(b[1]), 8, 0, 2 * Math.PI); ctx.fill(); ctx.lineWidth = 2; ctx.stroke(); ctx.strokeStyle = css('--map'); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x(b[0]), y(b[1]), 16, 0, 2 * Math.PI); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1 } else { ctx.rect(x(b[0]) - 2.5, y(b[1]) - 2.5, 5, 5); ctx.fill(); ctx.stroke() } }
+    // a clicked place outside the surveyed cells: the climate grid's values, as a diamond
+    if (!run.mapIdx.length && run.point?.values) { const [vx, vy] = run.point.values; mapN++; if (future && state[K.arrows] && run.point.present) { ctx.strokeStyle = css('--map'); ctx.fillStyle = css('--map'); arrow(x(run.point.present[0]), y(run.point.present[1]), x(vx), y(vy), 0.8, 5); ctx.strokeStyle = '#fff' } ctx.beginPath(); ctx.moveTo(x(vx), y(vy) - 9); ctx.lineTo(x(vx) + 9, y(vy)); ctx.lineTo(x(vx), y(vy) + 9); ctx.lineTo(x(vx) - 9, y(vy)); ctx.closePath(); ctx.fill(); ctx.lineWidth = 2; ctx.stroke() }
     ctx.restore()
   }
   ctx.globalAlpha = op(K.unitsOp)
@@ -257,9 +269,9 @@ function draw() {
   }
   if (cv) { ctx.fillStyle = css('--future'); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; for (const u of vis) { const q = unitXY(u, c); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 2.2, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() } }
   ctx.fillStyle = css(future && !cv ? '--future' : '--unit'); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1
-  for (const u of vis) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state[K.unit] === u.id ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
+  for (const u of vis) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state[K.unit] === u.gcu_id_number ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
   ctx.strokeStyle = '#111'; ctx.lineWidth = 2
-  for (const u of vis) if (selected(u.id)) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
+  for (const u of vis) if (selected(u.gcu_id_number)) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
   // the data-quality flag: a dashed dark-red ring on units whose reference point lies far from their polygon
   ctx.strokeStyle = '#b71c1c'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); let nFlag = 0
   for (const u of vis) if (flagged(u)) { nFlag++; const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 8, 0, 2 * Math.PI); ctx.stroke() }
@@ -268,64 +280,61 @@ function draw() {
   gX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x)); gY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y))
   gGX.attr('transform', `translate(0,${H - M.bottom})`).call(d3.axisBottom(x).tickSize(-(H - M.top - M.bottom)).tickFormat('')); gGY.attr('transform', `translate(${M.left},0)`).call(d3.axisLeft(y).tickSize(-(W - M.left - M.right)).tickFormat(''))
   quad = d3.quadtree().x((u) => x(unitPos(u)[0])).y((u) => y(unitPos(u)[1])).addAll(vis)   // screen space: hit tests are pixel distances
-  const what = cv ? `${T(OPT[K.view][1])} ${FUT_MAP[c.period].slice(3)} (${T(state[K.period])}, ${T(state[K.scenario])}, ${T(state[K.variant])}): ${counts[1]} ${T(LEGEND[1])}, ${counts[2]} ${T(LEGEND[2])}, ${counts[3]} ${T(LEGEND[3])} of ${basePresent.length}` : `${base.length} ${T(LBL.base)}, ${species.length} ${state[K.species]}`
+  const ds = cat.datasets.find((d) => d[K.dataset] === c[K.dataset])
+  const what = cv ? (classes ? `${T(OPT[K.view][1])} ${FUT_MAP[c.period]} (${T(state[K.period])}, ${T(state[K.scenario])}, ${T(state[K.variant])}): ${counts[1]} ${T(LEGEND[1])}, ${counts[2]} ${T(LEGEND[2])}, ${counts[3]} ${T(LEGEND[3])} of ${basePresent.length}` : `${T(OPT[K.view][1])}: not loaded for ${state[K.species]}`) : `${base.filter(Boolean).length} ${T(LBL.base)}, ${species.length} ${state[K.species]}`
   const mapWhat = (state[K.mapSel] ? ` · ${T(LBL.mapSel)}: ${run.mapLabel}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} ${T(LBL.flagged)} (> ${state[K.flag]} km)` : '')
-  status.title = status.textContent = `${c.datasetTitle} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u.restricted).length} ${T(LBL.restricted)} in all, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  status.title = status.textContent = `${ds?.title} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
 /** three expanding rings on the overlay canvas, so a point sent from the map is found at once */
-function pulse(i) {
+function pulse(px, py) {
   const t0 = performance.now()
   const frame = (t) => {
-    const b = base[i]; if (!b) return
     const x = tx.rescaleX(x0), y = tx.rescaleY(y0), k = (t - t0) / 700
     octx.clearRect(0, 0, W, H); if (k >= 3) return
-    const f = k % 1; octx.beginPath(); octx.arc(x(b[0]), y(b[1]), 10 + 30 * f, 0, 2 * Math.PI); octx.strokeStyle = `rgba(0,137,123,${1 - f})`; octx.lineWidth = 3; octx.stroke()
+    const f = k % 1; octx.beginPath(); octx.arc(x(px), y(py), 10 + 30 * f, 0, 2 * Math.PI); octx.strokeStyle = `rgba(0,137,123,${1 - f})`; octx.lineWidth = 3; octx.stroke()
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)
 }
 // ---- the map → scatterplot link: ui_layout_map_selection, a GeoJSON Point or Polygon (WGS84), arrives in a state message
-// (or as ?point= / ?bbox=); the cells inside are found here on the static cell list — in the product the service answers
-async function selectFromMap(geom) {
+// (or as ?point= / ?bbox=); the service answers with the surveyed cells inside and, for a point, the climate at that place
+async function selectFromMap(geom, { quiet = false } = {}) {
   state[K.mapSel] = geom ?? null
-  if (!geom) { run.mapIdx = []; $('mapSel').style.display = 'none'; draw(); return }
-  cells ??= await load('cells.json')
-  const idx = []
+  if (!geom) { run.mapIdx = []; run.point = null; $('mapSel').style.display = 'none'; draw(); return }
+  const c = cur(), T = Dict.title
+  const r = await Svc.selection(geom, state)
+  run.mapIdx = r.cells; run.point = null
   if (geom.type === 'Point') {
-    const [lon, lat] = geom.coordinates, cl = Math.cos(lat * Math.PI / 180) * 111.32; let best = -1, bd = Infinity
-    for (let i = 0; i < cells.length; i++) { const dx = (cells[i][0] - lon) * cl, dy = (cells[i][1] - lat) * 111.32, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i } }
-    // 1 km cells: the containing cell's centre lies within 0.71 km; beyond that the nearest surveyed cell up to 5 km is
-    // shown with its distance (the product looks the point up in the full climate grid instead)
-    const km = Math.sqrt(bd); if (km <= 5) idx.push(best)
-    run.mapLabel = `${lat.toFixed(3)}, ${lon.toFixed(3)}` + (km <= 0.71 ? '' : km <= 5 ? ` — nearest surveyed cell ${km.toFixed(1)} km away` : ' — no surveyed cell within 5 km')
-  } else if (geom.type === 'Polygon') {
-    const ring = geom.coordinates[0], bx = d3.extent(ring, (p) => p[0]), by = d3.extent(ring, (p) => p[1])
-    for (let i = 0; i < cells.length; i++) { const c = cells[i]; if (c[0] >= bx[0] && c[0] <= bx[1] && c[1] >= by[0] && c[1] <= by[1] && d3.polygonContains(ring, c)) idx.push(i) }
-    run.mapLabel = `${idx.length} surveyed cells`
-  } else return
-  run.mapIdx = idx
+    const [lon, lat] = geom.coordinates
+    run.point = r.point?.values ? { values: r.point.values, present: null } : null
+    if (run.point && !c.present) { const rp = await Svc.selection(geom, stateFor(presentOf(c))); run.point.present = rp.point?.values ?? null }
+    run.mapLabel = `${lat.toFixed(3)}, ${lon.toFixed(3)}` + (r.cells.length ? '' : run.point ? ` — ${r.point.source}${r.nearest ? `, nearest surveyed cell ${(r.nearest.metres / 1000).toFixed(1)} km` : ''}` : ' — no climate here')
+  } else run.mapLabel = `${r.cells.length} ${T(LBL.base)}`
   $('mapSel').style.display = ''; $('mapSelInfo').textContent = run.mapLabel; draw()
-  if (idx.length === 1) pulse(idx[0])
+  if (!quiet) { const b = run.mapIdx.length === 1 ? base[run.mapIdx[0]] : (!run.mapIdx.length && run.point ? run.point.values : null); if (b) pulse(b[0], b[1]) }
 }
 // ---- messages: the host page (or the map, through it) sends partial states; this page sends its own changes back
 const post = (partial) => { if (window.parent !== window) window.parent.postMessage({ type: 'state', ...partial }, '*') }
 async function applyState(partial) {
-  const noData = partial[K.species] && !meta.species.includes(partial[K.species])
+  const sp = partial[K.species], noData = sp && !cat.species.find((s) => s.species === sp)?.scatterplot
   for (const [k, v] of Object.entries(partial)) if (k !== 'type' && k !== K.mapSel && !(k === K.species && noData)) state[k] = v
   // a species without scatterplot data invalidates the plot: the pane is disabled, not left showing another species
   document.body.classList.toggle('disabled', !!noData)
-  $('disabled').innerHTML = noData ? `<div><b>${partial[K.species]}</b><br>${Dict.title(LBL.noData)}<br><small>${Dict.def(LBL.noData)} ${meta.species.join(', ')}</small></div>` : ''
+  $('disabled').innerHTML = noData ? `<div><b>${sp}</b><br>${Dict.title(LBL.noData)}<br><small>${Dict.def(LBL.noData)}</small></div>` : ''
   if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))   // an incomplete or unknown climate triple falls back
+  if (K.mapSel in partial) state[K.mapSel] = partial[K.mapSel]
   if (!noData) await refresh()
-  if (K.mapSel in partial) await selectFromMap(partial[K.mapSel])
 }
-window.addEventListener('message', (e) => { if (e.data?.type === 'state' && meta) applyState(e.data) })
+window.addEventListener('message', (e) => { if (e.data?.type === 'state' && cat) applyState(e.data) })
 
 // ---- controls: every [data-key] element reads and writes its state key; enumerations get their options from the dictionary
 const ON = {   // what a change of a key does beyond storing it (default: redraw)
-  [K.view]: refresh, [K.variant]: refresh, [K.scenario]: () => { const c = cur() ?? climates.find((k) => k.dataset === state[K.dataset][0] && k.scenarioGid === state[K.scenario]); setClimate(c); refresh() }, [K.period]: refresh,
+  [K.view]: refresh, [K.variant]: refresh, [K.period]: refresh,
+  [K.scenario]: () => { const c = cur() ?? climates.find((k) => k[K.dataset] === state[K.dataset][0] && k[K.scenario] === state[K.scenario]); setClimate(c); refresh() },
+  // the pair: choosing an X suggests its paired Y once (decided 2026-11-09); a custom pair stays possible by changing Y afterwards
+  [K.X]: () => { const pair = cat.axes.pairs.find((p) => p[K.X] === state[K.X]); if (pair) state[K.Y] = pair[K.Y]; refresh() }, [K.Y]: refresh,
   [K.species]: () => { state[K.country] = null; state[K.unit] = null; refresh() }, [K.country]: () => { state[K.unit] = null; refill(); draw() }, [K.unit]: draw,
-  [K.flag]: () => { refill(); draw() }, [K.level]: () => { refill(); draw() }, [K.unitsMode]: draw,
+  [K.flag]: () => { refill(); draw() }, [K.level]: refresh, [K.unitsMode]: draw,
 }
 const read = (el) => el.type === 'checkbox' ? el.checked : (el.type === 'range' || NUMERIC.has(el.dataset.key)) ? Number(el.value) : (el.value === '' ? null : el.value)
 function bindControls() {
@@ -335,19 +344,19 @@ function bindControls() {
     else el.title ||= Dict.def(k)
     el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { state[k] = read(el); (ON[k] ?? draw)() })
   }
-  $('product').addEventListener('change', (e) => { setClimate(climates.find((k) => k.dataset === e.target.value && k.present)); refresh() })
+  $('product').addEventListener('change', (e) => { setClimate(climates.find((k) => k[K.dataset] === e.target.value && k.present)); refresh() })
   $('product').dataset.fieldDef = Dict.def('ui_layout_label_source')
 }
 function syncControls() { for (const el of document.querySelectorAll('[data-key]')) { const v = state[el.dataset.key]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = Array.isArray(v) ? v[0] : v } }
 function refill() {
-  const sel = units.filter((u) => !is(K.level, 'public') || !u.restricted), T = Dict.title
-  const countries = [...new Set(sel.map((u) => 'ISO_3166_1_' + u.id.slice(0, 3)))].sort()
-  const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const g of countries) cs.add(new Option(`${T(g)} (${sel.filter((u) => u.id.startsWith(Dict.aid(g))).length})`, g, false, g === state[K.country]))
+  const T = Dict.title
+  const countries = [...new Set(units.map((u) => 'ISO_3166_1_' + u.gcu_id_number.slice(0, 3)))].sort()
+  const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const g of countries) cs.add(new Option(`${T(g)} (${units.filter((u) => u.gcu_id_number.startsWith(Dict.aid(g))).length})`, g, false, g === state[K.country]))
   const country = state[K.country] ? Dict.aid(state[K.country]) : ''
-  const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'; for (const u of sel.filter((u) => !country || u.id.startsWith(country))) us.add(new Option(u.id + (u.restricted ? ` (${T(LBL.restricted)})` : '') + (flagged(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
-  const sp = $K(K.species); if (!sp.options.length) for (const s of meta.species) sp.add(new Option(s, s, false, s === state[K.species]))
+  const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'; for (const u of units.filter((u) => !country || u.gcu_id_number.startsWith(country))) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : '') + (flagged(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
+  const sp = $K(K.species); if (!sp.options.length) for (const s of cat.species.filter((s) => s.scatterplot)) sp.add(new Option(`${s.species} (${s.units})`, s.species, false, s.species === state[K.species]))
   for (const el of [cs, us, sp]) Dict.hover(el)
-  $('searchInfo').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s · ${state[K.species]}`
+  $('searchInfo').textContent = `${units.length} ${T(LBL.unit).toLowerCase()}s · ${state[K.species]}`
   $('selCount').textContent = (state[K.selection] ?? []).length
 }
 // ---- interaction: wheel = zoom, shift-drag = pan, drag = box zoom, double-click = reset; hover on the overlay canvas
@@ -366,7 +375,7 @@ canvas.addEventListener('mousedown', (e) => { if (e.shiftKey || e.altKey || e.bu
 canvas.addEventListener('click', (e) => {
   if (!e.altKey || !quad) return
   const u = quad.find(e.offsetX, e.offsetY, 10); if (!u) return
-  const s = state[K.selection] ?? []; state[K.selection] = selected(u.id) ? s.filter((id) => id !== u.id) : [...s, u.id]
+  const s = state[K.selection] ?? []; state[K.selection] = selected(u.gcu_id_number) ? s.filter((id) => id !== u.gcu_id_number) : [...s, u.gcu_id_number]
   $('selCount').textContent = state[K.selection].length; draw()
 })
 canvas.addEventListener('mousemove', (e) => {
@@ -378,7 +387,7 @@ canvas.addEventListener('mousemove', (e) => {
     const c = cur(), q = unitXY(u, c), p = unitXY(u, presentOf(c)), d = unitPos(u), x = tx.rescaleX(x0), y = tx.rescaleY(y0), ux = Dict.unit(state[K.X]), uy = Dict.unit(state[K.Y]), T = Dict.title
     octx.beginPath(); octx.arc(x(d[0]), y(d[1]), 7, 0, 2 * Math.PI); octx.strokeStyle = '#222'; octx.lineWidth = 2; octx.stroke()
     tip.style.display = 'block'; tip.style.left = Math.min(e.offsetX + 14, W - 220) + 'px'; tip.style.top = e.offsetY + 14 + 'px'
-    tip.innerHTML = `<b>${u.id}</b>${u.restricted ? ` (${T(LBL.restricted)})` : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${u[DIST].toFixed(1)} km</span>` : ''}<br>${q[0].toFixed(1)} ${ux} · ${Math.round(q[1])} ${uy}` + (c.present ? '' : `<br>${T(state[K.period])}; ${T(LBL.unitsPresent)}: ${p[0].toFixed(1)} ${ux} · ${Math.round(p[1])} ${uy}`) + `<br>${u.species.join(', ')}`
+    tip.innerHTML = `<b>${u.gcu_id_number}</b>${u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${u[DIST].toFixed(1)} km</span>` : ''}<br>${fmt(q[0])} ${ux} · ${fmt(q[1])} ${uy}` + (c.present || !p ? '' : `<br>${T(state[K.period])}; ${T(LBL.unitsPresent)}: ${fmt(p[0])} ${ux} · ${fmt(p[1])} ${uy}`) + `<br>${u.species_list.join(', ')}`
   } else tip.style.display = 'none'
 })
 window.addEventListener('mouseup', (e) => {
@@ -390,29 +399,29 @@ window.addEventListener('mouseup', (e) => {
 })
 canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; octx.clearRect(0, 0, W, H) })
 
-// ---- start: the dictionary's defaults, then the URL (any state key by its gid; shorthand species / point / bbox), then the data
+// ---- start: the dictionary's defaults, then the URL (any state key by its gid; shorthand species / point / bbox), then the service
 const parse = (v) => { if (v === 'true') return true; if (v === 'false') return false; if (/^[\[{]/.test(v)) { try { return JSON.parse(v) } catch { return v } } return v !== '' && !isNaN(v) ? Number(v) : v }
-Promise.all([fetch(DATA + 'climates.json').then((r) => r.json()), fetch(DATA + 'meta.json').then((r) => r.json()), Dict.defaults()]).then(async ([cl, m, defaults]) => {
-  climates = cl; meta = m
-  state = { ...defaults, [K.species]: m.species[0], [K.X]: m.pair.x, [K.Y]: m.pair.y, [K.selection]: [] }   // every other default comes from ui_layout_state
+Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
+  cat = c; climates = c.climates
+  const firstSpecies = (c.species.find((s) => s.species === 'Fagus sylvatica') ?? c.species.find((s) => s.scatterplot)).species
+  state = { ...defaults, [K.species]: firstSpecies, [K.X]: c.axes.pairs[0][K.X], [K.Y]: c.axes.pairs[0][K.Y], [K.selection]: [] }
   const q = new URLSearchParams(location.search)
   for (const k of Object.values(K)) if (q.has(k)) state[k] = parse(q.get(k))
-  if (q.get('species') && m.species.includes(q.get('species'))) state[K.species] = q.get('species')
-  if (!cur()) setClimate(cl.find((k) => k.src === 'worldclim' && k.present))
+  if (q.get('species') && c.species.find((s) => s.species === q.get('species'))) state[K.species] = q.get('species')
+  if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))
   if (q.get('embedded')) document.body.classList.add('embedded')
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...cl.flatMap((k) => [k.periodGid, k.scenarioGid]), state[K.X], state[K.Y], 'ui_layout_scatterplot', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_unit', 'ui_layout_scatterplot_label_hints', 'ui_layout_scatterplot_label_selection'])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_scatterplot_label_selection'])
   await Dict.labels(); bindControls(); size()
+  const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
+  if (pt?.length === 2) state[K.mapSel] = { type: 'Point', coordinates: pt }
+  else if (bb?.length === 4) state[K.mapSel] = { type: 'Polygon', coordinates: [[[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]], [bb[0], bb[1]]]] }
   await refresh()
   if (state[K.zoom]) zoomTo(state[K.zoom])
-  const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
-  if (pt?.length === 2) selectFromMap({ type: 'Point', coordinates: pt })
-  else if (bb?.length === 4) selectFromMap({ type: 'Polygon', coordinates: [[[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]], [bb[0], bb[1]]]] })
-  else if (state[K.mapSel]) selectFromMap(state[K.mapSel])
   $('mapSelClear').addEventListener('click', () => { selectFromMap(null); post({ [K.mapSel]: null }) })   // the host clears the map too
   $('reset').addEventListener('click', resetView)
   $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; draw() })
   new ResizeObserver(() => { size(); draw() }).observe(wrap)
-})
+}).catch((e) => { status.textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
 </script>
 </body>
 </html>

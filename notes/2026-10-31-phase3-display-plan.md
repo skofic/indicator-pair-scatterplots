@@ -211,9 +211,23 @@ kept in step on change; the field definition where the options are data, e.g. un
 hover is the dataset record's definition. Still hard-coded: the word "Source" for the dataset selector
 (no label term; `std_dataset_ids`'s title is "Dataset IDs"), the EU-Trees4F future map's fixed period on
 the map, the interaction hints' language-independent symbols.
-Not yet: the pair selector (needs
-the service or five times the export), the class of each unit's own cell (a service-side raster
-sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the
+**Iteration 9 (2026-11-09): the pages run on the Foxx service.** `examples/service.js` is the panes'
+access to `indicator-pair-scatterplots-service` (`/panes` in GeoService; `?api=` for another instance),
+the twin of `dictionary.js`. The three pages read the catalogue (datasets, climates, axes, species with
+availability, countries), the base layer per pair × climate, the species index list, the units per
+restriction level with their values for every climate of the dataset, the map selection resolved by the
+service (a polygon → cells; a point → the surveyed cell and the 1 km grid's values, so a click anywhere
+gets a value, drawn as a diamond), the suitability classes, the units index and geometries, the maps
+manifest. Consequences: **every EU-Forest species** (242) is available in the scatterplot, every unit on
+the map; the **X and Y indicator selectors** exist (the five pairs suggested once when X changes, a
+custom pair possible), axes fixed per source × pair; the **map's EU-Trees4F future layer has a period ×
+scenario selector** and the variant; the unit polygons come on demand when a unit is chosen, the
+overview shows reference points; the exported files under `work/examples/data/` are no longer read by
+the pages (they stay as the pipeline's fixtures). `PanesSuitability` is filled by
+`sources/export/suitability.js --write` (three species first, `--all` for the 67 EU-Trees4F species).
+Known limit: the arrow-bin sizes of the classes view are named in °C × mm whatever the pair.
+Not yet: the class of each unit's own cell (a service-side raster sample, so that restricted units get
+it too). **Built 2026-10-31**, to be opened by Milko: start the
 server with `node examples/serve.mjs 8080` and open http://localhost:8080/examples/ . Libraries come
 from CDNs (D3 7.9, d3-hexbin, Plotly 2.35, OpenLayers 10.2, proj4); the map works in the Atlas rasters'
 own projection (EPSG:3035) so the 1 km COGs are read directly by byte range, never warped. The unit
@@ -236,5 +250,6 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-01 | **Next step (Milko): define the `ui` terms for the dictionary** before the Serve Plan. Noted by Milko: the dictionary is multilingual, so interface terms give a multilingual user interface for free (labels, option texts, tooltips from the terms' `_info` in each language). |
 | 2026-11-09 | **Unit facts under their terms:** `sources/units/distance.js --write` stores `gcu_loc_climate_distance` on all 3 669 units and `gcu_loc_climate` (the reference point) on the 3 329 unrestricted ones, every value validated against the dictionary first (6 998 values, 0 errors); the pre-term `_custom` block is removed; the loader writes the same on a reload; the exports and the pages read the gid; the `SCATTER_UNITS` Dataset record lists both descriptors. 46 units exceed 5 km, unchanged. |
 | 2026-11-09 | **The species layer is the reference and never moves** (Milko, agreed): in a future period the species cloud stays at the present climate (the realised niche, as the Atlas diagram and EU-Trees4F Figure 1 treat it); the units, the map-selected cells and the solid envelope move to the selected period; the base layer stays by default and moves **on request** (`ui_layout_scatterplot_base_position`, term requested in the handoff addendum): Europe's future climate space against the present niche shows whether the species' climate will still exist. The classes view keeps its own rule. |
+| 2026-11-09 | **The pages run on the Foxx service** (iteration 9): all species, all units, five pairs with X / Y selectors, the map's period selector; click anywhere → the 1 km grid's values. The exported files are fixtures only. |
 | 2026-11-09 | **The panes run on the dictionary terms** (iteration 8): labels, options, hovers, legends and axis legends from `metadata/ui`; the state keyed by gids and validated against `ui_layout_state`; `dictionary.js` shared by the three pages. Next: `gcu_loc_climate_distance` on `ScatterUnits`, then the Foxx service taking a `ui_layout_state`. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |

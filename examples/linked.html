@@ -8,6 +8,7 @@
   body { display: flex; flex-direction: column; font: 13px/1.4 system-ui, sans-serif; color: #222; background: #fff }
   #bar { flex: none; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 6px 14px; border-bottom: 1px solid #bbb; background: #f6f6f6 }
   label { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap }
+  select { max-width: 280px }
   #panes { --split: 50%; flex: 1 1 auto; min-height: 0; display: grid; background: #bbb }
   /* the layout follows the window's shape: side by side when wider than tall, stacked when taller; the divider resizes */
   #panes.auto, #panes.side { grid-template-columns: var(--split) 7px minmax(0, 1fr) }
@@ -25,7 +26,8 @@
 </head>
 <body>
 <!-- The host page owns the shared state (species, country, unit, restriction level, flag distance, layout, map placement)
-     and relays the panes' messages. Every label is a dictionary term; every control is bound to a state key (its gid). -->
+     and relays the panes' messages. Every label is a dictionary term; every control is bound to a state key (its gid);
+     the units and species come from the panes' Foxx service. -->
 <div id="bar">
   <strong data-term="ui_layout"></strong>
   <label><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
@@ -44,33 +46,37 @@
   <iframe id="scatter"></iframe>
 </div>
 <script src="dictionary.js"></script>
+<script src="service.js"></script>
 <script>
-const $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`), DATA = '../work/examples/data/'
+const $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`)
 const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag', mode: 'ui_layout_mode', placement: 'ui_layout_map_placement', sel: 'ui_layout_map_selection' }
 const SHARED = [K.species, K.country, K.unit, K.level, K.flag]   // what the panes receive
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
 const OPT = { [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'), [K.mode]: E('ui_layout_mode', 'auto', 'side', 'stack'), [K.placement]: E('ui_layout_map_placement', 'page', 'tab', 'window') }
-const last = Dict.last, DIST = 'gcu_loc_climate_distance'
-let state = {}, ix, mapIndex, meta, popup = null
+const DIST = 'gcu_loc_climate_distance'
+const last = Dict.last
+let state = {}, cat, ix = [], popup = null
 // the map pane is the iframe, or the detached tab / window while that is open
 const mapW = () => (popup && !popup.closed ? popup : $('map').contentWindow), scatterW = () => $('scatter').contentWindow
 function send(keys = SHARED) { const msg = { type: 'state' }; for (const k of keys) msg[k] = state[k] ?? null; mapW().postMessage(msg, '*'); scatterW().postMessage(msg, '*') }
 function refill() {
   const country = state[K.country] ? Dict.aid(state[K.country]) : '', species = state[K.species], T = Dict.title
-  const match = (u, c, s) => (!c || u.country === c) && (!s || u.species.includes(s))
+  const match = (u, c, s) => (!c || u.gcu_id_number.startsWith(c)) && (!s || u.species_list.includes(s))
   const count = (list, pick) => { const m = new Map(); for (const u of list) for (const k of [].concat(pick(u))) m.set(k, (m.get(k) ?? 0) + 1); return [...m].sort((a, b) => a[0].localeCompare(b[0])) }
-  const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const [v, n] of count(ix.units.filter((u) => match(u, '', species)), (u) => u.country)) cs.add(new Option(`${T('ISO_3166_1_' + v)} (${n})`, 'ISO_3166_1_' + v, false, 'ISO_3166_1_' + v === state[K.country]))
-  const ss = $K(K.species); ss.innerHTML = ''; for (const [v, n] of count(ix.units.filter((u) => match(u, country, '')), (u) => u.species)) ss.add(new Option(`${v}${mapIndex.species[v]?.atlas_rpp ? ' ●' : ''}${meta.species.includes(v) ? ' ▦' : ''} (${n})`, v, false, v === species))
-  const sel = ix.units.filter((u) => match(u, country, species)), flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
+  const flagsOf = (s) => cat.species.find((x) => x.species === s)
+  const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const [v, n] of count(ix.filter((u) => match(u, '', species)), (u) => u[K.country])) cs.add(new Option(`${T(v)} (${n})`, v, false, v === state[K.country]))
+  const ss = $K(K.species); ss.innerHTML = ''; for (const [v, n] of count(ix.filter((u) => match(u, country, '')), (u) => u.species_list)) ss.add(new Option(`${v}${flagsOf(v)?.atlas_rpp ? ' ●' : ''}${flagsOf(v)?.scatterplot ? ' ▦' : ''} (${n})`, v, false, v === species))
+  const sel = ix.filter((u) => match(u, country, species)), flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
   const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'
-  for (const u of sel) us.add(new Option(u.id + (u.restricted ? ` (${T('ui_layout_label_restricted')})` : '') + (flag(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
+  for (const u of sel) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T('ui_layout_label_restricted')})` : '') + (flag(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
   for (const el of [cs, ss, us]) Dict.hover(el)
-  $('info').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s, ${sel.filter((u) => u.restricted).length} ${T('ui_layout_label_restricted')}, ${sel.filter(flag).length} ${T('ui_layout_label_flagged')} · ● ${T('ui_layout_map_label_presence')} · ▦ ${T('ui_layout_scatterplot')}`
+  $('info').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s, ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T('ui_layout_label_restricted')}, ${sel.filter(flag).length} ${T('ui_layout_label_flagged')} · ● ${T('ui_layout_map_label_presence')} · ▦ ${T('ui_layout_scatterplot')}`
 }
 const read = (el) => el.dataset.key === K.flag ? Number(el.value) : (el.value === '' ? null : el.value)
 const ON = {
   [K.species]: () => { state[K.country] = null; state[K.unit] = null; refill(); send() }, [K.country]: () => { state[K.unit] = null; refill(); send() },
-  [K.flag]: () => { refill(); send() }, [K.mode]: () => { $('panes').className = last(state[K.mode]); stackedFlag() }, [K.placement]: place,
+  [K.flag]: () => { refill(); send() }, [K.level]: async () => { ix = await Svc.unitsIndex(state[K.level]); refill(); send() },
+  [K.mode]: () => { $('panes').className = last(state[K.mode]); stackedFlag() }, [K.placement]: place,
 }
 const panes = $('panes'), stacked = () => panes.classList.contains('stack') || (panes.classList.contains('auto') && matchMedia('(max-aspect-ratio: 5/4)').matches)
 function stackedFlag() { panes.classList.toggle('stacked', stacked()) }
@@ -83,17 +89,18 @@ function place() {
   popup = window.open(paneUrl('map-openlayers.html'), 'eufgis-map', v === 'window' ? 'width=1100,height=800' : '')
   if (!popup) { $('info').textContent = 'the browser blocked the new tab or window'; state[K.placement] = OPT[K.placement][0]; $K(K.placement).value = state[K.placement]; return }
   panes.classList.add('detached')
-  popup.addEventListener('load', () => setTimeout(() => send(), 800))
+  popup.addEventListener('load', () => setTimeout(() => send(), 1200))
   const watch = setInterval(() => { if (popup.closed) { clearInterval(watch); popup = null; panes.classList.remove('detached'); state[K.placement] = OPT[K.placement][0]; $K(K.placement).value = state[K.placement]; send() } }, 500)
 }
-// the panes get the same language and dictionary as this page
+// the panes get the same language, dictionary and service as this page
 const q = new URLSearchParams(location.search)
-const paneUrl = (page, extra = '') => `${page}?embedded=1${q.get('lang') ? '&lang=' + q.get('lang') : ''}${q.get('dict') ? '&dict=' + encodeURIComponent(q.get('dict')) : ''}${extra}`
-Promise.all([fetch(DATA + 'units-index.json'), fetch(DATA + 'map-index.json'), fetch(DATA + 'meta.json')].map((p) => p.then((r) => r.json())).concat(Dict.defaults())).then(async ([a, b, c, defaults]) => {
-  ix = a; mapIndex = b; meta = c
+const paneUrl = (page, extra = '') => `${page}?embedded=1${['lang', 'dict', 'api'].filter((k) => q.get(k)).map((k) => `&${k}=${encodeURIComponent(q.get(k))}`).join('')}${extra}`
+Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
+  cat = c
   state = { ...defaults, [K.species]: 'Fagus sylvatica', [K.level]: 'gcu_loc_coordinates-restriction_value' }   // the scatterplot default: restricted units' values are shown
   for (const k of Object.values(K)) if (q.has(k)) state[k] = q.get(k)
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...ix.countries.map((c) => 'ISO_3166_1_' + c.code), 'ui_layout', 'ui_layout_scatterplot', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_unit', 'ui_layout_label_clear', 'ui_layout_label_restricted', 'ui_layout_label_flagged', 'ui_layout_map_label_presence'])
+  ix = await Svc.unitsIndex(state[K.level])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...c.countries.map((x) => x[K.country]), 'ui_layout', 'ui_layout_scatterplot', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_unit', 'ui_layout_label_clear', 'ui_layout_label_restricted', 'ui_layout_label_flagged', 'ui_layout_map_label_presence'])
   await Dict.labels()
   for (const el of document.querySelectorAll('[data-key]')) {
     const k = el.dataset.key
@@ -113,10 +120,11 @@ Promise.all([fetch(DATA + 'units-index.json'), fetch(DATA + 'map-index.json'), f
   $('divider').addEventListener('dblclick', () => panes.style.removeProperty('--split'))
   $('clear').addEventListener('click', () => { for (const w of [mapW(), scatterW()]) w.postMessage({ type: 'state', [K.sel]: null }, '*'); $('clear').style.display = 'none' })
   // the panes load after this page: send the shared state once both are ready
-  let loaded = 0; for (const id of ['map', 'scatter']) $(id).addEventListener('load', () => { if (++loaded === 2) setTimeout(() => send(), 800) })
+  let loaded = 0; for (const id of ['map', 'scatter']) $(id).addEventListener('load', () => { if (++loaded === 2) setTimeout(() => send(), 1200) })
+  const wc = c.climates.find((k) => k.src === 'worldclim' && k.period === '2081-2100') ?? c.climates.find((k) => k.src === 'worldclim' && !k.present)
   $('map').src = paneUrl('map-openlayers.html')
-  $('scatter').src = paneUrl('scatter-d3-canvas.html', '&species=Fagus%20sylvatica&std_dataset_ids=%5B%22bf102320-3726-48d1-b3fc-421f131c6666%22%5D&env_climate_scenario=env_climate_scenario_ssp370&env_climate_period=env_climate_period_worldclim21_2081-2100')
-})
+  $('scatter').src = paneUrl('scatter-d3-canvas.html', `&species=${encodeURIComponent(state[K.species])}&std_dataset_ids=${encodeURIComponent(JSON.stringify([wc.std_dataset_ids]))}&env_climate_scenario=${wc.env_climate_scenario}&env_climate_period=${wc.env_climate_period}`)
+}).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
 // relay: a message is a partial state; the map's selection goes to the scatterplot, the scatterplot's clear to the map,
 // a species chosen on the map becomes the shared species. In the portal the host checks the origin of every message.
 window.addEventListener('message', (e) => {
