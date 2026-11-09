@@ -64,6 +64,7 @@ function refill() {
   const sel = ix.units.filter((u) => match(u, country, species)), flag = (u) => u.distance != null && u.distance > state[K.flag]
   const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'
   for (const u of sel) us.add(new Option(u.id + (u.restricted ? ` (${T('ui_layout_label_restricted')})` : '') + (flag(u) ? ` ⚠ ${u.distance.toFixed(0)} km` : ''), u.id, false, u.id === state[K.unit]))
+  for (const el of [cs, ss, us]) Dict.hover(el)
   $('info').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s, ${sel.filter((u) => u.restricted).length} ${T('ui_layout_label_restricted')}, ${sel.filter(flag).length} ${T('ui_layout_label_flagged')} · ● ${T('ui_layout_map_label_presence')} · ▦ ${T('ui_layout_scatterplot')}`
 }
 const read = (el) => el.dataset.key === K.flag ? Number(el.value) : (el.value === '' ? null : el.value)
@@ -96,8 +97,8 @@ Promise.all([fetch(DATA + 'units-index.json'), fetch(DATA + 'map-index.json'), f
   await Dict.labels()
   for (const el of document.querySelectorAll('[data-key]')) {
     const k = el.dataset.key
-    if (OPT[k]) Dict.options(el, OPT[k], state[k]); else if (state[k] != null) el.value = state[k]
-    el.title ||= Dict.def(k)
+    el.dataset.fieldDef = Dict.def(k)
+    if (OPT[k]) Dict.options(el, OPT[k], state[k]); else { if (state[k] != null) el.value = state[k]; Dict.hover(el) }
     el.addEventListener('change', () => { state[k] = read(el); (ON[k] ?? send)() })
   }
   refill(); stackedFlag(); matchMedia('(max-aspect-ratio: 5/4)').addEventListener('change', stackedFlag)

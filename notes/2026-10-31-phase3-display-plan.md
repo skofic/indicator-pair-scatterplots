@@ -205,9 +205,12 @@ map selection is `ui_layout_map_selection`, a geometry or null). `climates.json`
 key and the period and scenario gids per climate, so the files are found from the state. `?lang=<ISO
 639-3>` switches every text once the terms carry that language; `?dict=` points at another dictionary
 service. Observed defaults: the standalone scatterplot opens at the public restriction level (restricted
-units hidden), the joint page sets the values level for both panes. Still hard-coded: the word "Source"
-for the dataset selector (no label term; `std_dataset_ids`'s title is "Dataset IDs"), the EU-Trees4F
-future map's fixed period on the map, the interaction hints' language-independent symbols.
+units hidden), the joint page sets the values level for both panes. **Hover rule (Milko, 2026-11-09):** hovering a label describes the field (the control term's
+`_definition`), hovering a menu describes the chosen element (the selected option's `_definition`,
+kept in step on change; the field definition where the options are data, e.g. units). The Source menu's
+hover is the dataset record's definition. Still hard-coded: the word "Source" for the dataset selector
+(no label term; `std_dataset_ids`'s title is "Dataset IDs"), the EU-Trees4F future map's fixed period on
+the map, the interaction hints' language-independent symbols.
 Not yet: the pair selector (needs
 the service or five times the export), the class of each unit's own cell (a service-side raster
 sample, so that restricted units get it too). **Built 2026-10-31**, to be opened by Milko: start the

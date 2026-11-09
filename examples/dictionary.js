@@ -37,10 +37,18 @@ window.Dict = (() => {
 
   /** label an element from a term: text = title, hover = definition */
   function label(el, g) { el.textContent = title(g); const d = def(g); if (d) el.title = d }
-  /** fill a select with the elements of an enumeration, in the given order; option values are the gids */
+  /** fill a select with the elements of an enumeration, in the given order; option values are the gids. The menu's
+   *  hover describes the chosen element (the label beside it describes the field, see hover()) */
   function options(sel, gids, current) {
     sel.innerHTML = ''
     for (const g of gids) { const o = new Option(title(g), g, false, g === current); const d = def(g); if (d) o.title = d; sel.add(o) }
+    hover(sel)
+  }
+  /** a select's hover = the selected option's description, else the field's definition (sel.dataset.fieldDef); kept in step on change */
+  function hover(sel) {
+    const set = () => { sel.title = sel.selectedOptions[0]?.title || sel.dataset.fieldDef || '' }
+    if (!sel.dataset.hoverBound) { sel.dataset.hoverBound = '1'; sel.addEventListener('change', set) }
+    set()
   }
   /** every [data-term] element of the page gets its text and hover from its term */
   async function labels(root = document) {
@@ -55,5 +63,5 @@ window.Dict = (() => {
   /** validate a (partial) state against ui_layout_state; returns { ok, errors, warnings } */
   const validate = (doc) => post('/validate/document', { descriptor: 'ui_layout_state', document: doc }).catch((e) => ({ ok: null, errors: [{ message: e.message }], warnings: [] }))
 
-  return { BASE, LANG, load, title, def, desc, aid, unit, last, label, options, labels, defaults, validate, terms }
+  return { BASE, LANG, load, title, def, desc, aid, unit, last, label, options, hover, labels, defaults, validate, terms }
 })()

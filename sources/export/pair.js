@@ -29,7 +29,7 @@ const DATASET_CODE = { eutrees4f: 'EU-TREES4F_PREDICTORS_2022', worldclim: 'WORL
  *  record _key, the pane's source value), datasetTitle, periodGid, scenarioGid (the dictionary terms the pane state holds) } */
 export function climates(datasets = {}) {
   const out = []
-  const gids = (src, period, scenario) => ({ dataset: datasets[src]?.key ?? null, datasetTitle: datasets[src]?.title ?? TITLE[src], periodGid: `env_climate_period_${SECTION[src]}_${period}`, scenarioGid: `env_climate_scenario_${scenario || 'historical'}` })
+  const gids = (src, period, scenario) => ({ dataset: datasets[src]?.key ?? null, datasetTitle: datasets[src]?.title ?? TITLE[src], datasetDescription: datasets[src]?.description ?? '', periodGid: `env_climate_period_${SECTION[src]}_${period}`, scenarioGid: `env_climate_scenario_${scenario || 'historical'}` })
   for (const [src, S] of Object.entries(SOURCES)) {
     out.push({ key: `${src}|${S.period}|`, src, period: S.period, scenario: '', path: `d.properties.${src}["${S.period}"]`, label: `${TITLE[src]} · ${S.period}`, present: true, ...gids(src, S.period, '') })
     for (const p of S.future?.periods ?? []) {
@@ -43,7 +43,7 @@ if (process.argv[1].endsWith('pair.js')) try {
   const { db, collections: C } = connect(loadCredentials())
   const q = (a, b = {}) => db.query(a, b, { batchSize: 10000 }).then((c) => c.all())
   const datasets = {}
-  for (const [src, code] of Object.entries(DATASET_CODE)) { const d = (await q(`FOR d IN @@c FILTER d.std_dataset_code == @code RETURN { key: d._key, title: d._info._title.ISO_639_3_eng }`, { '@c': C.dataset, code }))[0]; if (!d) throw new Error(`no Dataset record ${code}`); datasets[src] = d }
+  for (const [src, code] of Object.entries(DATASET_CODE)) { const d = (await q(`FOR d IN @@c FILTER d.std_dataset_code == @code RETURN { key: d._key, title: d._info._title.ISO_639_3_eng, description: d._info._definition.ISO_639_3_eng || d._info._description.ISO_639_3_eng }`, { '@c': C.dataset, code }))[0]; if (!d) throw new Error(`no Dataset record ${code}`); datasets[src] = d }
   const cl = climates(datasets)
   const meta = { pair: { key: pairKey, ...pair, x: X, y: Y }, species: speciesList, counts: {}, exported: new Date().toISOString() }
   const rows = await q(`${ORDER} RETURN [d._key, d.geometry_point.coordinates]`, { '@c': C.occurrences })
