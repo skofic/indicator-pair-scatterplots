@@ -265,7 +265,12 @@ fact) replaces the native tooltip; a click pins it (touch), Escape or a click el
 map gained its own "i" (the species' available layers). The map selection (green) is drawn last, above
 the units. The host bar lost its "Pane layout" title and caption. The legend row is a wrapping flex
 row (the chips and the projection note wrap). `?settings=1` opens the drawing settings at load.
-Screenshot: [`compare/layout-joint-pass3.png`](compare/layout-joint-pass3.png). Left for the next pass
+**Cosmetic fixes after Milko's review of the pass (same day):** the opened drawing settings are a grid,
+one row per layer with the captions in the first column and the first control of every row on the same
+vertical line (the alignment draws the divider between the three layers and the common drawing section;
+same on the map behind "⚙ Map layers"); the map gained a **reset view** button (fits the species' visible
+units, else the initial view of Europe), on its own row with "⚙ Map layers"; the map's "i" lists one
+layer per line under the species as heading. Screenshot: [`compare/layout-joint-pass3.png`](compare/layout-joint-pass3.png). Left for the next pass
 (Milko's list): the unit hover window on the map as on the scatterplot, option-click on the map to
 select units, clicking a unit's area selects its reference point in the scatterplot, and an
 instructions page for the search box; a `ui_layout_map_label_hints` term would give the map a "?".
@@ -294,6 +299,7 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-09 | **Unit facts under their terms:** `sources/units/distance.js --write` stores `gcu_loc_climate_distance` on all 3 669 units and `gcu_loc_climate` (the reference point) on the 3 329 unrestricted ones, every value validated against the dictionary first (6 998 values, 0 errors); the pre-term `_custom` block is removed; the loader writes the same on a reload; the exports and the pages read the gid; the `SCATTER_UNITS` Dataset record lists both descriptors. 46 units exceed 5 km, unchanged. |
 | 2026-11-09 | **The species layer is the reference and never moves** (Milko, agreed): in a future period the species cloud stays at the present climate (the realised niche, as the Atlas diagram and EU-Trees4F Figure 1 treat it); the units, the map-selected cells and the solid envelope move to the selected period; the base layer stays by default and moves **on request** (`ui_layout_scatterplot_base_position`, term requested in the handoff addendum): Europe's future climate space against the present niche shows whether the species' climate will still exist. The classes view keeps its own rule. |
 | 2026-11-10 | **Review of passes 1–2 (Milko):** the search box stays (it needs an instructions page with examples); the legend toggles are good; the "i" / "?" marks are elegant provided they are visible without being loud and their text invites reading; "Pane layout" is implied and goes; the ⚙ button needs a label; the map selection must be the top layer; controls must be grouped functionally whatever the window's width. Later: unit hover and option-click selection on the map, a unit's area click selecting its reference point. Built as iteration 12. |
+| 2026-11-10 | **Review of the third pass (Milko):** the marks and their popover are right; cosmetic fixes requested and built — the layer rows aligned as a grid on both panes, a reset view button on the map, one line per layer in the map's "i". Next: the inter-pane unit selections (unit hover and option-click on the map, a unit's area click selecting its reference point). |
 | 2026-11-10 | **Layout polish, third pass** (iteration 12): functional groups that never break, one group per layer, short labels under captions, labelled ⚙ buttons, prominent marks with a reading popover, map selection on top. Pending Milko's review. |
 | 2026-11-10 | **Layout polish, second pass** (iteration 11): search box with suggestions and chips in the shared bar, legend chips as layer toggles, status as a hover. Pending Milko's review. |
 | 2026-11-10 | **Layout polish, first pass** (iteration 10): shared stylesheet, grouped and captioned toolbars, collapsible drawing settings, legend chips, short counts. Pending Milko's review. |

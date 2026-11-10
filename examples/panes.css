@@ -55,7 +55,13 @@ body.disabled .toolbar { opacity: .45; pointer-events: none }
 
 /* a collapsible toolbar (the drawing settings), opened by its toggle button */
 .toolbar.collapsible { display: none }
-body.settings .toolbar.collapsible { display: flex }
+/* opened, it is a grid: one row per layer, the captions in the first column, the first control of every row on the same
+   vertical line — the alignment itself draws the divider between the layer names and their controls (Milko, 2026-11-10) */
+body.settings .toolbar.collapsible { display: grid; grid-template-columns: max-content repeat(6, max-content); gap: 3px 14px; align-items: center; justify-content: start }
+.toolbar.collapsible .group { display: contents }
+.toolbar.collapsible .group > .cap { grid-column: 1; align-self: stretch; display: flex; align-items: center; padding-right: 10px; border-right: 1px solid var(--line); margin: 0 }
+.toolbar.collapsible .group > label { margin: 0 }
+.toolbar .break { flex-basis: 100%; height: 0; padding: 0; margin: -4px 0 0 }   /* forces the next group onto a new row */
 button.toggle { padding: 0 9px 0 7px } button.toggle::before { content: '⚙ '; font-size: 13px } body.settings button.toggle { background: #e4ecf7; border-color: var(--accent) }
 
 /* the two marks of the legend row: "i" = the status of the drawing, "?" = the interaction hints. Visible at a glance

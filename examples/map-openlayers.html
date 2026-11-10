@@ -20,7 +20,8 @@
   <strong class="pane-title" data-term="ui_layout_map"></strong>
   <span class="group"><span class="cap" data-term="ui_layout_map_layer_base"></span><select data-key="ui_layout_map_layer_base"></select></span>
   <span class="group"><span class="cap" data-term="ui_layout_map_draw-mode"></span><select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></span>
-  <span class="group"><button id="settings" class="toggle" data-term="ui_layout_map_layer"></button></span>
+  <span class="break"></span>
+  <span class="group"><button id="settings" class="toggle" data-term="ui_layout_map_layer"></button> <button id="reset" data-term="ui_layout_label_reset"></button></span>
 </div>
 <div class="toolbar collapsible">
   <span class="group"><span class="cap">Atlas</span>
@@ -116,8 +117,15 @@ const basemaps = {
   hillshade: xyz('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', 'Esri, USGS, NOAA'),
   osm: new ol.layer.Tile({ source: new ol.source.OSM(), opacity: 0.7 }),
 }
+const HOME = { center: ol.proj.fromLonLat([10, 50], laea), zoom: 4 }
 const map = new ol.Map({ target: 'map', layers: [...Object.values(basemaps), ...Object.values(layers), picked, drawn],
-  view: new ol.View({ projection: laea, center: ol.proj.fromLonLat([10, 50], laea), zoom: 4 }) })
+  view: new ol.View({ projection: laea, ...HOME }) })
+/** reset view: fit the species' visible units, else the initial view of Europe */
+function resetView() {
+  const shown = units.getSource().getFeatures().filter((f) => !f.get('hidden'))
+  if (shown.length > 1) map.getView().fit(ol.extent.boundingExtent(shown.map((f) => f.getGeometry().getCoordinates())), { padding: [40, 40, 40, 40], maxZoom: 9, duration: 600 })
+  else map.getView().animate({ ...HOME, duration: 600 })
+}
 /** the state → the map: base map, layer visibility and opacity */
 function applyLayers() {
   for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === last(state[K.base]))
@@ -134,7 +142,7 @@ async function showSpeciesLayers(name) {
   applyLayers()
   choro.getSource().clear()
   for (const c of e.chorology.filter((c) => String(c.layer).startsWith('native range'))) fetch(FILES + c.path).then((r) => r.json()).then((g) => choro.getSource().addFeatures(gj.readFeatures(g)))
-  Pop.set($('status'), `${name}: ` + [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(', '))
+  Pop.set($('status'), [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(' · '), name)
   const fc = await Svc.unitsGeo(state[K.level], { species: name })
   units.getSource().clear(); units.getSource().addFeatures(gj.readFeatures(fc))
   refill()
@@ -240,6 +248,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
   for (const el of document.querySelectorAll('.legend .tog')) { el.title = Dict.def(el.dataset.toggle); el.addEventListener('click', () => { state[el.dataset.toggle] = !state[el.dataset.toggle]; syncControls(); applyLayers() }) }
   $('settings').addEventListener('click', () => document.body.classList.toggle('settings')); Pop.bind($('status'))
+  $('reset').addEventListener('click', resetView)
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})`; Pop.set($('status'), $('info').textContent) })
 </script>
 </body>
