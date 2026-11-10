@@ -68,7 +68,7 @@
     <label><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
-  <span class="group"><span class="cap" data-term="ui_layout_scatterplot_label_selection"></span>
+  <span class="group host"><span class="cap" data-term="ui_layout_scatterplot_units_selection"></span>
     <span id="selCount">0</span> <select data-key="ui_layout_scatterplot_units_mode"></select> <button id="selClear" data-term="ui_layout_label_clear"></button>
   </span>
   <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
@@ -347,7 +347,7 @@ async function applyState(partial) {
   $('disabled').innerHTML = noData ? `<div><b>${sp}</b><br>${Dict.title(LBL.noData)}<br><small>${Dict.def(LBL.noData)}</small></div>` : ''
   if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))   // an incomplete or unknown climate triple falls back
   if (K.mapSel in partial) state[K.mapSel] = partial[K.mapSel]
-  const light = Object.keys(partial).every((k) => k === 'type' || k === K.unit || k === K.selection)   // no data to reload
+  const light = Object.keys(partial).every((k) => k === 'type' || k === K.unit || k === K.selection || k === K.unitsMode)   // no data to reload
   if (!noData && !light) await refresh()
   if (K.selection in partial) $('selCount').textContent = (state[K.selection] ?? []).length
   // a unit chosen elsewhere (the map, the search box): highlighted and pulsed here, no echo back to the host

@@ -36,6 +36,11 @@
     <label><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
+  <!-- the selected units (option-click on either pane): the count, which units both panes draw, clear -->
+  <span class="group"><span class="cap" data-term="ui_layout_scatterplot_units_selection"></span><span id="selCount">0</span>
+    <select data-key="ui_layout_scatterplot_units_mode"></select>
+    <button id="selClear" data-term="ui_layout_label_clear"></button>
+  </span>
   <span class="group" id="clearGroup" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><button id="clear" data-term="ui_layout_label_clear"></button></span>
   <span class="group right"><select data-key="ui_layout_mode"></select>
     <label><span data-term="ui_layout_map_placement"></span> <select data-key="ui_layout_map_placement"></select></label>
@@ -51,10 +56,10 @@
 <script src="service.js"></script>
 <script>
 const $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`)
-const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag', mode: 'ui_layout_mode', placement: 'ui_layout_map_placement', selection: 'ui_layout_scatterplot_units_selection', sel: 'ui_layout_map_selection' }
-const SHARED = [K.species, K.country, K.unit, K.level, K.flag]   // what the panes receive
+const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag', mode: 'ui_layout_mode', placement: 'ui_layout_map_placement', selection: 'ui_layout_scatterplot_units_selection', unitsMode: 'ui_layout_scatterplot_units_mode', sel: 'ui_layout_map_selection' }
+const SHARED = [K.species, K.country, K.unit, K.level, K.flag, K.selection, K.unitsMode]   // what the panes receive
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
-const OPT = { [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'), [K.mode]: E('ui_layout_mode', 'auto', 'side', 'stack'), [K.placement]: E('ui_layout_map_placement', 'page', 'tab', 'window') }
+const OPT = { [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'), [K.mode]: E('ui_layout_mode', 'auto', 'side', 'stack'), [K.placement]: E('ui_layout_map_placement', 'page', 'tab', 'window'), [K.unitsMode]: E('ui_layout_scatterplot_units', 'all', 'only', 'hide') }
 const DIST = 'gcu_loc_climate_distance'
 const last = Dict.last
 let state = {}, cat, ix = [], popup = null
@@ -100,6 +105,7 @@ const read = (el) => el.dataset.key === K.flag ? Number(el.value) : (el.value ==
 const ON = {
   [K.flag]: () => { refill(); send() }, [K.level]: async () => { ix = await Svc.unitsIndex(state[K.level]); refill(); send() },
   [K.mode]: () => { $('panes').className = last(state[K.mode]); stackedFlag() }, [K.placement]: place,
+  [K.unitsMode]: () => send([K.unitsMode]),
 }
 const panes = $('panes'), stacked = () => panes.classList.contains('stack') || (panes.classList.contains('auto') && matchMedia('(max-aspect-ratio: 5/4)').matches)
 function stackedFlag() { panes.classList.toggle('stacked', stacked()) }
@@ -120,7 +126,7 @@ const q = new URLSearchParams(location.search)
 const paneUrl = (page, extra = '') => `${page}?embedded=1${['lang', 'dict', 'api'].filter((k) => q.get(k)).map((k) => `&${k}=${encodeURIComponent(q.get(k))}`).join('')}${extra}`
 Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   cat = c
-  state = { ...defaults, [K.species]: 'Fagus sylvatica', [K.level]: 'gcu_loc_coordinates-restriction_value' }   // the scatterplot default: restricted units' values are shown
+  state = { ...defaults, [K.species]: 'Fagus sylvatica', [K.level]: 'gcu_loc_coordinates-restriction_value', [K.selection]: [] }   // the scatterplot default: restricted units' values are shown
   for (const k of Object.values(K)) if (q.has(k)) state[k] = q.get(k)
   ix = await Svc.unitsIndex(state[K.level])
   await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...c.countries.map((x) => x[K.country]), 'ui_layout', 'ui_layout_scatterplot', 'ui_layout_scatterplot_label_map-selection', 'gcu_loc_coordinates-restriction', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_unit', 'ui_layout_label_clear', 'ui_layout_label_restricted', 'ui_layout_label_flagged', 'ui_layout_map_label_presence'])
@@ -131,6 +137,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
     if (OPT[k]) Dict.options(el, OPT[k], state[k]); else { if (state[k] != null) el.value = state[k]; Dict.hover(el) }
     el.addEventListener('change', () => { state[k] = read(el); (ON[k] ?? send)() })
   }
+  $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; send([K.selection]) })
   refill(); stackedFlag(); matchMedia('(max-aspect-ratio: 5/4)').addEventListener('change', stackedFlag)
   // the search box: type a species, a country or a unit number; Enter takes the highlighted suggestion, Escape closes
   const q$ = $('q'); q$.placeholder = `${Dict.title('ui_layout_label_species')} · ${Dict.title('ui_layout_label_country')} · ${Dict.title('ui_layout_label_unit')}`; q$.title = Dict.def('ui_layout_label_unit')
@@ -168,7 +175,7 @@ window.addEventListener('message', (e) => {
     $('clearGroup').style.display = d[K.sel] ? '' : 'none'
   }
   // the units selected by option-click, on either pane, are drawn on both; a unit clicked on the map is chosen as in the search box
-  if (K.selection in d) (e.source === mapW() ? scatterW() : mapW()).postMessage({ type: 'state', [K.selection]: d[K.selection] }, '*')
+  if (K.selection in d) { state[K.selection] = d[K.selection] ?? []; $('selCount').textContent = state[K.selection].length; (e.source === mapW() ? scatterW() : mapW()).postMessage({ type: 'state', [K.selection]: state[K.selection] }, '*') }
   if (K.unit in d && (e.source === mapW() || e.source === scatterW()) && (d[K.unit] ?? null) !== (state[K.unit] ?? null)) { state[K.unit] = d[K.unit] ?? null; refill(); send([K.unit]) }
   if (K.species in d && e.source === mapW() && d[K.species] !== state[K.species]) { state[K.species] = d[K.species]; state[K.country] = null; state[K.unit] = null; refill(); scatterW().postMessage({ type: 'state', [K.species]: state[K.species], [K.country]: null, [K.unit]: null }, '*') }
 })

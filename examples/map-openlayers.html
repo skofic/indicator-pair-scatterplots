@@ -93,7 +93,7 @@ const flagStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b7
 const hidden = new ol.style.Style({})
 
 // ---- the pane state, keyed by dictionary gids (ui_layout_state)
-const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', flag: 'gcu_loc_climate_flag', level: 'gcu_loc_coordinates-restriction_level', base: 'ui_layout_map_layer_base', draw: 'ui_layout_map_draw-mode', sel: 'ui_layout_map_selection', period: 'env_climate_period', scenario: 'env_climate_scenario', variant: 'ui_layout_scatterplot_view_classes_variant', selection: 'ui_layout_scatterplot_units_selection' }
+const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', flag: 'gcu_loc_climate_flag', level: 'gcu_loc_coordinates-restriction_level', base: 'ui_layout_map_layer_base', draw: 'ui_layout_map_draw-mode', sel: 'ui_layout_map_selection', period: 'env_climate_period', scenario: 'env_climate_scenario', variant: 'ui_layout_scatterplot_view_classes_variant', selection: 'ui_layout_scatterplot_units_selection', unitsMode: 'ui_layout_scatterplot_units_mode' }
 const LAYER = { rpp: 'ui_layout_map_layer_rpp', mhs: 'ui_layout_map_layer_mhs', t4cur: 'ui_layout_map_layer_t4-current', t4fut: 'ui_layout_map_layer_t4-future', choro: 'ui_layout_map_layer_chorology', units: 'ui_layout_map_layer_units' }
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
 const OPT = { [K.base]: E('ui_layout_map_layer_base', 'none', 'boundary', 'hillshade', 'gray', 'osm', 'topo'), [K.draw]: E('ui_layout_map_draw-mode', 'none', 'point', 'box', 'polygon'), [K.variant]: E('ui_layout_scatterplot_view_classes_variant', 'potential', 'dispersal') }
@@ -166,7 +166,8 @@ function refill() {
   for (const el of [cs, ss, us]) Dict.hover(el)
   const nf = sel.filter(flag).length; $('searchInfo').textContent = `${sel.length} ${T(LBL.unit).toLowerCase()}s · ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}${nf ? ` · ⚠ ${nf}` : ''} · ● ${T(LBL.presence)}`; $('searchInfo').title = `⚠ = ${T(LBL.flagged)} (> ${state[K.flag]} km)`
   const ids = new Set(sel.map((u) => u.gcu_id_number))
-  for (const f of units.getSource().getFeatures()) f.set('hidden', !ids.has(f.get('gcu_id_number')), true)   // the points outside the filter are not drawn
+  const mode = last(state[K.unitsMode] ?? '')   // all / only the selection / hide the selection, shared with the scatterplot
+  for (const f of units.getSource().getFeatures()) { const id = f.get('gcu_id_number'); f.set('hidden', !ids.has(id) || (mode === 'only' && !selected(id)) || (mode === 'hide' && selected(id)), true) }   // the points outside the filter are not drawn
   units.changed()
   run.sel = sel; updateInfo(sel)
 }
@@ -238,7 +239,7 @@ map.on('singleclick', (e) => {
   if (f && e.originalEvent.altKey) {   // toggle in the shared selection
     const id = f.get('gcu_id_number'), sel = state[K.selection] ?? []
     state[K.selection] = selected(id) ? sel.filter((x) => x !== id) : [...sel, id]
-    units.changed(); picked.changed(); post({ [K.selection]: state[K.selection] }); updateInfo(run.sel ?? []); $('info').innerHTML = `${T(LBL.selection)}: ${state[K.selection].length} · ${unitHtml(f).replace(/<br>/g, ' · ')}`
+    refill(); post({ [K.selection]: state[K.selection] }); $('info').innerHTML = `${T(LBL.selection)}: ${state[K.selection].length} · ${unitHtml(f).replace(/<br>/g, ' · ')}`
     return
   }
   if (f) {   // choose the unit: its polygon here, its reference point in the scatterplot (through the host)
