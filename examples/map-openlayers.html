@@ -20,7 +20,7 @@
   <strong class="pane-title" data-term="ui_layout_map"></strong>
   <span class="group"><span class="cap" data-term="ui_layout_map_layer_base"></span><select data-key="ui_layout_map_layer_base"></select></span>
   <span class="group"><span class="cap" data-term="ui_layout_map_draw-mode"></span><select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></span>
-  <span class="group"><button id="settings" class="toggle" title="">⚙</button></span>
+  <span class="group"><button id="settings" class="toggle" data-term="ui_layout_map_layer"></button></span>
 </div>
 <div class="toolbar collapsible">
   <span class="group"><span class="cap">Atlas</span>
@@ -41,11 +41,13 @@
     <label><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
     <label><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
     <label><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
-    <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
     <span id="searchInfo" class="hints"></span>
   </span>
+  <span class="group"><span class="cap" data-term="gcu_loc_coordinates-restriction"></span>
+    <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
+  </span>
 </div>
-<div class="legend">
+<div class="legend"><span class="info" id="status">i</span>
   <span class="tog" data-toggle="ui_layout_map_layer_rpp"><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
   <span class="tog" data-toggle="ui_layout_map_layer_mhs"><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
   <span class="tog" data-toggle="ui_layout_map_layer_t4-current"><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
@@ -53,7 +55,6 @@
   <span class="tog" data-toggle="ui_layout_map_layer_chorology"><i class="sq" style="border:2px dashed var(--chorology);background:none;height:5px"></i><span data-term="ui_layout_map_label_chorology"></span></span>
   <span class="tog" data-toggle="ui_layout_map_layer_units"><i style="background:var(--unit)"></i><span data-term="ui_layout_map_label_units"></span></span>
   <span><i style="border:1.5px dashed var(--flag);background:none;width:8px;height:8px"></i><span data-term="ui_layout_label_flagged"></span></span>
-  <span id="layersInfo" class="hints"></span>
 </div>
 <div id="map"></div>
 <div id="info" data-term="ui_layout_map_label_click"></div>
@@ -62,6 +63,7 @@
 <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ol@10.2.1/dist/ol.js"></script>
 <script src="dictionary.js"></script>
+<script src="panes.js"></script>
 <script src="service.js"></script>
 <script>
 // The view works in the Atlas rasters' native projection (ETRS89-LAEA, EPSG:3035), so the 1 km COGs are never
@@ -132,7 +134,7 @@ async function showSpeciesLayers(name) {
   applyLayers()
   choro.getSource().clear()
   for (const c of e.chorology.filter((c) => String(c.layer).startsWith('native range'))) fetch(FILES + c.path).then((r) => r.json()).then((g) => choro.getSource().addFeatures(gj.readFeatures(g)))
-  $('layersInfo').textContent = `${name}: ` + [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(', ')
+  Pop.set($('status'), `${name}: ` + [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(', '))
   const fc = await Svc.unitsGeo(state[K.level], { species: name })
   units.getSource().clear(); units.getSource().addFeatures(gj.readFeatures(fc))
   refill()
@@ -230,14 +232,15 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   const q = new URLSearchParams(location.search)
   for (const k of [...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity')]) if (q.has(k)) state[k] = parse(q.get(k))
   if (q.get('embedded')) document.body.classList.add('embedded')
+  if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   ix = await Svc.unitsIndex(state[K.level])
   await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', DIST])
-  await Dict.labels(); bindControls(); syncControls(); applyLayers()
+  await Dict.labels(); Pop.shortLabels(); bindControls(); syncControls(); applyLayers()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
   for (const el of document.querySelectorAll('.legend .tog')) { el.title = Dict.def(el.dataset.toggle); el.addEventListener('click', () => { state[el.dataset.toggle] = !state[el.dataset.toggle]; syncControls(); applyLayers() }) }
-  $('settings').title = Dict.title('ui_layout_map_layer'); $('settings').addEventListener('click', () => document.body.classList.toggle('settings'))
-}).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
+  $('settings').addEventListener('click', () => document.body.classList.toggle('settings')); Pop.bind($('status'))
+}).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})`; Pop.set($('status'), $('info').textContent) })
 </script>
 </body>
 </html>

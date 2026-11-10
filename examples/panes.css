@@ -12,9 +12,18 @@ html, body { height: 100% }
 body { margin: 0; font: var(--font); color: var(--ink); background: #fff; display: flex; flex-direction: column }
 
 /* toolbars and groups */
-.toolbar { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px 10px; padding: 5px 10px; border-bottom: 1px solid var(--line); background: var(--bar); flex: none }
+.toolbar { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px 10px; padding: 5px 10px; border-bottom: 1px solid var(--line); background: var(--bar); flex: none; overflow-x: auto; overflow-y: hidden }
+.toolbar.bar { overflow: visible }   /* the host's bar carries the search box's suggestion list */
 .toolbar.secondary { background: var(--bar2) }
-.group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 3px 8px 3px 0; border-right: 1px solid var(--line) }
+/* a group is one functional cluster of controls (a layer, the climate, the axes …): it never wraps inside, it moves to
+   the next row as a whole, so that the controls that belong together stay together whatever the pane's width */
+.group { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 4px 8px; padding: 3px 8px 3px 0; border-right: 1px solid var(--line); flex: 0 1 auto; min-width: 0 }
+/* a group alone on its row and still wider than the pane shrinks its long-text menus (source, axes, species, country,
+   unit, variant) rather than scrolling; the short enumeration menus keep their full text */
+.group > * { flex: none }
+.group > label:has(> select.wide, > select[data-key="species"], > select[data-key="gcu_id_country"], > select[data-key="gcu_id_number"], > select[data-key$="_X"], > select[data-key$="_Y"], > select[data-key$="_variant"]) { flex: 0 1 auto; min-width: 0; overflow: hidden }
+.group select.wide, .group select[data-key="species"], .group select[data-key="gcu_id_country"], .group select[data-key="gcu_id_number"], .group select[data-key$="_X"], .group select[data-key$="_Y"], .group select[data-key$="_variant"] { flex: 0 1 auto; min-width: 110px }
+.group > .hints { flex: 0 1 auto; min-width: 90px }   /* the counts may wrap when the pane is narrow */
 .group:last-child { border-right: 0 }
 .group > .cap { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); margin-right: 2px; white-space: nowrap }
 .group > .cap:empty { display: none }
@@ -26,7 +35,7 @@ body.embedded .host { display: none }
 
 /* controls */
 select, button, input[type=number] { font: inherit; font-size: 12.5px; color: var(--ink); background: #fff; border: 1px solid #c8c8c8; border-radius: 4px; padding: 2px 5px; height: 24px; max-width: 240px }
-select.wide { max-width: 300px }
+select.wide { max-width: 280px }
 button { background: #fafafa; cursor: pointer; padding: 2px 9px }
 button:hover { background: #f0f0f0 }
 input[type=range] { width: 56px; height: 20px; margin: 0; vertical-align: middle; accent-color: var(--accent) }
@@ -34,19 +43,36 @@ input[type=checkbox] { margin: 0 2px 0 0; accent-color: var(--accent) }
 body.disabled .toolbar { opacity: .45; pointer-events: none }
 
 /* legend and hints */
-.legend { display: block; line-height: 1.6; padding: 3px 10px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); background: #fff; flex: none }
-.legend > span, .legend #legend > span { margin-right: 10px; white-space: nowrap }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; line-height: 1.6; padding: 3px 10px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); background: #fff; flex: none }
+.legend #legend { display: contents }   /* the chips wrap one by one, as the legend's own children */
+.legend > span, .legend #legend > span { white-space: nowrap }
+.legend .info, .legend .help { margin-right: 0 }
 .legend .sw, .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; margin: 0 4px 0 10px }
 .legend .sw:first-child, .legend i:first-child, .legend span > i:first-child { margin-left: 0 }
 .legend i.sq { border-radius: 2px; width: 13px; height: 9px }
-.legend .note { font-style: italic; white-space: normal }
+.legend > .note, .legend #legend > .note { font-style: italic; white-space: normal; flex: 1 1 auto; min-width: 0 }   /* the projection note wraps over the row */
 .hints { color: var(--faint); font-size: 11.5px }
 
 /* a collapsible toolbar (the drawing settings), opened by its toggle button */
 .toolbar.collapsible { display: none }
 body.settings .toolbar.collapsible { display: flex }
-button.toggle { font-size: 13px; padding: 0 7px } body.settings button.toggle { background: #e4ecf7; border-color: var(--accent) }
-.help { display: inline-block; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--faint); color: var(--faint); font-size: 11px; line-height: 14px; text-align: center; cursor: help; margin-right: 8px; vertical-align: 1px }
+button.toggle { padding: 0 9px 0 7px } button.toggle::before { content: '⚙ '; font-size: 13px } body.settings button.toggle { background: #e4ecf7; border-color: var(--accent) }
+
+/* the two marks of the legend row: "i" = the status of the drawing, "?" = the interaction hints. Visible at a glance
+   (accent ring on a pale disc), not loud; the "i" glows once when the status changes so that users learn where it is */
+.info, .help { display: inline-block; width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid var(--accent); background: #eaf0fa; color: var(--accent); font-size: 11px; font-weight: 700; line-height: 14px; text-align: center; cursor: help; margin-right: 8px; vertical-align: -1px; outline: none }
+.info { font-style: italic; font-family: Georgia, serif; font-weight: 400; font-size: 12px }
+.info:hover, .help:hover, .info:focus, .help:focus { background: var(--accent); color: #fff }
+.info.flash { animation: glow 1.4s ease-out }
+@keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(31,78,156,.6) } 100% { box-shadow: 0 0 0 9px rgba(31,78,156,0) } }
+.info.busy { border-right-color: transparent; color: transparent; background: none; animation: spin .8s linear infinite }
+
+/* the reading popover of the marks (panes.js Pop): a text style that invites reading, unlike the native tooltip */
+.pop { position: absolute; z-index: 40; max-width: 460px; padding: 10px 14px 11px; background: #fffdf8; color: #2b2721; border: 1px solid #d9d2c3; border-radius: 8px; box-shadow: 0 6px 20px rgba(60,40,0,.16); font: 13.5px/1.55 Georgia, "Iowan Old Style", "Palatino Linotype", serif; display: none }
+.pop.open { display: block }
+.pop > div { padding: 1px 0 }
+.pop > div + div { border-top: 1px dotted #e3dccd; margin-top: 3px; padding-top: 4px }
+.pop .head { font: 600 10.5px/1.4 system-ui, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); border: 0; margin-bottom: 4px }
 
 /* the search box of the shared bar: one input, grouped suggestions, the current filter as chips */
 .search { position: relative; display: inline-flex; align-items: center; gap: 6px }
@@ -68,9 +94,6 @@ button.toggle { font-size: 13px; padding: 0 7px } body.settings button.toggle { 
 .legend .tog:hover { border-bottom-color: var(--muted) }
 .legend .tog.off { opacity: .4 }
 
-/* the info mark: the status text on hover, a spinner while busy */
-.info { display: inline-block; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--faint); color: var(--faint); font-size: 11px; line-height: 14px; text-align: center; cursor: help; margin-right: 8px; vertical-align: 1px; font-style: italic; font-family: Georgia, serif }
-.info.busy { border-color: var(--accent); border-right-color: transparent; color: transparent; animation: spin .8s linear infinite }
 
 /* status */
 .status { padding: 3px 10px; color: var(--muted); font-size: 11.5px; border-top: 1px solid var(--line); background: var(--bar); flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }

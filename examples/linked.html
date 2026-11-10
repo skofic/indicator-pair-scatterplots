@@ -26,8 +26,7 @@
 <!-- The host page owns the shared state (species, country, unit, restriction level, flag distance, layout, map placement)
      and relays the panes' messages. Every label is a dictionary term; every control is bound to a state key (its gid);
      the units and species come from the panes' Foxx service. -->
-<div id="bar" class="toolbar">
-  <strong data-term="ui_layout"></strong>
+<div id="bar" class="toolbar bar">
   <span class="group"><span class="cap" data-term="ui_layout_label_unit"></span>
     <span class="search"><input id="q" type="search" autocomplete="off" spellcheck="false"><div id="suggest" class="suggest"></div></span>
     <span id="chips"></span>
@@ -38,7 +37,7 @@
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
   <span class="group" id="clearGroup" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><button id="clear" data-term="ui_layout_label_clear"></button></span>
-  <span class="group right"><span class="cap" data-term="ui_layout_mode"></span><select data-key="ui_layout_mode"></select>
+  <span class="group right"><select data-key="ui_layout_mode"></select>
     <label><span data-term="ui_layout_map_placement"></span> <select data-key="ui_layout_map_placement"></select></label>
   </span>
 </div>
@@ -48,6 +47,7 @@
   <iframe id="scatter"></iframe>
 </div>
 <script src="dictionary.js"></script>
+<script src="panes.js"></script>
 <script src="service.js"></script>
 <script>
 const $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`)
