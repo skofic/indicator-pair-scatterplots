@@ -4,66 +4,70 @@
 <meta charset="utf-8">
 <title>Scatterplot — D3 + Canvas</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="panes.css">
 <style>
-  :root { --base: #b9b9b9; --species: #1f4e9c; --unit: #e06a00; --future: #c2185b; --stable: #f2c200; --lost: #d7301f; --new: #2b6cd4; --map: #00897b; --ink: #222 }
-  html, body { height: 100% }
-  body { margin: 0; font: 13px/1.4 system-ui, sans-serif; color: var(--ink); background: #fff; display: flex; flex-direction: column }
-  .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 8px 14px; border-bottom: 1px solid #ddd; flex: none }
-  #search { background: #f6f6f6 }
-  label { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap }
-  input[type=range] { width: 64px; vertical-align: middle }
-  select { max-width: 280px }
-  #wrap { position: relative; flex: 1 1 auto; min-height: 320px; margin: 4px 12px; overflow: hidden; cursor: crosshair }
+  #wrap { position: relative; flex: 1 1 auto; min-height: 320px; margin: 4px 10px; overflow: hidden; cursor: crosshair }
   canvas, svg { position: absolute; left: 0; top: 0 }
   svg, #over { pointer-events: none }
   #tip { position: absolute; background: #fff; border: 1px solid #999; padding: 4px 8px; font-size: 12px; pointer-events: none; display: none; border-radius: 3px; z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.2) }
-  #status { padding: 4px 14px; color: #555; font-size: 12px; border-top: 1px solid #ddd; background: #fafafa; flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin: 0 3px 0 8px }
   .grid line { stroke: #000; stroke-opacity: .06 } .grid path { display: none }
-  body.embedded .host { display: none }
   #disabled { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.82); color: #555; font-size: 15px; text-align: center; padding: 24px; z-index: 3 }
-  body.disabled #disabled { display: flex } body.disabled .bar { opacity: .45; pointer-events: none }
+  body.disabled #disabled { display: flex }
 </style>
 </head>
 <body>
 <!-- Every label is a dictionary term (data-term: text = _title, hover = _definition); every control is bound to a key of
      the pane state (data-key = the term's gid), whose values are the gids of the enumeration elements. The data comes
      from the panes' Foxx service (service.js), the texts from the dictionary service (dictionary.js). -->
-<div class="bar">
-  <strong data-term="ui_layout_scatterplot"></strong>
-  <label><span data-term="ui_layout_scatterplot_view"></span> <select data-key="ui_layout_scatterplot_view"></select></label>
-  <label><span data-term="ui_layout_label_source"></span> <select id="product"></select></label>
-  <label><span data-term="env_climate_scenario"></span> <select data-key="env_climate_scenario"></select></label>
-  <label><span data-term="env_climate_period"></span> <select data-key="env_climate_period"></select></label>
-  <label><span data-term="ui_layout_scatterplot_X"></span> <select data-key="ui_layout_scatterplot_X"></select></label>
-  <label><span data-term="ui_layout_scatterplot_Y"></span> <select data-key="ui_layout_scatterplot_Y"></select></label>
-  <label><span data-term="ui_layout_scatterplot_base_mode"></span> <select data-key="ui_layout_scatterplot_base_mode"></select> <input type="range" data-key="ui_layout_scatterplot_layer_radius" min="2" max="10"> <input type="range" data-key="ui_layout_scatterplot_base_opacity" min="0" max="100"></label>
-  <label id="basePosCtl"><span data-term="ui_layout_scatterplot_base_position"></span> <select data-key="ui_layout_scatterplot_base_position"></select></label>
-  <label><span data-term="ui_layout_scatterplot_species_mode"></span> <select data-key="ui_layout_scatterplot_species_mode"></select> <input type="range" data-key="ui_layout_scatterplot_species_opacity" min="0" max="100"></label>
-  <label><input type="checkbox" data-key="ui_layout_scatterplot_species_envelope"> <span data-term="ui_layout_scatterplot_species_envelope"></span></label>
-  <label><span data-term="ui_layout_scatterplot_units_opacity"></span> <input type="range" data-key="ui_layout_scatterplot_units_opacity" min="0" max="100"></label>
-  <label><input type="checkbox" data-key="ui_layout_scatterplot_layer_arrows"> <span data-term="ui_layout_scatterplot_layer_arrows"></span></label>
-  <label class="host"><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
-  <button id="reset" data-term="ui_layout_label_reset"></button>
-  <span id="classCtl" style="display:none">
-    <label><span data-term="ui_layout_scatterplot_view_classes_variant"></span> <select data-key="ui_layout_scatterplot_view_classes_variant"></select></label>
-    <label><span data-term="ui_layout_scatterplot_view_classes_position"></span> <select data-key="ui_layout_scatterplot_view_classes_position"></select></label>
-    <label><span data-term="ui_layout_scatterplot_view_classes_bin"></span> <select data-key="ui_layout_scatterplot_view_classes_bin"></select> ≥ <select data-key="ui_layout_scatterplot_view_classes_bin_min"><option>10</option><option>30</option><option>100</option><option>300</option></select> <span data-term="ui_layout_scatterplot_view_classes_bin_min"></span></label>
+<div class="toolbar">
+  <strong class="pane-title" data-term="ui_layout_scatterplot"></strong>
+  <span class="group"><span class="cap" data-term="env_climate"></span>
+    <label><span data-term="ui_layout_label_source"></span> <select id="product" class="wide"></select></label>
+    <label><span data-term="env_climate_scenario"></span> <select data-key="env_climate_scenario"></select></label>
+    <label><span data-term="env_climate_period"></span> <select data-key="env_climate_period"></select></label>
+  </span>
+  <span class="group"><span class="cap">X · Y</span>
+    <label><span data-term="ui_layout_scatterplot_X"></span> <select data-key="ui_layout_scatterplot_X"></select></label>
+    <label><span data-term="ui_layout_scatterplot_Y"></span> <select data-key="ui_layout_scatterplot_Y"></select></label>
+  </span>
+  <span class="group"><span class="cap" data-term="ui_layout_scatterplot_view"></span>
+    <select data-key="ui_layout_scatterplot_view"></select>
+    <span id="classCtl" style="display:none">
+      <label><span data-term="ui_layout_scatterplot_view_classes_variant"></span> <select data-key="ui_layout_scatterplot_view_classes_variant"></select></label>
+      <label><span data-term="ui_layout_scatterplot_view_classes_position"></span> <select data-key="ui_layout_scatterplot_view_classes_position"></select></label>
+      <label><span data-term="ui_layout_scatterplot_view_classes_bin"></span> <select data-key="ui_layout_scatterplot_view_classes_bin"></select> ≥ <select data-key="ui_layout_scatterplot_view_classes_bin_min"><option>10</option><option>30</option><option>100</option><option>300</option></select></label>
+    </span>
+  </span>
+  <span class="group"><button id="settings" class="toggle" title="">⚙</button> <button id="reset" data-term="ui_layout_label_reset"></button></span>
+</div>
+<div class="toolbar collapsible">
+  <span class="group"><span class="cap" data-term="ui_layout_scatterplot_layer"></span>
+    <label><span data-term="ui_layout_scatterplot_base"></span> <select data-key="ui_layout_scatterplot_base_mode"></select> <input type="range" data-key="ui_layout_scatterplot_base_opacity" min="0" max="100"></label>
+    <label id="basePosCtl"><span data-term="ui_layout_scatterplot_base_position"></span> <select data-key="ui_layout_scatterplot_base_position"></select></label>
+    <label><span data-term="ui_layout_scatterplot_species"></span> <select data-key="ui_layout_scatterplot_species_mode"></select> <input type="range" data-key="ui_layout_scatterplot_species_opacity" min="0" max="100"></label>
+    <label><span data-term="ui_layout_scatterplot_units"></span> <input type="range" data-key="ui_layout_scatterplot_units_opacity" min="0" max="100"></label>
+    <label><input type="checkbox" data-key="ui_layout_scatterplot_species_envelope"> <span data-term="ui_layout_scatterplot_species_envelope"></span></label>
+    <label><input type="checkbox" data-key="ui_layout_scatterplot_layer_arrows"> <span data-term="ui_layout_scatterplot_layer_arrows"></span></label>
+    <label><span data-term="ui_layout_scatterplot_layer_radius"></span> <input type="range" data-key="ui_layout_scatterplot_layer_radius" min="2" max="10"></label>
   </span>
 </div>
-<div class="bar" id="search">
-  <label class="host"><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
-  <label class="host"><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
-  <label class="host"><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
-  <span id="searchInfo" class="host"></span>
-  <label class="host"><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
-  <span id="mapSel" style="display:none"><span data-term="ui_layout_scatterplot_label_map-selection"></span>: <span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
-  <label><span data-term="ui_layout_scatterplot_label_selection"></span> <span id="selCount">0</span> <select data-key="ui_layout_scatterplot_units_mode"></select> <button id="selClear" data-term="ui_layout_label_clear"></button></label>
-  <span id="legend"></span>
-  <span style="color:#777" data-term="ui_layout_scatterplot_label_hints"></span>
+<div class="toolbar secondary" id="search">
+  <span class="group host"><span class="cap" data-term="ui_layout_label_unit"></span>
+    <label><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
+    <label><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
+    <label><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
+    <label><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
+    <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
+    <span id="searchInfo" class="hints"></span>
+  </span>
+  <span class="group"><span class="cap" data-term="ui_layout_scatterplot_label_selection"></span>
+    <span id="selCount">0</span> <select data-key="ui_layout_scatterplot_units_mode"></select> <button id="selClear" data-term="ui_layout_label_clear"></button>
+  </span>
+  <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
 </div>
+<div class="legend"><span class="help" id="help">?</span><span id="legend"></span></div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div><div id="disabled"></div></div>
-<div id="status">loading…</div>
+<div id="status" class="status">loading…</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
 <script src="dictionary.js"></script>
@@ -115,7 +119,7 @@ let classes = ''   // class view: one class digit per cell
 const pts = (idx, b) => { const o = []; for (const i of idx) if (b[i]) o.push(b[i]); return o }
 const CLASS_VAR = { 1: '--stable', 2: '--lost', 3: '--new' }
 const FUT_MAP = { '1991-2020': '2035', '2021-2050': '2065', '2051-2080': '2095' }   // EU-Trees4F: the map centred on a year is driven by the climate of the previous 30 years
-const busy = (what) => { status.textContent = what }
+const busy = (what) => { status.textContent = what; status.classList.add('busy') }
 
 // ---- the climate: the state holds a dataset key, a scenario gid and a period gid; the catalogue maps them to climates
 const cur = () => climates.find((k) => k[K.dataset] === state[K.dataset]?.[0] && k[K.scenario] === state[K.scenario] && k[K.period] === state[K.period])
@@ -165,11 +169,11 @@ async function refresh() {
   $('basePosCtl').style.display = !c.present && !classView() ? '' : 'none'
   classes = ''
   if (classView()) { const r = await Svc.classes(sp, state, state[K.variant]); classes = r ? r.cells : '' }
-  const sw = (v) => `<span class="sw" style="background:var(${v})"></span>`, T = Dict.title
+  const sw = (v) => `<span class="sw" style="background:var(${v})"></span>`, T = Dict.title   // legend chips: a swatch and the term's title
   $('legend').innerHTML = (classView()
     ? `${sw('--base')}${T(LBL.base)}${sw('--stable')}${T(LEGEND[1])}${sw('--lost')}${T(LEGEND[2])}${sw('--new')}${T(LEGEND[3])}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} · ${T(LBL.binArrows)}`
-    : `${sw('--base')}${T(LBL.base)}${c.present ? '' : ` (${T(state[K.basePos]).toLowerCase()})`}${sw('--species')}${T(LBL.species)}${c.present ? '' : ` (${T(LBL.unitsPresent).split(',').pop().trim()})`}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} <span class="sw" style="border:1.5px dashed #b71c1c;background:none;width:9px;height:9px"></span>${T(LBL.flagged)}`)
-    + (c.present ? '' : ` · <i>${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}, ${T(LBL.envFuture)}</i>`)
+    : `${sw('--base')}${T(LBL.base)}${c.present ? '' : ` (${T(state[K.basePos]).toLowerCase()})`}${sw('--species')}${T(LBL.species)}${c.present ? '' : ` (${T(LBL.unitsPresent).split(',').pop().trim()})`}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} <span class="sw" style="border:1.5px dashed var(--flag);background:none;width:8px;height:8px"></span>${T(LBL.flagged)}`)
+    + (c.present ? '' : ` <span class="note">· ${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}, ${T(LBL.envFuture)}</span>`)
   fillClimate(); refill(); syncControls()
   if (state[K.mapSel]) await selectFromMap(state[K.mapSel], { quiet: true })
   draw()
@@ -283,6 +287,7 @@ function draw() {
   const ds = cat.datasets.find((d) => d[K.dataset] === c[K.dataset])
   const what = cv ? (classes ? `${T(OPT[K.view][1])} ${FUT_MAP[c.period]} (${T(state[K.period])}, ${T(state[K.scenario])}, ${T(state[K.variant])}): ${counts[1]} ${T(LEGEND[1])}, ${counts[2]} ${T(LEGEND[2])}, ${counts[3]} ${T(LEGEND[3])} of ${basePresent.length}` : `${T(OPT[K.view][1])}: not loaded for ${state[K.species]}`) : `${base.filter(Boolean).length} ${T(LBL.base)}, ${species.length} ${state[K.species]}`
   const mapWhat = (state[K.mapSel] ? ` · ${T(LBL.mapSel)}: ${run.mapLabel}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} ${T(LBL.flagged)} (> ${state[K.flag]} km)` : '')
+  status.classList.remove('busy')
   status.title = status.textContent = `${ds?.title} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
 /** three expanding rings on the overlay canvas, so a point sent from the map is found at once */
@@ -356,7 +361,7 @@ function refill() {
   const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'; for (const u of units.filter((u) => !country || u.gcu_id_number.startsWith(country))) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : '') + (flagged(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
   const sp = $K(K.species); if (!sp.options.length) for (const s of cat.species.filter((s) => s.scatterplot)) sp.add(new Option(`${s.species} (${s.units})`, s.species, false, s.species === state[K.species]))
   for (const el of [cs, us, sp]) Dict.hover(el)
-  $('searchInfo').textContent = `${units.length} ${T(LBL.unit).toLowerCase()}s · ${state[K.species]}`
+  const nf = units.filter(flagged).length; $('searchInfo').textContent = `${units.length} ${T(LBL.unit).toLowerCase()}s · ${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}${nf ? ` · ⚠ ${nf}` : ''}`; $('searchInfo').title = `⚠ = ${T(LBL.flagged)} (> ${state[K.flag]} km)`
   $('selCount').textContent = (state[K.selection] ?? []).length
 }
 // ---- interaction: wheel = zoom, shift-drag = pan, drag = box zoom, double-click = reset; hover on the overlay canvas
@@ -410,7 +415,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (q.get('species') && c.species.find((s) => s.species === q.get('species'))) state[K.species] = q.get('species')
   if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))
   if (q.get('embedded')) document.body.classList.add('embedded')
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_scatterplot_label_selection'])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_scatterplot_label_selection'])
   await Dict.labels(); bindControls(); size()
   const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
   if (pt?.length === 2) state[K.mapSel] = { type: 'Point', coordinates: pt }
@@ -419,6 +424,8 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (state[K.zoom]) zoomTo(state[K.zoom])
   $('mapSelClear').addEventListener('click', () => { selectFromMap(null); post({ [K.mapSel]: null }) })   // the host clears the map too
   $('reset').addEventListener('click', resetView)
+  $('settings').title = Dict.title('ui_layout_scatterplot_layer'); $('settings').addEventListener('click', () => document.body.classList.toggle('settings'))
+  $('help').title = Dict.title('ui_layout_scatterplot_label_hints')
   $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; draw() })
   new ResizeObserver(() => { size(); draw() }).observe(wrap)
 }).catch((e) => { status.textContent = `service unavailable: ${e.message} (${Svc.BASE})` })

@@ -5,19 +5,10 @@
 <title>Map — OpenLayers</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.2.1/ol.css">
+<link rel="stylesheet" href="panes.css">
 <style>
-  html, body { height: 100% }
-  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; color: #222; background: #fff; display: flex; flex-direction: column }
-  header, #search, #info { flex: none }
-  header { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 16px; border-bottom: 1px solid #ddd }
-  header label { display: inline-flex; gap: 6px; align-items: center }
-  body.embedded .host { display: none }
-  #map { flex: 1 1 auto; min-height: 320px; margin: 0 8px }
-  #info { padding: 6px 16px; font-size: 13px; color: #333; min-height: 2.6em; border-top: 1px solid #ddd; background: #fafafa }
-  input[type=range] { width: 70px; vertical-align: middle }
-  #search { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 8px 16px; background: #f6f6f6; border-bottom: 1px solid #ddd }
-  select { max-width: 260px }
-  .legend i { display: inline-block; width: 14px; height: 10px; vertical-align: -1px; margin: 0 4px 0 8px }
+  #map { flex: 1 1 auto; min-height: 320px; margin: 0 6px }
+  #info { padding: 4px 10px; font-size: 12px; color: var(--muted); min-height: 2.4em; border-top: 1px solid var(--line); background: var(--bar); flex: none }
   .basemap-gray canvas { filter: grayscale(100%) brightness(1.05) }
 </style>
 </head>
@@ -25,25 +16,44 @@
 <!-- Every label is a dictionary term (data-term); every control is bound to a key of the pane state (data-key = the term's
      gid). The data comes from the panes' Foxx service (service.js), the texts from the dictionary service (dictionary.js);
      the rasters and chorology files come from the static host (here: this repository served by examples/serve.mjs). -->
-<header>
-  <strong data-term="ui_layout_map"></strong>
-  <label><span data-term="ui_layout_map_layer_base"></span> <select data-key="ui_layout_map_layer_base"></select></label>
-  <label><input type="checkbox" data-key="ui_layout_map_layer_rpp"> <span data-term="ui_layout_map_layer_rpp"></span> <input type="range" data-key="ui_layout_map_layer_rpp_opacity" min="0" max="100"></label>
-  <label><input type="checkbox" data-key="ui_layout_map_layer_mhs"> <span data-term="ui_layout_map_layer_mhs"></span> <input type="range" data-key="ui_layout_map_layer_mhs_opacity" min="0" max="100"></label>
-  <label><input type="checkbox" data-key="ui_layout_map_layer_t4-current"> <span data-term="ui_layout_map_layer_t4-current"></span> <input type="range" data-key="ui_layout_map_layer_t4-current_opacity" min="0" max="100"></label>
-  <label><input type="checkbox" data-key="ui_layout_map_layer_t4-future"> <span data-term="ui_layout_map_layer_t4-future"></span> <select id="t4period"></select> <select data-key="ui_layout_scatterplot_view_classes_variant"></select> <input type="range" data-key="ui_layout_map_layer_t4-future_opacity" min="0" max="100"></label>
-  <label><input type="checkbox" data-key="ui_layout_map_layer_chorology"> <span data-term="ui_layout_map_layer_chorology"></span> <input type="range" data-key="ui_layout_map_layer_chorology_opacity" min="0" max="100"></label>
-  <label><input type="checkbox" data-key="ui_layout_map_layer_units"> <span data-term="ui_layout_map_layer_units"></span> <input type="range" data-key="ui_layout_map_layer_units_opacity" min="0" max="100"></label>
-  <label><span data-term="ui_layout_map_draw-mode"></span> <select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></label>
-  <span class="legend"><i style="background:#1a7a1a"></i><span data-term="ui_layout_map_label_presence"></span><i style="background:#1f4e9c"></i><span data-term="ui_layout_map_label_suitability"></span><i style="background:rgba(255,214,0,.65)"></i><span data-term="ui_layout_map_label_t4-current"></span><i style="background:rgba(233,30,99,.6)"></i><span data-term="ui_layout_map_label_t4-future"></span><i style="border:2px dashed #6a1b9a;height:6px;width:10px"></i><span data-term="ui_layout_map_label_chorology"></span><i style="border:2px solid #e06a00;height:8px;width:10px"></i><span data-term="ui_layout_map_label_units"></span></span>
-</header>
-<div id="search">
-  <label class="host"><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
-  <label class="host"><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
-  <label class="host"><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
-  <label class="host"><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
-  <span id="searchInfo" class="host"></span>
-  <span id="layersInfo" style="color:#555"></span>
+<div class="toolbar">
+  <strong class="pane-title" data-term="ui_layout_map"></strong>
+  <span class="group"><span class="cap" data-term="ui_layout_map_layer_base"></span><select data-key="ui_layout_map_layer_base"></select></span>
+  <span class="group"><span class="cap" data-term="ui_layout_map_draw-mode"></span><select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></span>
+  <span class="group"><button id="settings" class="toggle" title="">⚙</button></span>
+</div>
+<div class="toolbar collapsible">
+  <span class="group"><span class="cap">Atlas</span>
+    <label><input type="checkbox" data-key="ui_layout_map_layer_rpp"> <span data-term="ui_layout_map_layer_rpp"></span> <input type="range" data-key="ui_layout_map_layer_rpp_opacity" min="0" max="100"></label>
+    <label><input type="checkbox" data-key="ui_layout_map_layer_mhs"> <span data-term="ui_layout_map_layer_mhs"></span> <input type="range" data-key="ui_layout_map_layer_mhs_opacity" min="0" max="100"></label>
+  </span>
+  <span class="group"><span class="cap">EU-Trees4F</span>
+    <label><input type="checkbox" data-key="ui_layout_map_layer_t4-current"> <span data-term="ui_layout_map_layer_t4-current"></span> <input type="range" data-key="ui_layout_map_layer_t4-current_opacity" min="0" max="100"></label>
+    <label><input type="checkbox" data-key="ui_layout_map_layer_t4-future"> <span data-term="ui_layout_map_layer_t4-future"></span> <select id="t4period"></select> <select data-key="ui_layout_scatterplot_view_classes_variant"></select> <input type="range" data-key="ui_layout_map_layer_t4-future_opacity" min="0" max="100"></label>
+  </span>
+  <span class="group"><span class="cap" data-term="ui_layout_map_layer"></span>
+    <label><input type="checkbox" data-key="ui_layout_map_layer_chorology"> <span data-term="ui_layout_map_layer_chorology"></span> <input type="range" data-key="ui_layout_map_layer_chorology_opacity" min="0" max="100"></label>
+    <label><input type="checkbox" data-key="ui_layout_map_layer_units"> <span data-term="ui_layout_map_layer_units"></span> <input type="range" data-key="ui_layout_map_layer_units_opacity" min="0" max="100"></label>
+  </span>
+</div>
+<div class="toolbar secondary host" id="search">
+  <span class="group"><span class="cap" data-term="ui_layout_label_unit"></span>
+    <label><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
+    <label><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
+    <label><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
+    <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
+    <span id="searchInfo" class="hints"></span>
+  </span>
+</div>
+<div class="legend">
+  <span><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
+  <span><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
+  <span><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
+  <span><i class="sq" style="background:var(--t4fut)"></i><span data-term="ui_layout_map_label_t4-future"></span></span>
+  <span><i class="sq" style="border:2px dashed var(--chorology);background:none;height:5px"></i><span data-term="ui_layout_map_label_chorology"></span></span>
+  <span><i style="background:var(--unit)"></i><span data-term="ui_layout_map_label_units"></span></span>
+  <span><i style="border:1.5px dashed var(--flag);background:none;width:8px;height:8px"></i><span data-term="ui_layout_label_flagged"></span></span>
+  <span id="layersInfo" class="hints"></span>
 </div>
 <div id="map"></div>
 <div id="info" data-term="ui_layout_map_label_click"></div>
@@ -139,7 +149,7 @@ function refill() {
   const flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
   for (const u of sel) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : '') + (flag(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
   for (const el of [cs, ss, us]) Dict.hover(el)
-  $('searchInfo').textContent = `${sel.length} ${T(LBL.unit).toLowerCase()}s, ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${sel.filter(flag).length} ${T(LBL.flagged)} (> ${state[K.flag]} km) · ● ${T(LBL.presence)}`
+  const nf = sel.filter(flag).length; $('searchInfo').textContent = `${sel.length} ${T(LBL.unit).toLowerCase()}s · ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}${nf ? ` · ⚠ ${nf}` : ''} · ● ${T(LBL.presence)}`; $('searchInfo').title = `⚠ = ${T(LBL.flagged)} (> ${state[K.flag]} km)`
   const ids = new Set(sel.map((u) => u.gcu_id_number))
   for (const f of units.getSource().getFeatures()) f.set('hidden', !ids.has(f.get('gcu_id_number')), true)   // the points outside the filter are not drawn
   units.changed()
@@ -220,10 +230,11 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   for (const k of [...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity')]) if (q.has(k)) state[k] = parse(q.get(k))
   if (q.get('embedded')) document.body.classList.add('embedded')
   ix = await Svc.unitsIndex(state[K.level])
-  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', DIST])
+  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', DIST])
   await Dict.labels(); bindControls(); syncControls(); applyLayers()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
+  $('settings').title = Dict.title('ui_layout_map_layer'); $('settings').addEventListener('click', () => document.body.classList.toggle('settings'))
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
 </script>
 </body>

@@ -3,12 +3,9 @@
 <head>
 <meta charset="utf-8">
 <title>Map ↔ scatterplot</title>
+<link rel="stylesheet" href="panes.css">
 <style>
-  html, body { height: 100%; margin: 0; overflow: hidden }
-  body { display: flex; flex-direction: column; font: 13px/1.4 system-ui, sans-serif; color: #222; background: #fff }
-  #bar { flex: none; display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 6px 14px; border-bottom: 1px solid #bbb; background: #f6f6f6 }
-  label { display: inline-flex; gap: 5px; align-items: center; white-space: nowrap }
-  select { max-width: 280px }
+  html, body { overflow: hidden }
   #panes { --split: 50%; flex: 1 1 auto; min-height: 0; display: grid; background: #bbb }
   /* the layout follows the window's shape: side by side when wider than tall, stacked when taller; the divider resizes */
   #panes.auto, #panes.side { grid-template-columns: var(--split) 7px minmax(0, 1fr) }
@@ -21,24 +18,30 @@
   #panes.detached { grid-template-columns: 1fr; grid-template-rows: 1fr } #panes.detached #map, #panes.detached #divider { display: none }
   #panes.dragging iframe { pointer-events: none }
   iframe { border: 0; width: 100%; height: 100%; min-height: 0; background: #fff }
-  #info { color: #555 }
+  #bar { border-bottom: 1px solid #bbb }
+  .group.right { margin-left: auto; border-right: 0 }
 </style>
 </head>
 <body>
 <!-- The host page owns the shared state (species, country, unit, restriction level, flag distance, layout, map placement)
      and relays the panes' messages. Every label is a dictionary term; every control is bound to a state key (its gid);
      the units and species come from the panes' Foxx service. -->
-<div id="bar">
+<div id="bar" class="toolbar">
   <strong data-term="ui_layout"></strong>
-  <label><span data-term="ui_layout_label_species"></span> <select data-key="species"></select></label>
-  <label><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
-  <label><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
-  <label><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
-  <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
-  <span id="info"></span>
-  <button id="clear" style="display:none" data-term="ui_layout_label_clear"></button>
-  <label style="margin-left:auto"><span data-term="ui_layout_mode"></span> <select data-key="ui_layout_mode"></select></label>
-  <label><span data-term="ui_layout_map_placement"></span> <select data-key="ui_layout_map_placement"></select></label>
+  <span class="group"><span class="cap" data-term="ui_layout_label_unit"></span>
+    <label><span data-term="ui_layout_label_species"></span> <select data-key="species" class="wide"></select></label>
+    <label><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
+    <label><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
+    <span id="info" class="hints"></span>
+  </span>
+  <span class="group"><span class="cap" data-term="gcu_loc_coordinates-restriction"></span>
+    <label><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
+    <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
+  </span>
+  <span class="group" id="clearGroup" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><button id="clear" data-term="ui_layout_label_clear"></button></span>
+  <span class="group right"><span class="cap" data-term="ui_layout_mode"></span><select data-key="ui_layout_mode"></select>
+    <label><span data-term="ui_layout_map_placement"></span> <select data-key="ui_layout_map_placement"></select></label>
+  </span>
 </div>
 <div id="panes" class="auto">
   <iframe id="map"></iframe>
@@ -70,7 +73,7 @@ function refill() {
   const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'
   for (const u of sel) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T('ui_layout_label_restricted')})` : '') + (flag(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
   for (const el of [cs, ss, us]) Dict.hover(el)
-  $('info').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s, ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T('ui_layout_label_restricted')}, ${sel.filter(flag).length} ${T('ui_layout_label_flagged')} · ● ${T('ui_layout_map_label_presence')} · ▦ ${T('ui_layout_scatterplot')}`
+  const nf = sel.filter(flag).length; $('info').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s · ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T('ui_layout_label_restricted')}${nf ? ` · ⚠ ${nf}` : ''} · ● ${T('ui_layout_map_label_presence')} · ▦ ${T('ui_layout_scatterplot')}`; $('info').title = `⚠ = ${T('ui_layout_label_flagged')} (> ${state[K.flag]} km)`
 }
 const read = (el) => el.dataset.key === K.flag ? Number(el.value) : (el.value === '' ? null : el.value)
 const ON = {
@@ -100,7 +103,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   state = { ...defaults, [K.species]: 'Fagus sylvatica', [K.level]: 'gcu_loc_coordinates-restriction_value' }   // the scatterplot default: restricted units' values are shown
   for (const k of Object.values(K)) if (q.has(k)) state[k] = q.get(k)
   ix = await Svc.unitsIndex(state[K.level])
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...c.countries.map((x) => x[K.country]), 'ui_layout', 'ui_layout_scatterplot', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_unit', 'ui_layout_label_clear', 'ui_layout_label_restricted', 'ui_layout_label_flagged', 'ui_layout_map_label_presence'])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...c.countries.map((x) => x[K.country]), 'ui_layout', 'ui_layout_scatterplot', 'ui_layout_scatterplot_label_map-selection', 'gcu_loc_coordinates-restriction', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_unit', 'ui_layout_label_clear', 'ui_layout_label_restricted', 'ui_layout_label_flagged', 'ui_layout_map_label_presence'])
   await Dict.labels()
   for (const el of document.querySelectorAll('[data-key]')) {
     const k = el.dataset.key
@@ -118,7 +121,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', up)
   })
   $('divider').addEventListener('dblclick', () => panes.style.removeProperty('--split'))
-  $('clear').addEventListener('click', () => { for (const w of [mapW(), scatterW()]) w.postMessage({ type: 'state', [K.sel]: null }, '*'); $('clear').style.display = 'none' })
+  $('clear').addEventListener('click', () => { for (const w of [mapW(), scatterW()]) w.postMessage({ type: 'state', [K.sel]: null }, '*'); $('clearGroup').style.display = 'none' })
   // the panes load after this page: send the shared state once both are ready
   let loaded = 0; for (const id of ['map', 'scatter']) $(id).addEventListener('load', () => { if (++loaded === 2) setTimeout(() => send(), 1200) })
   const wc = c.climates.find((k) => k.src === 'worldclim' && k.period === '2081-2100') ?? c.climates.find((k) => k.src === 'worldclim' && !k.present)
@@ -132,7 +135,7 @@ window.addEventListener('message', (e) => {
   if (K.sel in d) {
     if (e.source === mapW()) scatterW().postMessage(d, '*')
     else if (e.source === scatterW()) mapW().postMessage({ type: 'state', [K.sel]: null }, '*')
-    $('clear').style.display = d[K.sel] ? '' : 'none'
+    $('clearGroup').style.display = d[K.sel] ? '' : 'none'
   }
   if (K.species in d && e.source === mapW() && d[K.species] !== state[K.species]) { state[K.species] = d[K.species]; state[K.country] = null; state[K.unit] = null; refill(); scatterW().postMessage({ type: 'state', [K.species]: state[K.species], [K.country]: null, [K.unit]: null }, '*') }
 })
