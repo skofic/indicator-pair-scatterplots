@@ -27,7 +27,7 @@
      and relays the panes' messages. Every label is a dictionary term; every control is bound to a state key (its gid);
      the units and species come from the panes' Foxx service. -->
 <div id="bar" class="toolbar bar">
-  <span class="group"><span class="cap" data-term="ui_layout_label_unit"></span>
+  <span class="group"><span class="cap" data-term="ui_layout_label_search"></span>
     <span class="search"><input id="q" type="search" autocomplete="off" spellcheck="false"><div id="suggest" class="suggest"></div></span>
     <span id="chips"></span>
     <span id="info" class="hints"></span>
@@ -37,8 +37,8 @@
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
   <!-- the selected units (option-click on either pane): the count, which units both panes draw, clear -->
-  <span class="group"><span class="cap" data-term="ui_layout_scatterplot_units_selection"></span><span id="selCount">0</span>
-    <select data-key="ui_layout_scatterplot_units_mode"></select>
+  <span class="group"><span class="cap" data-term="ui_layout_units_selection"></span><span id="selCount">0</span>
+    <select data-key="ui_layout_units_mode"></select>
     <button id="selClear" data-term="ui_layout_label_clear"></button>
   </span>
   <span class="group" id="clearGroup" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><button id="clear" data-term="ui_layout_label_clear"></button></span>
@@ -56,10 +56,10 @@
 <script src="service.js"></script>
 <script>
 const $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`)
-const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag', mode: 'ui_layout_mode', placement: 'ui_layout_map_placement', selection: 'ui_layout_scatterplot_units_selection', unitsMode: 'ui_layout_scatterplot_units_mode', sel: 'ui_layout_map_selection' }
+const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag', mode: 'ui_layout_mode', placement: 'ui_layout_map_placement', selection: 'ui_layout_units_selection', unitsMode: 'ui_layout_units_mode', sel: 'ui_layout_map_selection' }
 const SHARED = [K.species, K.country, K.unit, K.level, K.flag, K.selection, K.unitsMode]   // what the panes receive
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
-const OPT = { [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'), [K.mode]: E('ui_layout_mode', 'auto', 'side', 'stack'), [K.placement]: E('ui_layout_map_placement', 'page', 'tab', 'window'), [K.unitsMode]: E('ui_layout_scatterplot_units', 'all', 'only', 'hide') }
+const OPT = { [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'), [K.mode]: E('ui_layout_mode', 'auto', 'side', 'stack'), [K.placement]: E('ui_layout_map_placement', 'page', 'tab', 'window'), [K.unitsMode]: E('ui_layout_units', 'all', 'only', 'hide') }
 const DIST = 'gcu_loc_climate_distance'
 const last = Dict.last
 let state = {}, cat, ix = [], popup = null
@@ -140,7 +140,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; send([K.selection]) })
   refill(); stackedFlag(); matchMedia('(max-aspect-ratio: 5/4)').addEventListener('change', stackedFlag)
   // the search box: type a species, a country or a unit number; Enter takes the highlighted suggestion, Escape closes
-  const q$ = $('q'); q$.placeholder = `${Dict.title('ui_layout_label_species')} · ${Dict.title('ui_layout_label_country')} · ${Dict.title('ui_layout_label_unit')}`; q$.title = Dict.def('ui_layout_label_unit')
+  const q$ = $('q'); q$.placeholder = `${Dict.title('ui_layout_label_species')} · ${Dict.title('ui_layout_label_country')} · ${Dict.title('ui_layout_label_unit')}`; q$.title = Dict.def('ui_layout_label_search')
   q$.addEventListener('input', () => suggest(q$.value))
   q$.addEventListener('focus', () => suggest(q$.value)); q$.addEventListener('blur', () => setTimeout(() => $('suggest').classList.remove('open'), 150))
   q$.addEventListener('keydown', (e) => {

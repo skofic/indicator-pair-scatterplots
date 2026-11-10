@@ -36,9 +36,9 @@ Main panel first, then the pane settings. "Code today" is the symbol or value in
 | `speciesMode` | `ui_layout_scatterplot_species_mode` | enum | `ui_layout_scatterplot_species_point` / `_hex` / `_none` | `_point` |
 | species `.op` | `ui_layout_scatterplot_species_opacity` | integer %, 0–100 | | 100 |
 | `envelope` | `ui_layout_scatterplot_species_envelope` | boolean | | true |
-| `selMode` (`all`, `only`, `hide`) | `ui_layout_scatterplot_units_mode` | enum | `ui_layout_scatterplot_units_all` / `_only` / `_hide` | `_all` |
+| `selMode` (`all`, `only`, `hide`) | `ui_layout_units_mode` (was `ui_layout_scatterplot_units_mode` until 2026-11-10; shared by both panes) | enum | `ui_layout_units_all` / `_only` / `_hide` | `_all` |
 | units `.op` | `ui_layout_scatterplot_units_opacity` | integer %, 0–100 | | 100 |
-| `selection` | `ui_layout_scatterplot_units_selection` | array of unit numbers | | — |
+| `selection` | `ui_layout_units_selection` (was `ui_layout_scatterplot_units_selection` until 2026-11-10) | array of unit numbers | | — |
 | `hexR` | `ui_layout_scatterplot_layer_radius` | integer px, 2–10 | | 4 |
 | `arrows` | `ui_layout_scatterplot_layer_arrows` | boolean | | true |
 | `tx` (zoom) | `ui_layout_scatterplot_zoom` | array of exactly four floats `[x0, x1, y0, y1]` | enforced by `_elements` 4–4 | — (absent = full range) |
@@ -62,11 +62,11 @@ Root descriptors: `rcp45`, `rcp85` (open objects beside `ssp370`), the nesting k
 
 | Namespace | gids |
 |---|---|
-| `ui_layout_label` | `_species`, `_country`, `_unit`, `_restricted`, `_flagged`, `_clear`, `_reset`, `_no-data`, `_source` (the climate-source selector's label; added later the same day) |
-| `ui_layout_scatterplot_label` | `_base`, `_species`, `_units-present`, `_units-future`, `_map-selection`, `_envelope-present`, `_envelope-future`, `_arrows`, `_bin-arrows`, `_hints`, `_selection`, `_projection` |
-| `ui_layout_map_label` | `_presence`, `_suitability`, `_t4-current`, `_t4-future`, `_chorology`, `_units`, `_click`, `_never-on-map`, `_attribution` |
+| `ui_layout_label` | `_species`, `_country`, `_unit`, `_restricted`, `_flagged`, `_clear`, `_reset`, `_no-data`, `_source` (the climate-source selector's label; added later the same day), `_search` (the shared bar's search box, 2026-11-10) |
+| `ui_layout_scatterplot_label` | `_base`, `_species`, `_units-present`, `_units-future`, `_map-selection`, `_envelope-present`, `_envelope-future`, `_arrows`, `_bin-arrows`, `_hints` (the 2026-11-10 gestures), `_projection` — `_selection` removed 2026-11-10, the group's caption is the title of `ui_layout_units_selection` |
+| `ui_layout_map_label` | `_presence`, `_suitability`, `_t4-current`, `_t4-future`, `_chorology`, `_units`, `_click`, `_hints` (2026-11-10), `_never-on-map`, `_attribution` |
 
-Namespaces (no `_data`): `ui_layout`, `ui_layout_map`, `ui_layout_map_layer`, `ui_layout_scatterplot`, `_base`, `_species`, `_units`, `_layer`, and the three label namespaces.
+Namespaces (no `_data`): `ui_layout`, `ui_layout_map`, `ui_layout_map_layer`, `ui_layout_scatterplot`, `_base`, `_species`, `_units`, `_layer`, `ui_layout_units` (2026-11-10: the units-shown mode and the selection, shared by both panes), and the three label namespaces.
 
 ## Three things decided here, beyond the handoff
 

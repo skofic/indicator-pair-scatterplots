@@ -68,8 +68,8 @@
     <label><span data-term="gcu_loc_coordinates-restriction_level"></span> <select data-key="gcu_loc_coordinates-restriction_level"></select></label>
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
-  <span class="group host"><span class="cap" data-term="ui_layout_scatterplot_units_selection"></span>
-    <span id="selCount">0</span> <select data-key="ui_layout_scatterplot_units_mode"></select> <button id="selClear" data-term="ui_layout_label_clear"></button>
+  <span class="group host"><span class="cap" data-term="ui_layout_units_selection"></span>
+    <span id="selCount">0</span> <select data-key="ui_layout_units_mode"></select> <button id="selClear" data-term="ui_layout_label_clear"></button>
   </span>
   <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
 </div>
@@ -95,7 +95,7 @@ const K = {
   dataset: 'std_dataset_ids', scenario: 'env_climate_scenario', period: 'env_climate_period', X: 'ui_layout_scatterplot_X', Y: 'ui_layout_scatterplot_Y',
   view: 'ui_layout_scatterplot_view', baseMode: 'ui_layout_scatterplot_base_mode', baseOp: 'ui_layout_scatterplot_base_opacity', basePos: 'ui_layout_scatterplot_base_position',
   speciesMode: 'ui_layout_scatterplot_species_mode', speciesOp: 'ui_layout_scatterplot_species_opacity', envelope: 'ui_layout_scatterplot_species_envelope',
-  unitsMode: 'ui_layout_scatterplot_units_mode', unitsOp: 'ui_layout_scatterplot_units_opacity', selection: 'ui_layout_scatterplot_units_selection',
+  unitsMode: 'ui_layout_units_mode', unitsOp: 'ui_layout_scatterplot_units_opacity', selection: 'ui_layout_units_selection',
   radius: 'ui_layout_scatterplot_layer_radius', arrows: 'ui_layout_scatterplot_layer_arrows', zoom: 'ui_layout_scatterplot_zoom',
   variant: 'ui_layout_scatterplot_view_classes_variant', position: 'ui_layout_scatterplot_view_classes_position', bin: 'ui_layout_scatterplot_view_classes_bin', binMin: 'ui_layout_scatterplot_view_classes_bin_min',
   mapSel: 'ui_layout_map_selection',
@@ -106,7 +106,7 @@ const OPT = {
   [K.baseMode]: E('ui_layout_scatterplot_base', 'point', 'hex', 'none'),
   [K.basePos]: E('ui_layout_scatterplot_base_position', 'present', 'future'),
   [K.speciesMode]: E('ui_layout_scatterplot_species', 'point', 'hex', 'none'),
-  [K.unitsMode]: E('ui_layout_scatterplot_units', 'all', 'only', 'hide'),
+  [K.unitsMode]: E('ui_layout_units', 'all', 'only', 'hide'),
   [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'),
   [K.variant]: E('ui_layout_scatterplot_view_classes_variant', 'potential', 'dispersal'),
   [K.position]: E('ui_layout_scatterplot_view_classes_position', 'present', 'future'),
@@ -453,7 +453,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_scatterplot_label_selection'])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection'])
   await Dict.labels(); Pop.shortLabels(); bindControls(); size()
   const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
   if (pt?.length === 2) state[K.mapSel] = { type: 'Point', coordinates: pt }

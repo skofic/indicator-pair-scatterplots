@@ -48,7 +48,7 @@
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
 </div>
-<div class="legend"><span class="info" id="status">i</span>
+<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span>
   <span class="tog" data-toggle="ui_layout_map_layer_rpp"><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
   <span class="tog" data-toggle="ui_layout_map_layer_mhs"><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
   <span class="tog" data-toggle="ui_layout_map_layer_t4-current"><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
@@ -93,12 +93,12 @@ const flagStyle = new ol.style.Style({ stroke: new ol.style.Stroke({ color: '#b7
 const hidden = new ol.style.Style({})
 
 // ---- the pane state, keyed by dictionary gids (ui_layout_state)
-const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', flag: 'gcu_loc_climate_flag', level: 'gcu_loc_coordinates-restriction_level', base: 'ui_layout_map_layer_base', draw: 'ui_layout_map_draw-mode', sel: 'ui_layout_map_selection', period: 'env_climate_period', scenario: 'env_climate_scenario', variant: 'ui_layout_scatterplot_view_classes_variant', selection: 'ui_layout_scatterplot_units_selection', unitsMode: 'ui_layout_scatterplot_units_mode' }
+const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', flag: 'gcu_loc_climate_flag', level: 'gcu_loc_coordinates-restriction_level', base: 'ui_layout_map_layer_base', draw: 'ui_layout_map_draw-mode', sel: 'ui_layout_map_selection', period: 'env_climate_period', scenario: 'env_climate_scenario', variant: 'ui_layout_scatterplot_view_classes_variant', selection: 'ui_layout_units_selection', unitsMode: 'ui_layout_units_mode' }
 const LAYER = { rpp: 'ui_layout_map_layer_rpp', mhs: 'ui_layout_map_layer_mhs', t4cur: 'ui_layout_map_layer_t4-current', t4fut: 'ui_layout_map_layer_t4-future', choro: 'ui_layout_map_layer_chorology', units: 'ui_layout_map_layer_units' }
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
 const OPT = { [K.base]: E('ui_layout_map_layer_base', 'none', 'boundary', 'hillshade', 'gray', 'osm', 'topo'), [K.draw]: E('ui_layout_map_draw-mode', 'none', 'point', 'box', 'polygon'), [K.variant]: E('ui_layout_scatterplot_view_classes_variant', 'potential', 'dispersal') }
 const run = { layers: '' }   // what the "i" mark reports: the species' map layers
-const LBL = { selection: 'ui_layout_scatterplot_label_selection', restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', unit: 'ui_layout_label_unit', neverOnMap: 'ui_layout_map_label_never-on-map', click: 'ui_layout_map_label_click', presence: 'ui_layout_map_label_presence', suitability: 'ui_layout_map_label_suitability', t4cur: 'ui_layout_map_label_t4-current', t4fut: 'ui_layout_map_label_t4-future', chorology: 'ui_layout_map_label_chorology', units: 'ui_layout_map_label_units', mapSel: 'ui_layout_scatterplot_label_map-selection' }
+const LBL = { selection: 'ui_layout_units_selection', restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', unit: 'ui_layout_label_unit', neverOnMap: 'ui_layout_map_label_never-on-map', click: 'ui_layout_map_label_click', presence: 'ui_layout_map_label_presence', suitability: 'ui_layout_map_label_suitability', t4cur: 'ui_layout_map_label_t4-current', t4fut: 'ui_layout_map_label_t4-future', chorology: 'ui_layout_map_label_chorology', units: 'ui_layout_map_label_units', mapSel: 'ui_layout_scatterplot_label_map-selection' }
 const DIST = 'gcu_loc_climate_distance'
 const FUT = { '1991-2020': 'fut2035', '2021-2050': 'fut2065', '2051-2080': 'fut2095' }   // climate period → the EU-Trees4F map it drives (30-year lag)
 let state = {}, cat, ix = []
@@ -278,12 +278,12 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   ix = await Svc.unitsIndex(state[K.level])
-  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', DIST])
+  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', DIST])
   await Dict.labels(); Pop.shortLabels(); bindControls(); syncControls(); applyLayers()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
   for (const el of document.querySelectorAll('.legend .tog')) { el.title = Dict.def(el.dataset.toggle); el.addEventListener('click', () => { state[el.dataset.toggle] = !state[el.dataset.toggle]; syncControls(); applyLayers() }) }
-  $('settings').addEventListener('click', () => document.body.classList.toggle('settings')); Pop.bind($('status'))
+  $('settings').addEventListener('click', () => document.body.classList.toggle('settings')); Pop.bind($('status')); Pop.bind($('help')); Pop.set($('help'), Dict.title('ui_layout_map_label_hints'), Dict.def('ui_layout_map_label_hints'))
   $('reset').addEventListener('click', resetView)
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})`; Pop.set($('status'), $('info').textContent) })
 </script>
