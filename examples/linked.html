@@ -29,9 +29,8 @@
 <div id="bar" class="toolbar">
   <strong data-term="ui_layout"></strong>
   <span class="group"><span class="cap" data-term="ui_layout_label_unit"></span>
-    <label><span data-term="ui_layout_label_species"></span> <select data-key="species" class="wide"></select></label>
-    <label><span data-term="ui_layout_label_country"></span> <select data-key="gcu_id_country"></select></label>
-    <label><span data-term="ui_layout_label_unit"></span> <select data-key="gcu_id_number"></select></label>
+    <span class="search"><input id="q" type="search" autocomplete="off" spellcheck="false"><div id="suggest" class="suggest"></div></span>
+    <span id="chips"></span>
     <span id="info" class="hints"></span>
   </span>
   <span class="group"><span class="cap" data-term="gcu_loc_coordinates-restriction"></span>
@@ -62,22 +61,43 @@ let state = {}, cat, ix = [], popup = null
 // the map pane is the iframe, or the detached tab / window while that is open
 const mapW = () => (popup && !popup.closed ? popup : $('map').contentWindow), scatterW = () => $('scatter').contentWindow
 function send(keys = SHARED) { const msg = { type: 'state' }; for (const k of keys) msg[k] = state[k] ?? null; mapW().postMessage(msg, '*'); scatterW().postMessage(msg, '*') }
+const match = (u, c, s) => (!c || u.gcu_id_number.startsWith(c)) && (!s || u.species_list.includes(s))
+const flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
+const flagsOf = (s) => cat.species.find((x) => x.species === s)
+/** the filter as chips: the species (always one), the country and the unit (removable) */
 function refill() {
   const country = state[K.country] ? Dict.aid(state[K.country]) : '', species = state[K.species], T = Dict.title
-  const match = (u, c, s) => (!c || u.gcu_id_number.startsWith(c)) && (!s || u.species_list.includes(s))
-  const count = (list, pick) => { const m = new Map(); for (const u of list) for (const k of [].concat(pick(u))) m.set(k, (m.get(k) ?? 0) + 1); return [...m].sort((a, b) => a[0].localeCompare(b[0])) }
-  const flagsOf = (s) => cat.species.find((x) => x.species === s)
-  const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const [v, n] of count(ix.filter((u) => match(u, '', species)), (u) => u[K.country])) cs.add(new Option(`${T(v)} (${n})`, v, false, v === state[K.country]))
-  const ss = $K(K.species); ss.innerHTML = ''; for (const [v, n] of count(ix.filter((u) => match(u, country, '')), (u) => u.species_list)) ss.add(new Option(`${v}${flagsOf(v)?.atlas_rpp ? ' ●' : ''}${flagsOf(v)?.scatterplot ? ' ▦' : ''} (${n})`, v, false, v === species))
-  const sel = ix.filter((u) => match(u, country, species)), flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
-  const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'
-  for (const u of sel) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T('ui_layout_label_restricted')})` : '') + (flag(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
-  for (const el of [cs, ss, us]) Dict.hover(el)
+  const sel = ix.filter((u) => match(u, country, species))
+  const chip = (text, key, title) => `<span class="chip${key ? '' : ' fixed'}" title="${title ?? ''}">${text}${key ? `<span class="x" data-clear="${key}" title="${T('ui_layout_label_clear')}">×</span>` : ''}</span>`
+  $('chips').innerHTML = chip(species, null, T('ui_layout_label_species')) + (state[K.country] ? chip(T(state[K.country]), K.country, T('ui_layout_label_country')) : '') + (state[K.unit] ? chip(state[K.unit], K.unit, T('ui_layout_label_unit')) : '')
+  for (const x of $('chips').querySelectorAll('.x')) x.addEventListener('click', () => { state[x.dataset.clear] = null; if (x.dataset.clear === K.country) state[K.unit] = null; refill(); send() })
   const nf = sel.filter(flag).length; $('info').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s · ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T('ui_layout_label_restricted')}${nf ? ` · ⚠ ${nf}` : ''} · ● ${T('ui_layout_map_label_presence')} · ▦ ${T('ui_layout_scatterplot')}`; $('info').title = `⚠ = ${T('ui_layout_label_flagged')} (> ${state[K.flag]} km)`
+}
+/** suggestions for what is typed: species (name), countries (name or code), units (number), each group capped */
+function suggest(q) {
+  const box = $('suggest'), T = Dict.title, s = q.trim().toLowerCase()
+  if (s.length < 2) { box.classList.remove('open'); box.innerHTML = ''; return }
+  const country = state[K.country] ? Dict.aid(state[K.country]) : ''
+  const counts = new Map(); for (const u of ix.filter((u) => match(u, country, ''))) for (const sp of u.species_list) counts.set(sp, (counts.get(sp) ?? 0) + 1)
+  const species = [...counts].filter(([n]) => n.toLowerCase().includes(s)).sort((a, b) => b[1] - a[1]).slice(0, 8)
+  const countries = cat.countries.filter((c) => c.code.toLowerCase().startsWith(s) || T(c[K.country]).toLowerCase().includes(s)).slice(0, 6)
+  const units = ix.filter((u) => u.gcu_id_number.toLowerCase().startsWith(s) && match(u, country, state[K.species])).slice(0, 8)
+  const item = (kind, value, text, meta) => `<div class="item" data-kind="${kind}" data-value="${value}"><span>${text}</span><span class="meta">${meta}</span></div>`
+  box.innerHTML = (species.length ? `<div class="head">${T('ui_layout_label_species')}</div>` + species.map(([n, c]) => item('species', n, `${n}${flagsOf(n)?.atlas_rpp ? ' ●' : ''}${flagsOf(n)?.scatterplot ? ' ▦' : ''}`, `${c} ${T('ui_layout_label_unit').toLowerCase()}s`)).join('') : '')
+    + (countries.length ? `<div class="head">${T('ui_layout_label_country')}</div>` + countries.map((c) => item('country', c[K.country], T(c[K.country]), `${c.code} · ${c.units}`)).join('') : '')
+    + (units.length ? `<div class="head">${T('ui_layout_label_unit')}</div>` + units.map((u) => item('unit', u.gcu_id_number, u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T('ui_layout_label_restricted')})` : ''), `${u.species_list.slice(0, 2).join(', ')}${u.species_list.length > 2 ? ', …' : ''}${flag(u) ? ' ⚠' : ''}`)).join('') : '')
+  box.classList.toggle('open', box.innerHTML !== '')
+  for (const el of box.querySelectorAll('.item')) el.addEventListener('mousedown', (e) => { e.preventDefault(); pick(el.dataset.kind, el.dataset.value) })
+  box.querySelector('.item')?.classList.add('active')
+}
+function pick(kind, value) {
+  if (kind === 'species') { state[K.species] = value; state[K.country] = null; state[K.unit] = null }
+  else if (kind === 'country') { state[K.country] = value; state[K.unit] = null }
+  else if (kind === 'unit') { const u = ix.find((x) => x.gcu_id_number === value); state[K.unit] = value; if (u && !u.species_list.includes(state[K.species])) state[K.species] = u.species_list[0]; state[K.country] = 'ISO_3166_1_' + value.slice(0, 3) }
+  $('q').value = ''; $('suggest').classList.remove('open'); refill(); send()
 }
 const read = (el) => el.dataset.key === K.flag ? Number(el.value) : (el.value === '' ? null : el.value)
 const ON = {
-  [K.species]: () => { state[K.country] = null; state[K.unit] = null; refill(); send() }, [K.country]: () => { state[K.unit] = null; refill(); send() },
   [K.flag]: () => { refill(); send() }, [K.level]: async () => { ix = await Svc.unitsIndex(state[K.level]); refill(); send() },
   [K.mode]: () => { $('panes').className = last(state[K.mode]); stackedFlag() }, [K.placement]: place,
 }
@@ -112,6 +132,16 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
     el.addEventListener('change', () => { state[k] = read(el); (ON[k] ?? send)() })
   }
   refill(); stackedFlag(); matchMedia('(max-aspect-ratio: 5/4)').addEventListener('change', stackedFlag)
+  // the search box: type a species, a country or a unit number; Enter takes the highlighted suggestion, Escape closes
+  const q$ = $('q'); q$.placeholder = `${Dict.title('ui_layout_label_species')} · ${Dict.title('ui_layout_label_country')} · ${Dict.title('ui_layout_label_unit')}`; q$.title = Dict.def('ui_layout_label_unit')
+  q$.addEventListener('input', () => suggest(q$.value))
+  q$.addEventListener('focus', () => suggest(q$.value)); q$.addEventListener('blur', () => setTimeout(() => $('suggest').classList.remove('open'), 150))
+  q$.addEventListener('keydown', (e) => {
+    const items = [...$('suggest').querySelectorAll('.item')], i = items.findIndex((x) => x.classList.contains('active'))
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[i]?.classList.remove('active'); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.classList.add('active') }
+    else if (e.key === 'Enter' && items[i]) pick(items[i].dataset.kind, items[i].dataset.value)
+    else if (e.key === 'Escape') { $('suggest').classList.remove('open'); q$.blur() }
+  })
   // ---- the divider: drag resizes the panes along the layout's axis, double-click resets
   $('divider').addEventListener('mousedown', (e) => {
     e.preventDefault(); panes.classList.add('dragging')

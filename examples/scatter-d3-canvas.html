@@ -65,9 +65,8 @@
   </span>
   <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
 </div>
-<div class="legend"><span class="help" id="help">?</span><span id="legend"></span></div>
+<div class="legend"><span class="info" id="status" title="">i</span><span class="help" id="help">?</span><span id="legend"></span></div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div><div id="disabled"></div></div>
-<div id="status" class="status">loading…</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
 <script src="dictionary.js"></script>
@@ -119,7 +118,7 @@ let classes = ''   // class view: one class digit per cell
 const pts = (idx, b) => { const o = []; for (const i of idx) if (b[i]) o.push(b[i]); return o }
 const CLASS_VAR = { 1: '--stable', 2: '--lost', 3: '--new' }
 const FUT_MAP = { '1991-2020': '2035', '2021-2050': '2065', '2051-2080': '2095' }   // EU-Trees4F: the map centred on a year is driven by the climate of the previous 30 years
-const busy = (what) => { status.textContent = what; status.classList.add('busy') }
+const busy = () => status.classList.add('busy')
 
 // ---- the climate: the state holds a dataset key, a scenario gid and a period gid; the catalogue maps them to climates
 const cur = () => climates.find((k) => k[K.dataset] === state[K.dataset]?.[0] && k[K.scenario] === state[K.scenario] && k[K.period] === state[K.period])
@@ -154,7 +153,7 @@ function fixDomain(presentBase) {
 }
 async function refresh() {
   const c = cur(), p = presentOf(c), sp = state[K.species]
-  busy('…')
+  busy()
   base = await Svc.base(state); basePresent = c.present ? base : await Svc.base(stateFor(p))
   speciesIdx = await Svc.speciesCells(sp)
   species = pts(speciesIdx, base); speciesPresent = c.present ? species : pts(speciesIdx, basePresent)
@@ -169,14 +168,24 @@ async function refresh() {
   $('basePosCtl').style.display = !c.present && !classView() ? '' : 'none'
   classes = ''
   if (classView()) { const r = await Svc.classes(sp, state, state[K.variant]); classes = r ? r.cells : '' }
-  const sw = (v) => `<span class="sw" style="background:var(${v})"></span>`, T = Dict.title   // legend chips: a swatch and the term's title
+  const T = Dict.title   // legend chips: a swatch and the term's title; the three layers' chips toggle the layer
+  const chip = (v, text, tog) => `<span${tog ? ` class="tog${layerOff(tog) ? ' off' : ''}" data-toggle="${tog}" title="${T('ui_layout_scatterplot_layer')}"` : ''}><span class="sw" style="${v.startsWith('--') ? `background:var(${v})` : v}"></span>${text}</span>`
   $('legend').innerHTML = (classView()
-    ? `${sw('--base')}${T(LBL.base)}${sw('--stable')}${T(LEGEND[1])}${sw('--lost')}${T(LEGEND[2])}${sw('--new')}${T(LEGEND[3])}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} · ${T(LBL.binArrows)}`
-    : `${sw('--base')}${T(LBL.base)}${c.present ? '' : ` (${T(state[K.basePos]).toLowerCase()})`}${sw('--species')}${T(LBL.species)}${c.present ? '' : ` (${T(LBL.unitsPresent).split(',').pop().trim()})`}${sw('--unit')}${T(LBL.unitsPresent)}${sw('--future')}${T(LBL.unitsFuture)}${sw('--map')}${T(LBL.mapSel)} <span class="sw" style="border:1.5px dashed var(--flag);background:none;width:8px;height:8px"></span>${T(LBL.flagged)}`)
-    + (c.present ? '' : ` <span class="note">· ${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}, ${T(LBL.envFuture)}</span>`)
+    ? `${chip('--base', T(LBL.base), 'base')}${chip('--stable', T(LEGEND[1]))}${chip('--lost', T(LEGEND[2]))}${chip('--new', T(LEGEND[3]))}${chip('--unit', T(LBL.unitsPresent), 'units')}${chip('--future', T(LBL.unitsFuture))}${chip('--map', T(LBL.mapSel))}<span class="note">· ${T(LBL.binArrows)}</span>`
+    : `${chip('--base', T(LBL.base) + (c.present ? '' : ` (${T(state[K.basePos]).toLowerCase()})`), 'base')}${chip('--species', T(LBL.species) + (c.present ? '' : ` (${T(LBL.unitsPresent).split(',').pop().trim()})`), 'species')}${chip('--unit', T(LBL.unitsPresent), 'units')}${chip('--future', T(LBL.unitsFuture))}${chip('--map', T(LBL.mapSel))}${chip('border:1.5px dashed var(--flag);background:none;width:8px;height:8px', T(LBL.flagged))}`)
+    + (c.present ? '' : `<span class="note">· ${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}, ${T(LBL.envFuture)}</span>`)
+  for (const el of $('legend').querySelectorAll('.tog')) el.addEventListener('click', () => toggleLayer(el.dataset.toggle))
   fillClimate(); refill(); syncControls()
   if (state[K.mapSel]) await selectFromMap(state[K.mapSel], { quiet: true })
   draw()
+}
+/** the legend toggles: base and species switch their drawing mode to hidden and back, units switch their opacity */
+const layerOff = (l) => l === 'base' ? is(K.baseMode, 'none') : l === 'species' ? is(K.speciesMode, 'none') : state[K.unitsOp] === 0
+const remembered = {}
+function toggleLayer(l) {
+  if (l === 'units') { if (state[K.unitsOp] > 0) { remembered.units = state[K.unitsOp]; state[K.unitsOp] = 0 } else state[K.unitsOp] = remembered.units || 100 }
+  else { const k = l === 'base' ? K.baseMode : K.speciesMode, none = OPT[k][2]; if (state[k] === none) state[k] = remembered[l] ?? OPT[k][0]; else { remembered[l] = state[k]; state[k] = none } }
+  syncControls(); draw(); for (const el of $('legend').querySelectorAll('.tog')) el.classList.toggle('off', layerOff(el.dataset.toggle))
 }
 const unitXY = (u, c) => u.values[c.key]
 const unitPos = (u) => classView() ? unitXY(u, presentOf(cur())) : unitXY(u, cur())
@@ -288,7 +297,7 @@ function draw() {
   const what = cv ? (classes ? `${T(OPT[K.view][1])} ${FUT_MAP[c.period]} (${T(state[K.period])}, ${T(state[K.scenario])}, ${T(state[K.variant])}): ${counts[1]} ${T(LEGEND[1])}, ${counts[2]} ${T(LEGEND[2])}, ${counts[3]} ${T(LEGEND[3])} of ${basePresent.length}` : `${T(OPT[K.view][1])}: not loaded for ${state[K.species]}`) : `${base.filter(Boolean).length} ${T(LBL.base)}, ${species.length} ${state[K.species]}`
   const mapWhat = (state[K.mapSel] ? ` · ${T(LBL.mapSel)}: ${run.mapLabel}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} ${T(LBL.flagged)} (> ${state[K.flag]} km)` : '')
   status.classList.remove('busy')
-  status.title = status.textContent = `${ds?.title} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
+  status.title = `${ds?.title} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`
 }
 /** three expanding rings on the overlay canvas, so a point sent from the map is found at once */
 function pulse(px, py) {
@@ -428,7 +437,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   $('help').title = Dict.title('ui_layout_scatterplot_label_hints')
   $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; draw() })
   new ResizeObserver(() => { size(); draw() }).observe(wrap)
-}).catch((e) => { status.textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
+}).catch((e) => { status.classList.remove('busy'); status.title = `service unavailable: ${e.message} (${Svc.BASE})`; $('legend').textContent = status.title })
 </script>
 </body>
 </html>

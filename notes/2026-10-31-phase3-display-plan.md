@@ -241,6 +241,14 @@ restricted · ⚠ 13", the flag's meaning on hover). In the joint page the pane 
 names the panes). Not touched: the native look of the controls (decision 2026-11-01), the colours of
 the layers. Screenshots: [`compare/layout-joint-wide.png`](compare/layout-joint-wide.png),
 [`compare/layout-joint-tall.png`](compare/layout-joint-tall.png).
+**Iteration 11 (2026-11-10, step 3 — second pass):** the shared bar's three selectors became **one
+search box** (type a species, a country or a unit number; grouped suggestions with counts and the Atlas /
+scatterplot marks; arrow keys, Enter, Escape) and **filter chips** (the species always, the country and
+the unit removable with ×; choosing a unit of another species switches the species); **the legend chips
+toggle the layers** on both panes (map: the six layers; scatterplot: base, species and units, dimmed when
+off, the drawing mode or opacity restored on the way back); the scatterplot's **status line became the
+hover of an "i" mark** next to the "?" of the hints, with the busy spinner on the mark. The standalone
+pane pages keep their selectors for development. Screenshot: [`compare/layout-joint-pass2.png`](compare/layout-joint-pass2.png).
 Not yet: the class of each unit's own cell (a service-side raster sample, so that restricted units get
 it too). **Built 2026-10-31**, to be opened by Milko: start the
 server with `node examples/serve.mjs 8080` and open http://localhost:8080/examples/ . Libraries come
@@ -265,6 +273,7 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-01 | **Next step (Milko): define the `ui` terms for the dictionary** before the Serve Plan. Noted by Milko: the dictionary is multilingual, so interface terms give a multilingual user interface for free (labels, option texts, tooltips from the terms' `_info` in each language). |
 | 2026-11-09 | **Unit facts under their terms:** `sources/units/distance.js --write` stores `gcu_loc_climate_distance` on all 3 669 units and `gcu_loc_climate` (the reference point) on the 3 329 unrestricted ones, every value validated against the dictionary first (6 998 values, 0 errors); the pre-term `_custom` block is removed; the loader writes the same on a reload; the exports and the pages read the gid; the `SCATTER_UNITS` Dataset record lists both descriptors. 46 units exceed 5 km, unchanged. |
 | 2026-11-09 | **The species layer is the reference and never moves** (Milko, agreed): in a future period the species cloud stays at the present climate (the realised niche, as the Atlas diagram and EU-Trees4F Figure 1 treat it); the units, the map-selected cells and the solid envelope move to the selected period; the base layer stays by default and moves **on request** (`ui_layout_scatterplot_base_position`, term requested in the handoff addendum): Europe's future climate space against the present niche shows whether the species' climate will still exist. The classes view keeps its own rule. |
+| 2026-11-10 | **Layout polish, second pass** (iteration 11): search box with suggestions and chips in the shared bar, legend chips as layer toggles, status as a hover. Pending Milko's review. |
 | 2026-11-10 | **Layout polish, first pass** (iteration 10): shared stylesheet, grouped and captioned toolbars, collapsible drawing settings, legend chips, short counts. Pending Milko's review. |
 | 2026-11-09 | **The pages run on the Foxx service** (iteration 9): all species, all units, five pairs with X / Y selectors, the map's period selector; click anywhere → the 1 km grid's values. The exported files are fixtures only. |
 | 2026-11-09 | **The panes run on the dictionary terms** (iteration 8): labels, options, hovers, legends and axis legends from `metadata/ui`; the state keyed by gids and validated against `ui_layout_state`; `dictionary.js` shared by the three pages. Next: `gcu_loc_climate_distance` on `ScatterUnits`, then the Foxx service taking a `ui_layout_state`. |

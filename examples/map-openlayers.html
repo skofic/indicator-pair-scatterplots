@@ -46,12 +46,12 @@
   </span>
 </div>
 <div class="legend">
-  <span><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
-  <span><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
-  <span><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
-  <span><i class="sq" style="background:var(--t4fut)"></i><span data-term="ui_layout_map_label_t4-future"></span></span>
-  <span><i class="sq" style="border:2px dashed var(--chorology);background:none;height:5px"></i><span data-term="ui_layout_map_label_chorology"></span></span>
-  <span><i style="background:var(--unit)"></i><span data-term="ui_layout_map_label_units"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_rpp"><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_mhs"><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_t4-current"><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_t4-future"><i class="sq" style="background:var(--t4fut)"></i><span data-term="ui_layout_map_label_t4-future"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_chorology"><i class="sq" style="border:2px dashed var(--chorology);background:none;height:5px"></i><span data-term="ui_layout_map_label_chorology"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_units"><i style="background:var(--unit)"></i><span data-term="ui_layout_map_label_units"></span></span>
   <span><i style="border:1.5px dashed var(--flag);background:none;width:8px;height:8px"></i><span data-term="ui_layout_label_flagged"></span></span>
   <span id="layersInfo" class="hints"></span>
 </div>
@@ -120,6 +120,7 @@ const map = new ol.Map({ target: 'map', layers: [...Object.values(basemaps), ...
 function applyLayers() {
   for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === last(state[K.base]))
   for (const [id, l] of Object.entries(layers)) { l.setVisible(!!state[LAYER[id]] && !!l.getSource()); l.setOpacity((state[LAYER[id] + '_opacity'] ?? 100) / 100) }   // a raster layer without a source is never rendered
+  for (const el of document.querySelectorAll('.legend .tog')) el.classList.toggle('off', !state[el.dataset.toggle])   // the legend chips show and toggle the layers
 }
 
 // ---- species → map layers (from the service's manifest), units → vector layer of reference points; the search pane filters live
@@ -234,6 +235,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   await Dict.labels(); bindControls(); syncControls(); applyLayers()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
+  for (const el of document.querySelectorAll('.legend .tog')) { el.title = Dict.def(el.dataset.toggle); el.addEventListener('click', () => { state[el.dataset.toggle] = !state[el.dataset.toggle]; syncControls(); applyLayers() }) }
   $('settings').title = Dict.title('ui_layout_map_layer'); $('settings').addEventListener('click', () => document.body.classList.toggle('settings'))
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
 </script>
