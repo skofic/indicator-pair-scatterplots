@@ -97,6 +97,7 @@ const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number'
 const LAYER = { rpp: 'ui_layout_map_layer_rpp', mhs: 'ui_layout_map_layer_mhs', t4cur: 'ui_layout_map_layer_t4-current', t4fut: 'ui_layout_map_layer_t4-future', choro: 'ui_layout_map_layer_chorology', units: 'ui_layout_map_layer_units' }
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
 const OPT = { [K.base]: E('ui_layout_map_layer_base', 'none', 'boundary', 'hillshade', 'gray', 'osm', 'topo'), [K.draw]: E('ui_layout_map_draw-mode', 'none', 'point', 'box', 'polygon'), [K.variant]: E('ui_layout_scatterplot_view_classes_variant', 'potential', 'dispersal') }
+const run = { layers: '' }   // what the "i" mark reports: the species' map layers
 const LBL = { restricted: 'ui_layout_label_restricted', flagged: 'ui_layout_label_flagged', unit: 'ui_layout_label_unit', neverOnMap: 'ui_layout_map_label_never-on-map', click: 'ui_layout_map_label_click', presence: 'ui_layout_map_label_presence', suitability: 'ui_layout_map_label_suitability', t4cur: 'ui_layout_map_label_t4-current', t4fut: 'ui_layout_map_label_t4-future', chorology: 'ui_layout_map_label_chorology', units: 'ui_layout_map_label_units', mapSel: 'ui_layout_scatterplot_label_map-selection' }
 const DIST = 'gcu_loc_climate_distance'
 const FUT = { '1991-2020': 'fut2035', '2021-2050': 'fut2065', '2051-2080': 'fut2095' }   // climate period → the EU-Trees4F map it drives (30-year lag)
@@ -142,7 +143,7 @@ async function showSpeciesLayers(name) {
   applyLayers()
   choro.getSource().clear()
   for (const c of e.chorology.filter((c) => String(c.layer).startsWith('native range'))) fetch(FILES + c.path).then((r) => r.json()).then((g) => choro.getSource().addFeatures(gj.readFeatures(g)))
-  Pop.set($('status'), [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(' · '), name)
+  run.layers = [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(', ')
   const fc = await Svc.unitsGeo(state[K.level], { species: name })
   units.getSource().clear(); units.getSource().addFeatures(gj.readFeatures(fc))
   refill()
@@ -164,6 +165,15 @@ function refill() {
   const ids = new Set(sel.map((u) => u.gcu_id_number))
   for (const f of units.getSource().getFeatures()) f.set('hidden', !ids.has(f.get('gcu_id_number')), true)   // the points outside the filter are not drawn
   units.changed()
+  updateInfo(sel)
+}
+/** the "i" mark: the species as heading, then its map layers, the country and the unit when chosen, the counts */
+function updateInfo(sel) {
+  const T = Dict.title, u = state[K.unit] && ix.find((x) => x.gcu_id_number === state[K.unit])
+  const lines = [run.layers, state[K.country] && `${T('ui_layout_label_country')}: ${T(state[K.country])}`,
+    u && `${T(LBL.unit)}: ${u.gcu_id_number}${u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : ''}${u[DIST] > state[K.flag] ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''}`,
+    `${sel.length} ${T(LBL.unit).toLowerCase()}s, ${sel.filter((x) => x['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${sel.filter((x) => x[DIST] > state[K.flag]).length} ${T(LBL.flagged)}`]
+  Pop.set($('status'), lines.filter(Boolean).join(' · '), state[K.species])
 }
 async function goToUnit() {
   picked.getSource().clear()
@@ -177,7 +187,7 @@ async function goToUnit() {
 const read = (el) => el.type === 'checkbox' ? el.checked : el.type === 'range' || el.dataset.key === K.flag ? Number(el.value) : (el.value === '' ? null : el.value)
 const ON = {
   [K.species]: () => { state[K.country] = null; state[K.unit] = null; showSpeciesLayers(state[K.species]); post({ [K.species]: state[K.species] }) },
-  [K.country]: () => { state[K.unit] = null; refill() }, [K.unit]: goToUnit, [K.flag]: () => { refill(); units.changed() },
+  [K.country]: () => { state[K.unit] = null; refill() }, [K.unit]: () => { goToUnit(); refill() }, [K.flag]: () => { refill(); units.changed() },
   [K.draw]: setDraw, [K.base]: applyLayers, [K.variant]: () => showSpeciesLayers(state[K.species]),
 }
 function bindControls() {

@@ -269,8 +269,8 @@ row (the chips and the projection note wrap). `?settings=1` opens the drawing se
 one row per layer with the captions in the first column and the first control of every row on the same
 vertical line (the alignment draws the divider between the three layers and the common drawing section;
 same on the map behind "⚙ Map layers"); the map gained a **reset view** button (fits the species' visible
-units, else the initial view of Europe), on its own row with "⚙ Map layers"; the map's "i" lists one
-layer per line under the species as heading. Screenshot: [`compare/layout-joint-pass3.png`](compare/layout-joint-pass3.png). Left for the next pass
+units, else the initial view of Europe), on its own row with "⚙ Map layers"; the map's "i" lists, under the species as heading, its layers, the chosen country and unit (with the
+restricted and far-from-polygon marks) and the counts of the units shown, one line each. Screenshot: [`compare/layout-joint-pass3.png`](compare/layout-joint-pass3.png). Left for the next pass
 (Milko's list): the unit hover window on the map as on the scatterplot, option-click on the map to
 select units, clicking a unit's area selects its reference point in the scatterplot, and an
 instructions page for the search box; a `ui_layout_map_label_hints` term would give the map a "?".
