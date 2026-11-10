@@ -285,6 +285,20 @@ shows its polygon, the scatterplot enlarges its reference point and pulses it in
 (the pulse also follows a unit picked in the search box); no climate read-out point is drawn for a
 unit click. A unit the map already shows is not re-fitted when its number comes back from the host.
 The map's "i" counts the selection. Not exercised headless (clicks and hovers), to be tried by Milko.
+**Amended the same day after Milko's test** (hover and option-click fine; a clicked unit became the only
+unit shown in the scatterplot, with no way back, and the Selection modes had nothing to act on): **the
+three roles of a unit are formalised.** (1) **Filters** — the species and the country, set in the search
+box (chips), decide which units are shown. (2) **The chosen unit** (`gcu_id_number`, "one conservation
+unit to highlight and zoom to", as its term says) is a highlight, never a filter: set by the search box
+or by a plain click on a unit point on either pane; the host shows its chip, the map shows its polygon
+and zooms to it, the scatterplot draws it larger and pulses it; the other units stay visible. Cleared
+by the chip's ×, by Escape on either pane, or by a plain click on empty space in the scatterplot (a drag
+is never a click). A unit chosen on a pane does not change the country filter. (3) **The selection**
+(`ui_layout_scatterplot_units_selection`) is the set built by option-click on either pane, drawn with
+the black ring on both; the scatterplot's Selection mode (all / selected only / hide selected) and its
+"clear" act on it. A unit-only or selection-only message is a light update on the scatterplot (no
+reload). Noted: on macOS an option-click into the browser hides the application one comes from (Warp,
+here) — a system behaviour, not the page's.
 Not yet: the class of each unit's own cell (a service-side raster sample, so that restricted units get
 it too). **Built 2026-10-31**, to be opened by Milko: start the
 server with `node examples/serve.mjs 8080` and open http://localhost:8080/examples/ . Libraries come
@@ -310,6 +324,7 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-09 | **Unit facts under their terms:** `sources/units/distance.js --write` stores `gcu_loc_climate_distance` on all 3 669 units and `gcu_loc_climate` (the reference point) on the 3 329 unrestricted ones, every value validated against the dictionary first (6 998 values, 0 errors); the pre-term `_custom` block is removed; the loader writes the same on a reload; the exports and the pages read the gid; the `SCATTER_UNITS` Dataset record lists both descriptors. 46 units exceed 5 km, unchanged. |
 | 2026-11-09 | **The species layer is the reference and never moves** (Milko, agreed): in a future period the species cloud stays at the present climate (the realised niche, as the Atlas diagram and EU-Trees4F Figure 1 treat it); the units, the map-selected cells and the solid envelope move to the selected period; the base layer stays by default and moves **on request** (`ui_layout_scatterplot_base_position`, term requested in the handoff addendum): Europe's future climate space against the present niche shows whether the species' climate will still exist. The classes view keeps its own rule. |
 | 2026-11-10 | **Review of passes 1–2 (Milko):** the search box stays (it needs an instructions page with examples); the legend toggles are good; the "i" / "?" marks are elegant provided they are visible without being loud and their text invites reading; "Pane layout" is implied and goes; the ⚙ button needs a label; the map selection must be the top layer; controls must be grouped functionally whatever the window's width. Later: unit hover and option-click selection on the map, a unit's area click selecting its reference point. Built as iteration 12. |
+| 2026-11-10 | **The three roles of a unit (decided with Milko's test of iteration 13):** species and country filter; the chosen unit (`gcu_id_number`) highlights on both panes and never filters, cleared by chip, Escape or a click on empty plot space; the selection (option-click) is the set the Selection mode and "clear" act on, drawn on both panes. Built the same day. |
 | 2026-11-10 | **Inter-pane unit selections built** (iteration 13): unit hover window on the map, option-click selection shared and drawn on both panes, a unit click on the map chooses the unit and pulses its reference point in the scatterplot. Pending Milko's review. |
 | 2026-11-10 | **Review of the third pass (Milko):** the marks and their popover are right; cosmetic fixes requested and built — the layer rows aligned as a grid on both panes, a reset view button on the map, one line per layer in the map's "i". Next: the inter-pane unit selections (unit hover and option-click on the map, a unit's area click selecting its reference point). |
 | 2026-11-10 | **Layout polish, third pass** (iteration 12): functional groups that never break, one group per layer, short labels under captions, labelled ⚙ buttons, prominent marks with a reading popover, map selection on top. Pending Milko's review. |

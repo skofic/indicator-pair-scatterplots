@@ -169,7 +169,7 @@ window.addEventListener('message', (e) => {
   }
   // the units selected by option-click, on either pane, are drawn on both; a unit clicked on the map is chosen as in the search box
   if (K.selection in d) (e.source === mapW() ? scatterW() : mapW()).postMessage({ type: 'state', [K.selection]: d[K.selection] }, '*')
-  if (K.unit in d && e.source === mapW() && d[K.unit]) pick('unit', d[K.unit])
+  if (K.unit in d && (e.source === mapW() || e.source === scatterW()) && (d[K.unit] ?? null) !== (state[K.unit] ?? null)) { state[K.unit] = d[K.unit] ?? null; refill(); send([K.unit]) }
   if (K.species in d && e.source === mapW() && d[K.species] !== state[K.species]) { state[K.species] = d[K.species]; state[K.country] = null; state[K.unit] = null; refill(); scatterW().postMessage({ type: 'state', [K.species]: state[K.species], [K.country]: null, [K.unit]: null }, '*') }
 })
 </script>

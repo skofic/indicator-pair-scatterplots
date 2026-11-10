@@ -224,6 +224,7 @@ function setDraw() {   // changing the mode clears the drawing on both panes
 // ---- units under the pointer: the hover window, option-click = toggle in the selection, click = choose the unit
 const unitAt = (pixel) => map.forEachFeatureAtPixel(pixel, (f) => f, { layerFilter: (l) => l === units || l === picked, hitTolerance: 4 })
 const unitHtml = (f) => { const T = Dict.title, id = f.get('gcu_id_number'); return `<b>${id}</b>${f.get('gcu_loc_coordinates-restriction') ? ` (${T(LBL.restricted)})` : ''}${flagged(f) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${f.get(DIST).toFixed(1)} km</span>` : ''}<br>${f.get('species_list').join(', ')}<br>${T('ISO_3166_1_' + id.slice(0, 3))}` }
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state[K.unit]) { state[K.unit] = null; picked.getSource().clear(); syncControls(); refill(); post({ [K.unit]: null }) } })
 map.on('pointermove', (e) => {
   const f = e.dragging ? null : unitAt(e.pixel), tip = $('tip')
   map.getTargetElement().style.cursor = f ? 'pointer' : ''
@@ -263,7 +264,7 @@ window.addEventListener('message', async (e) => {
   syncControls(); applyLayers()
   if (levelChanged) ix = await Svc.unitsIndex(state[K.level])
   if (speciesChanged || levelChanged) await showSpeciesLayers(state[K.species]); else refill()
-  if (unitChanged) goToUnit()
+  if (unitChanged) goToUnit()   // the chosen unit's polygon (cleared when null)
 })
 // ---- start: the dictionary's defaults, then the URL (any state key by its gid), then the service
 const parse = (v) => { if (v === 'true') return true; if (v === 'false') return false; if (/^[\[{]/.test(v)) { try { return JSON.parse(v) } catch { return v } } return v !== '' && !isNaN(v) ? Number(v) : v }
