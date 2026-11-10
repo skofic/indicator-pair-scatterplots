@@ -196,7 +196,7 @@ data matches what is already there, otherwise a new database for this task.
 Outcome: a set of examples to choose from, the chosen libraries, and the technical foundations.
 
 ### Phase 4 — Serve plan
-**Status: not started.**
+**Status: step 1 started 2026-11-11 — publication on the work server for the partners' feedback** (Milko dumps the `Scatter*` and `PanesSuitability` collections and transfers them; the Foxx service is installed there first so its setup owns the indexes, with `maxLevel` public; the host page follows the service's maximum level — hides the level control when the instance is public — since 2026-11-11). The portal integration (questions 2–3) waits for the portal developers.
 
 1. Which web server?
 2. How do we target a **pane** of an existing web page?

@@ -128,6 +128,10 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   cat = c
   state = { ...defaults, [K.species]: 'Fagus sylvatica', [K.level]: 'gcu_loc_coordinates-restriction_value', [K.selection]: [] }   // the scatterplot default: restricted units' values are shown
   for (const k of Object.values(K)) if (q.has(k)) state[k] = q.get(k)
+  // the restriction level follows the service: its maximum clamps the level, and an instance limited to public shows
+  // no level control at all (the rule itself is enforced by the service, maxLevel; the page only mirrors it)
+  const max = (await Svc.health().catch(() => null))?.configuration?.maxLevel, lv = OPT[K.level]
+  if (lv.includes(max)) { OPT[K.level] = lv.slice(0, lv.indexOf(max) + 1); if (!OPT[K.level].includes(state[K.level])) state[K.level] = max; if (max === lv[0]) document.querySelector(`[data-key="${K.level}"]`).closest('label').style.display = 'none' }
   ix = await Svc.unitsIndex(state[K.level])
   await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...c.countries.map((x) => x[K.country]), 'ui_layout', 'ui_layout_scatterplot', 'ui_layout_scatterplot_label_map-selection', 'gcu_loc_coordinates-restriction', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_unit', 'ui_layout_label_clear', 'ui_layout_label_restricted', 'ui_layout_label_flagged', 'ui_layout_map_label_presence'])
   await Dict.labels()
