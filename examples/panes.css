@@ -101,6 +101,9 @@ button.toggle { padding: 0 9px 0 7px } button.toggle::before { content: '⚙ '; 
 .legend .tog.off { opacity: .4 }
 
 
+/* the hover window of a unit (the same on the map and the scatterplot): number, marks, species, country */
+.tip { position: absolute; background: #fff; border: 1px solid #999; padding: 4px 8px; font-size: 12px; pointer-events: none; display: none; border-radius: 3px; z-index: 5; box-shadow: 0 1px 4px rgba(0,0,0,.2); white-space: nowrap }
+
 /* status */
 .status { padding: 3px 10px; color: var(--muted); font-size: 11.5px; border-top: 1px solid var(--line); background: var(--bar); flex: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .status.busy::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: spin .8s linear infinite }

@@ -9,7 +9,6 @@
   #wrap { position: relative; flex: 1 1 auto; min-height: 320px; margin: 4px 10px; overflow: hidden; cursor: crosshair }
   canvas, svg { position: absolute; left: 0; top: 0 }
   svg, #over { pointer-events: none }
-  #tip { position: absolute; background: #fff; border: 1px solid #999; padding: 4px 8px; font-size: 12px; pointer-events: none; display: none; border-radius: 3px; z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.2) }
   .grid line { stroke: #000; stroke-opacity: .06 } .grid path { display: none }
   #disabled { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.82); color: #555; font-size: 15px; text-align: center; padding: 24px; z-index: 3 }
   body.disabled #disabled { display: flex }
@@ -75,7 +74,7 @@
   <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
 </div>
 <div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span id="legend"></span></div>
-<div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip"></div><div id="disabled"></div></div>
+<div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip" class="tip"></div><div id="disabled"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
 <script src="dictionary.js"></script>
@@ -311,12 +310,12 @@ function draw() {
   setStatus(`${ds?.title} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`)
 }
 /** three expanding rings on the overlay canvas, so a point sent from the map is found at once */
-function pulse(px, py) {
+function pulse(px, py, rgb = '0,137,123') {
   const t0 = performance.now()
   const frame = (t) => {
     const x = tx.rescaleX(x0), y = tx.rescaleY(y0), k = (t - t0) / 700
     octx.clearRect(0, 0, W, H); if (k >= 3) return
-    const f = k % 1; octx.beginPath(); octx.arc(x(px), y(py), 10 + 30 * f, 0, 2 * Math.PI); octx.strokeStyle = `rgba(0,137,123,${1 - f})`; octx.lineWidth = 3; octx.stroke()
+    const f = k % 1; octx.beginPath(); octx.arc(x(px), y(py), 10 + 30 * f, 0, 2 * Math.PI); octx.strokeStyle = `rgba(${rgb},${1 - f})`; octx.lineWidth = 3; octx.stroke()
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)
@@ -349,6 +348,8 @@ async function applyState(partial) {
   if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))   // an incomplete or unknown climate triple falls back
   if (K.mapSel in partial) state[K.mapSel] = partial[K.mapSel]
   if (!noData) await refresh()
+  // a unit chosen elsewhere (the map, the search box): its reference point pulses in the units' colour
+  if (K.unit in partial && state[K.unit] && !noData) { const u = units.find((x) => x.gcu_id_number === state[K.unit]); const q = u && unitPos(u); if (q) pulse(q[0], q[1], '224,106,0') }
 }
 window.addEventListener('message', (e) => { if (e.data?.type === 'state' && cat) applyState(e.data) })
 
@@ -401,7 +402,7 @@ canvas.addEventListener('click', (e) => {
   if (!e.altKey || !quad) return
   const u = quad.find(e.offsetX, e.offsetY, 10); if (!u) return
   const s = state[K.selection] ?? []; state[K.selection] = selected(u.gcu_id_number) ? s.filter((id) => id !== u.gcu_id_number) : [...s, u.gcu_id_number]
-  $('selCount').textContent = state[K.selection].length; draw()
+  $('selCount').textContent = state[K.selection].length; draw(); post({ [K.selection]: state[K.selection] })   // the map draws the selection too
 })
 canvas.addEventListener('mousemove', (e) => {
   octx.clearRect(0, 0, W, H)
@@ -447,7 +448,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   $('reset').addEventListener('click', resetView)
   $('settings').addEventListener('click', () => document.body.classList.toggle('settings'))
   Pop.bind(status); Pop.bind($('help')); Pop.set($('help'), Dict.title('ui_layout_scatterplot_label_hints'), Dict.def('ui_layout_scatterplot_label_hints'))
-  $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; draw() })
+  $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; draw(); post({ [K.selection]: [] }) })
   new ResizeObserver(() => { size(); draw() }).observe(wrap)
 }).catch((e) => { setStatus(`service unavailable: ${e.message} (${Svc.BASE})`); $('legend').textContent = status.dataset.text })
 </script>

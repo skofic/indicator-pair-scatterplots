@@ -51,7 +51,7 @@
 <script src="service.js"></script>
 <script>
 const $ = (id) => document.getElementById(id), $K = (k) => document.querySelector(`[data-key="${k}"]`)
-const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag', mode: 'ui_layout_mode', placement: 'ui_layout_map_placement', sel: 'ui_layout_map_selection' }
+const K = { species: 'species', country: 'gcu_id_country', unit: 'gcu_id_number', level: 'gcu_loc_coordinates-restriction_level', flag: 'gcu_loc_climate_flag', mode: 'ui_layout_mode', placement: 'ui_layout_map_placement', selection: 'ui_layout_scatterplot_units_selection', sel: 'ui_layout_map_selection' }
 const SHARED = [K.species, K.country, K.unit, K.level, K.flag]   // what the panes receive
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)
 const OPT = { [K.level]: E('gcu_loc_coordinates-restriction', 'public', 'value', 'manage'), [K.mode]: E('ui_layout_mode', 'auto', 'side', 'stack'), [K.placement]: E('ui_layout_map_placement', 'page', 'tab', 'window') }
@@ -167,6 +167,9 @@ window.addEventListener('message', (e) => {
     else if (e.source === scatterW()) mapW().postMessage({ type: 'state', [K.sel]: null }, '*')
     $('clearGroup').style.display = d[K.sel] ? '' : 'none'
   }
+  // the units selected by option-click, on either pane, are drawn on both; a unit clicked on the map is chosen as in the search box
+  if (K.selection in d) (e.source === mapW() ? scatterW() : mapW()).postMessage({ type: 'state', [K.selection]: d[K.selection] }, '*')
+  if (K.unit in d && e.source === mapW() && d[K.unit]) pick('unit', d[K.unit])
   if (K.species in d && e.source === mapW() && d[K.species] !== state[K.species]) { state[K.species] = d[K.species]; state[K.country] = null; state[K.unit] = null; refill(); scatterW().postMessage({ type: 'state', [K.species]: state[K.species], [K.country]: null, [K.unit]: null }, '*') }
 })
 </script>
