@@ -39,7 +39,7 @@ body.disabled .toolbar { opacity: .45; pointer-events: none }
 .legend .sw, .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; margin: 0 4px 0 10px }
 .legend .sw:first-child, .legend i:first-child, .legend span > i:first-child { margin-left: 0 }
 .legend i.sq { border-radius: 2px; width: 13px; height: 9px }
-.legend .note { font-style: italic }
+.legend .note { font-style: italic; white-space: normal }
 .hints { color: var(--faint); font-size: 11.5px }
 
 /* a collapsible toolbar (the drawing settings), opened by its toggle button */
