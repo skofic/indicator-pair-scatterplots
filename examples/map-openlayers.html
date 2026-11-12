@@ -147,7 +147,13 @@ async function showSpeciesLayers(name) {
   choro.getSource().clear()
   for (const c of e.chorology.filter((c) => String(c.layer).startsWith('native range'))) fetch(FILES + c.path).then((r) => r.json()).then((g) => choro.getSource().addFeatures(gj.readFeatures(g)))
   run.layers = [e.atlas_rpp && T(LBL.presence), e.atlas_mhs && T(LBL.suitability), Object.keys(e.eutrees4f).length && `EU-Trees4F (${Object.keys(e.eutrees4f).length})`, e.chorology.length && T(LBL.chorology)].filter(Boolean).join(', ')
-  const fc = await Svc.unitsGeo(state[K.level], { species: name })
+  await loadUnits(name)
+}
+// the manage level returns the restricted units' points for the requester's country only (service rule): the country
+// selector stands in for the manager's country here, the portal will send it per request
+const manageCountry = () => (String(state[K.level]).endsWith('_manage') && state[K.country] ? { [K.country]: state[K.country] } : {})
+async function loadUnits(name) {
+  const fc = await Svc.unitsGeo(state[K.level], { species: name, ...manageCountry() })
   units.getSource().clear(); units.getSource().addFeatures(gj.readFeatures(fc))
   refill()
 }
@@ -182,7 +188,7 @@ function updateInfo(sel) {
 async function goToUnit() {
   picked.getSource().clear()
   if (!state[K.unit]) return
-  const fc = await Svc.unitsGeo(state[K.level], { [K.unit]: state[K.unit] })
+  const fc = await Svc.unitsGeo(state[K.level], { [K.unit]: state[K.unit], ...manageCountry() })
   if (fc.withheld || !fc.features.length) { $('info').textContent = `${state[K.unit]}: ${Dict.title(LBL.neverOnMap)}`; return }
   const feats = gj.readFeatures(fc); picked.getSource().addFeatures(feats)
   map.getView().fit(feats[0].getGeometry().getExtent(), { padding: [60, 60, 60, 60], maxZoom: 11, duration: 600 })
@@ -191,7 +197,7 @@ async function goToUnit() {
 const read = (el) => el.type === 'checkbox' ? el.checked : el.type === 'range' || el.dataset.key === K.flag ? Number(el.value) : (el.value === '' ? null : el.value)
 const ON = {
   [K.species]: () => { state[K.country] = null; state[K.unit] = null; showSpeciesLayers(state[K.species]); post({ [K.species]: state[K.species] }) },
-  [K.country]: () => { state[K.unit] = null; refill() }, [K.unit]: () => { goToUnit(); refill() }, [K.flag]: () => { refill(); units.changed() },
+  [K.country]: () => { state[K.unit] = null; if (String(state[K.level]).endsWith('_manage')) loadUnits(state[K.species]); else refill() }, [K.unit]: () => { goToUnit(); refill() }, [K.flag]: () => { refill(); units.changed() },
   [K.draw]: setDraw, [K.base]: applyLayers, [K.variant]: () => showSpeciesLayers(state[K.species]),
 }
 function bindControls() {
@@ -258,13 +264,15 @@ map.on('singleclick', (e) => {
 // the host page's state arrives as messages; a cleared selection from the host or the scatterplot clears the drawing without echo
 window.addEventListener('message', async (e) => {
   if (e.data?.type !== 'state' || !cat) return
-  const p = e.data, speciesChanged = p[K.species] && p[K.species] !== state[K.species], levelChanged = K.level in p && p[K.level] !== state[K.level], unitChanged = K.unit in p && p[K.unit] !== state[K.unit]
+  const p = e.data, speciesChanged = p[K.species] && p[K.species] !== state[K.species], levelChanged = K.level in p && p[K.level] !== state[K.level], unitChanged = K.unit in p && p[K.unit] !== state[K.unit], countryChanged = K.country in p && p[K.country] !== state[K.country]
   for (const [k, v] of Object.entries(p)) if (k !== 'type') state[k] = v
   if (K.sel in p && !p[K.sel]) drawn.getSource().clear()
   if (K.selection in p) { units.changed(); picked.changed() }
   syncControls(); applyLayers()
   if (levelChanged) ix = await Svc.unitsIndex(state[K.level])
-  if (speciesChanged || levelChanged) await showSpeciesLayers(state[K.species]); else refill()
+  if (speciesChanged || levelChanged) await showSpeciesLayers(state[K.species])
+  else if (countryChanged && String(state[K.level]).endsWith('_manage')) await loadUnits(state[K.species])   // the manager's country decides which restricted units get a point
+  else refill()
   if (unitChanged) goToUnit()   // the chosen unit's polygon (cleared when null)
 })
 // ---- start: the dictionary's defaults, then the URL (any state key by its gid), then the service
