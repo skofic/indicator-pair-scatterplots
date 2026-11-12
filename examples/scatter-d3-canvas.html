@@ -29,7 +29,7 @@
     <label><span data-term="ui_layout_scatterplot_X"></span> <select data-key="ui_layout_scatterplot_X"></select></label>
     <label><span data-term="ui_layout_scatterplot_Y"></span> <select data-key="ui_layout_scatterplot_Y"></select></label>
   </span>
-  <span class="group"><span class="cap" data-term="ui_layout_scatterplot_view"></span><select data-key="ui_layout_scatterplot_view"></select></span>
+  <span class="group" id="viewCtl"><span class="cap" data-term="ui_layout_scatterplot_view"></span><select data-key="ui_layout_scatterplot_view"></select></span>
   <span class="group" id="classCtl" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_view_classes"></span>
     <label><span data-term="ui_layout_scatterplot_view_classes_variant"></span> <select data-key="ui_layout_scatterplot_view_classes_variant"></select></label>
     <label><span data-term="ui_layout_scatterplot_view_classes_position"></span> <select data-key="ui_layout_scatterplot_view_classes_position"></select></label>
@@ -178,6 +178,7 @@ async function refresh() {
   view.options[1].disabled = !avail; if (!avail && is(K.view, 'classes')) { state[K.view] = OPT[K.view][0]; view.value = state[K.view] }
   view.options[1].text = Dict.title(OPT[K.view][1]) + (avail ? '' : ' — EU-Trees4F, future period')
   $('classCtl').style.display = classView() ? '' : 'none'
+  $('viewCtl').style.display = cur()?.src === 'eutrees4f' ? '' : 'none'   // the suitability-classes view exists for EU-Trees4F only: no single-choice selector for the other sources (Milko, 2026-11-12)
   $('basePosCtl').style.display = !c.present && !classView() ? '' : 'none'
   classes = ''
   if (classView()) { const r = await Svc.classes(sp, state, state[K.variant]); classes = r ? r.cells : '' }
@@ -356,7 +357,7 @@ async function applyState(partial) {
   // a species without scatterplot data invalidates the plot: the pane is disabled, not left showing another species
   document.body.classList.toggle('disabled', !!noData)
   $('disabled').innerHTML = noData ? `<div><b>${sp}</b><br>${Dict.title(LBL.noData)}<br><small>${Dict.def(LBL.noData)}</small></div>` : ''
-  if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))   // an incomplete or unknown climate triple falls back
+  if (!cur()) setClimate(climates.find((k) => k.src === 'eutrees4f' && k.present))   // an incomplete or unknown climate triple falls back to the default climate
   if (K.mapSel in partial) state[K.mapSel] = partial[K.mapSel]
   const light = Object.keys(partial).every((k) => k === 'type' || k === K.unit || k === K.selection || k === K.unitsMode)   // no data to reload
   if (!noData && !light) await refresh()
@@ -475,7 +476,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   const q = new URLSearchParams(location.search)
   for (const k of Object.values(K)) if (q.has(k)) state[k] = parse(q.get(k))
   if (q.get('species') && c.species.find((s) => s.species === q.get('species'))) state[K.species] = q.get('species')
-  if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))
+  if (!cur()) setClimate(climates.find((k) => k.src === 'eutrees4f' && k.present))   // the default climate: EU-Trees4F, reference period, historical scenario (Milko, 2026-11-12)
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection', ELEV])

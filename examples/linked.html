@@ -165,9 +165,8 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   $('clear').addEventListener('click', () => { for (const w of [mapW(), scatterW()]) w.postMessage({ type: 'state', [K.sel]: null }, '*'); $('clearGroup').style.display = 'none' })
   // the panes load after this page: send the shared state once both are ready
   let loaded = 0; for (const id of ['map', 'scatter']) $(id).addEventListener('load', () => { if (++loaded === 2) setTimeout(() => send(), 1200) })
-  const wc = c.climates.find((k) => k.src === 'worldclim' && k.period === '2081-2100') ?? c.climates.find((k) => k.src === 'worldclim' && !k.present)
   $('map').src = paneUrl('map-openlayers.html')
-  $('scatter').src = paneUrl('scatter-d3-canvas.html', `&species=${encodeURIComponent(state[K.species])}&std_dataset_ids=${encodeURIComponent(JSON.stringify([wc.std_dataset_ids]))}&env_climate_scenario=${wc.env_climate_scenario}&env_climate_period=${wc.env_climate_period}`)
+  $('scatter').src = paneUrl('scatter-d3-canvas.html', `&species=${encodeURIComponent(state[K.species])}`)   // the scatterplot's own default climate: EU-Trees4F, reference period (Milko, 2026-11-12)
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
 // relay: a message is a partial state; the map's selection goes to the scatterplot, the scatterplot's clear to the map,
 // a species chosen on the map becomes the shared species. In the portal the host checks the origin of every message.
