@@ -107,7 +107,8 @@ const flagged = (f) => f.get(DIST) != null && f.get(DIST) > state[K.flag]
 // selected (option-click, here or in the scatterplot): the same black ring as in the scatterplot
 const selRing = new ol.style.Style({ image: new ol.style.Circle({ radius: 7.5, stroke: new ol.style.Stroke({ color: '#111', width: 2 }) }) })
 const selected = (id) => (state[K.selection] ?? []).includes(id)
-const unitsStyle = (f) => f.get('hidden') ? hidden : selected(f.get('gcu_id_number')) ? [flagged(f) ? flagStyle : unitStyle, selRing] : flagged(f) ? flagStyle : unitStyle
+const chosenRing = new ol.style.Style({ image: new ol.style.Circle({ radius: 10, stroke: new ol.style.Stroke({ color: '#111', width: 3 }), fill: new ol.style.Fill({ color: 'rgba(255,255,255,.3)' }) }), zIndex: 20 })   // the chosen unit, visible at any zoom (Milko, 2026-11-12)
+const unitsStyle = (f) => { if (f.get('hidden')) return hidden; const id = f.get('gcu_id_number'), s = [flagged(f) ? flagStyle : unitStyle]; if (selected(id)) s.push(selRing); if (id === state[K.unit]) s.push(chosenRing); return s }
 const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: unitsStyle })
 const picked = new ol.layer.Vector({ source: new ol.source.Vector(), style: unitsStyle })   // the chosen unit's polygon, fetched on demand
 const layers = { rpp, mhs, t4cur, t4fut, choro, units }
@@ -236,7 +237,10 @@ function setDraw() {   // changing the mode clears the drawing on both panes
   const type = { point: 'Point', box: 'Circle', polygon: 'Polygon' }[v]
   drawInt = new ol.interaction.Draw({ source: drawn.getSource(), type, geometryFunction: v === 'box' ? ol.interaction.Draw.createBox() : undefined })
   drawInt.on('drawstart', () => drawn.getSource().clear())
-  drawInt.on('drawend', (ev) => { const g = JSON.parse(wgs.writeGeometry(ev.feature.getGeometry())); state[K.sel] = g; post({ [K.sel]: g }); $('info').textContent = `${g.type} → ${Dict.title(LBL.mapSel)}`; pointElevation(g) })
+  drawInt.on('drawend', (ev) => {
+    const geom = ev.feature.getGeometry(), g = JSON.parse(wgs.writeGeometry(geom)); state[K.sel] = g; post({ [K.sel]: g })
+    if (g.type === 'Point') infoAt(geom.getCoordinates(), map.getPixelFromCoordinate(geom.getCoordinates()), Dict.title(LBL.mapSel)); else $('info').textContent = `${g.type} → ${Dict.title(LBL.mapSel)}`
+  })
   map.addInteraction(drawInt)
 }
 // ---- units under the pointer: the hover window, option-click = toggle in the selection, click = choose the unit
@@ -244,12 +248,7 @@ const unitAt = (pixel) => map.forEachFeatureAtPixel(pixel, (f) => f, { layerFilt
 const ELEV = 'geo_shape_elevation'   // the unit polygon's mean elevation (with gcu_loc_elevation-min / -max) and, at a clicked point, the WorldClim elevation layer — both from the service (2026-11-12)
 const elevation = (get) => get(ELEV) == null ? '' : `${Dict.title(ELEV)}: ${Math.round(get(ELEV))} ${Dict.unit(ELEV)}` + (get('gcu_loc_elevation-min') != null ? ` (${get('gcu_loc_elevation-min')}–${get('gcu_loc_elevation-max')})` : '')
 const unitHtml = (f) => { const T = Dict.title, id = f.get('gcu_id_number'), el = elevation((k) => f.get(k)); return `<b>${id}</b>${f.get('gcu_loc_coordinates-restriction') ? ` (${T(LBL.restricted)})` : ''}${flagged(f) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${f.get(DIST).toFixed(1)} km</span>` : ''}${el ? `<br>${el}` : ''}<br>${f.get('species_list').join(', ')}<br>${T('ISO_3166_1_' + id.slice(0, 3))}` }
-/** the elevation of a drawn or clicked point, asked from the service (no climate needed) and appended to the info line */
-async function pointElevation(g) {
-  if (!g || g.type !== 'Point') return
-  const r = await Svc.selection(g).catch(() => null)
-  if (r && r[ELEV] != null && state[K.sel] === g) $('info').innerHTML += ` · ${elevation((k) => (k === ELEV ? r[ELEV] : null))}`
-}
+
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state[K.unit]) { state[K.unit] = null; picked.getSource().clear(); syncControls(); refill(); post({ [K.unit]: null }) } })
 map.on('pointermove', (e) => {
   const f = e.dragging ? null : unitAt(e.pixel), tip = $('tip')
@@ -273,14 +272,19 @@ map.on('singleclick', (e) => {
     post({ [K.unit]: id }); $('info').innerHTML = unitHtml(f).replace(/<br>/g, ' · ')
     return
   }
-  drawn.getSource().clear(); drawn.getSource().addFeature(new ol.Feature(new ol.geom.Point(e.coordinate)))
-  state[K.sel] = { type: 'Point', coordinates: [lon, lat] }; post({ [K.sel]: state[K.sel] })
-  const read = (l) => { if (!l.getSource()) return null; const d = l.getData(e.pixel); return d ? d[0] : null }
-  const parts = [`<b>${Dict.title('latitude')} ${lat.toFixed(4)}° · ${Dict.title('longitude')} ${lon.toFixed(4)}°</b>`]
+  infoAt(e.coordinate, e.pixel)   // the drawing is off: read the values here, create no point, send nothing (Milko, 2026-11-12: a plain click must stay free for moving around)
+})
+/** the info line for a place: coordinates, the visible layers' values under the pixel, then the elevation from the service */
+let infoSeq = 0
+async function infoAt(coordinate, pixel, head) {
+  const [lon, lat] = ol.proj.toLonLat(coordinate, laea), T = Dict.title, seq = ++infoSeq
+  const read = (l) => { if (!l.getSource()) return null; try { const d = l.getData(pixel); return d ? d[0] : null } catch { return null } }   // no WebGL (headless, old browsers): no raster values, the rest of the line still shows
+  const parts = [head, `<b>${T('latitude')} ${lat.toFixed(4)}° · ${T('longitude')} ${lon.toFixed(4)}°</b>`].filter(Boolean)
   for (const [g, l] of [[LBL.presence, rpp], [LBL.suitability, mhs], [LBL.t4cur, t4cur], [LBL.t4fut, t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${T(g)}: ${v < 0 ? '—' : v.toFixed(2)}`) }
   $('info').innerHTML = parts.join(' · ')
-  pointElevation(state[K.sel])
-})
+  const r = await Svc.selection({ type: 'Point', coordinates: [lon, lat] }).catch(() => null)
+  if (r && r[ELEV] != null && seq === infoSeq) $('info').innerHTML += ` · ${elevation((k) => (k === ELEV ? r[ELEV] : null))}`
+}
 // the host page's state arrives as messages; a cleared selection from the host or the scatterplot clears the drawing without echo
 window.addEventListener('message', async (e) => {
   if (e.data?.type !== 'state' || !cat) return
