@@ -65,17 +65,19 @@ const last = Dict.last
 let state = {}, cat, ix = [], popup = null
 // the map pane is the iframe, or the detached tab / window while that is open
 const mapW = () => (popup && !popup.closed ? popup : $('map').contentWindow), scatterW = () => $('scatter').contentWindow
-function send(keys = SHARED) { const msg = { type: 'state' }; for (const k of keys) msg[k] = state[k] ?? null; mapW().postMessage(msg, '*'); scatterW().postMessage(msg, '*') }
+const REMEMBER = [K.flag, K.unitsMode]
+function send(keys = SHARED) { const msg = { type: 'state' }; for (const k of keys) msg[k] = state[k] ?? null; mapW().postMessage(msg, '*'); scatterW().postMessage(msg, '*'); Store.save('host', state, REMEMBER) }
 const match = (u, c, s) => (!c || u.gcu_id_number.startsWith(c)) && (!s || u.species_list.includes(s))
 const flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
 const flagsOf = (s) => cat.species.find((x) => x.species === s)
-/** the filter as chips: the species (always one), the country and the unit (removable) */
+/** the filter as chips: the species, the country and the unit, each removable; nothing chosen = the hint on the search box */
 function refill() {
   const country = state[K.country] ? Dict.aid(state[K.country]) : '', species = state[K.species], T = Dict.title
   const sel = ix.filter((u) => match(u, country, species))
   const chip = (text, key, title) => `<span class="chip${key ? '' : ' fixed'}" title="${title ?? ''}">${text}${key ? `<span class="x" data-clear="${key}" title="${T('ui_layout_label_clear')}">×</span>` : ''}</span>`
-  $('chips').innerHTML = chip(species, null, T('ui_layout_label_species')) + (state[K.country] ? chip(T(state[K.country]), K.country, T('ui_layout_label_country')) : '') + (state[K.unit] ? chip(state[K.unit], K.unit, T('ui_layout_label_unit')) : '')
-  for (const x of $('chips').querySelectorAll('.x')) x.addEventListener('click', () => { state[x.dataset.clear] = null; if (x.dataset.clear === K.country) state[K.unit] = null; refill(); send() })
+  $('q').classList.toggle('hint', !species && !state[K.country] && !state[K.unit])
+  $('chips').innerHTML = (species ? chip(species, K.species, T('ui_layout_label_species')) : '') + (state[K.country] ? chip(T(state[K.country]), K.country, T('ui_layout_label_country')) : '') + (state[K.unit] ? chip(state[K.unit], K.unit, T('ui_layout_label_unit')) : '')
+  for (const x of $('chips').querySelectorAll('.x')) x.addEventListener('click', () => { state[x.dataset.clear] = null; if (x.dataset.clear === K.country) state[K.unit] = null; refill(); send() })   // clearing the species keeps the country and the unit: they stand on their own now
   const nf = sel.filter(flag).length; $('info').textContent = `${sel.length} ${T('ui_layout_label_unit').toLowerCase()}s · ${sel.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T('ui_layout_label_restricted')}${nf ? ` · ⚠ ${nf}` : ''} · ● ${T('ui_layout_map_label_presence')} · ▦ ${T('ui_layout_scatterplot')}`; $('info').title = `⚠ = ${T('ui_layout_label_flagged')} (> ${state[K.flag]} km)`
 }
 /** suggestions for what is typed: species (name), countries (name or code), units (number), each group capped */
@@ -126,7 +128,8 @@ const q = new URLSearchParams(location.search)
 const paneUrl = (page, extra = '') => `${page}?embedded=1${['lang', 'dict', 'api'].filter((k) => q.get(k)).map((k) => `&${k}=${encodeURIComponent(q.get(k))}`).join('')}${extra}`
 Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   cat = c
-  state = { ...defaults, [K.species]: 'Fagus sylvatica', [K.level]: 'gcu_loc_coordinates-restriction_value', [K.selection]: [] }   // the scatterplot default: restricted units' values are shown
+  // nothing chosen at first: the search box is the first thing to use (Milko, 2026-11-12); the flag distance and the units mode remembered in this browser
+  state = { ...defaults, [K.species]: null, [K.level]: 'gcu_loc_coordinates-restriction_value', [K.selection]: [], ...Store.load('host', REMEMBER) }   // the scatterplot default: restricted units' values are shown
   for (const k of Object.values(K)) if (q.has(k)) state[k] = q.get(k)
   // the restriction level follows the service: its maximum clamps the level, and an instance limited to public shows
   // no level control at all (the rule itself is enforced by the service, maxLevel; the page only mirrors it)
@@ -166,7 +169,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   // the panes load after this page: send the shared state once both are ready
   let loaded = 0; for (const id of ['map', 'scatter']) $(id).addEventListener('load', () => { if (++loaded === 2) setTimeout(() => send(), 1200) })
   $('map').src = paneUrl('map-openlayers.html')
-  $('scatter').src = paneUrl('scatter-d3-canvas.html', `&species=${encodeURIComponent(state[K.species])}`)   // the scatterplot's own default climate: EU-Trees4F, reference period (Milko, 2026-11-12)
+  $('scatter').src = paneUrl('scatter-d3-canvas.html', state[K.species] ? `&species=${encodeURIComponent(state[K.species])}` : '')   // the scatterplot's own default climate: EU-Trees4F, reference period (Milko, 2026-11-12)
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})` })
 // relay: a message is a partial state; the map's selection goes to the scatterplot, the scatterplot's clear to the map,
 // a species chosen on the map becomes the shared species. In the portal the host checks the origin of every message.

@@ -41,3 +41,11 @@ window.Pop = (() => {
   }
   return { bind, set, show, hide, shortLabels }
 })()
+
+/* Store: the settings a pane remembers in the browser (localStorage, one entry per page). What is remembered is each
+   page's list of state keys — never the species, country, unit or selections, which start empty (Milko, 2026-11-12);
+   the restriction level is the portal's. Storage can be absent or blocked: every call is guarded. */
+window.Store = {
+  load(page, keys) { try { const o = JSON.parse(localStorage.getItem(`panes:${page}`)) || {}; return keys ? Object.fromEntries(Object.entries(o).filter(([k]) => keys.includes(k))) : o } catch { return {} } },
+  save(page, state, keys, extra = {}) { try { localStorage.setItem(`panes:${page}`, JSON.stringify({ ...Object.fromEntries(keys.filter((k) => state[k] !== undefined).map((k) => [k, state[k]])), ...extra })) } catch {} },
+}

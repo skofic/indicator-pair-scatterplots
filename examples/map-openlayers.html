@@ -122,6 +122,9 @@ const basemaps = {
   osm: new ol.layer.Tile({ source: new ol.source.OSM(), opacity: 0.7 }),
 }
 const HOME = { center: ol.proj.fromLonLat([10, 50], laea), zoom: 4 }
+// what this pane remembers between visits (browser storage): the base map, the layers and their opacities, the EU-Trees4F future shown, the flag distance, the units mode — and the view (most users are country managers; Milko, 2026-11-12)
+const REMEMBER = [K.base, ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), K.period, K.scenario, K.variant, K.flag, K.unitsMode]
+const remember = () => { const v = map.getView(); Store.save('map', state, REMEMBER, { view: { center: v.getCenter(), zoom: v.getZoom() } }) }
 const map = new ol.Map({ target: 'map', layers: [...Object.values(basemaps), ...Object.values(layers), picked, drawn],
   view: new ol.View({ projection: laea, ...HOME }) })
 /** reset view: fit the species' visible units, else the initial view of Europe */
@@ -135,12 +138,19 @@ function applyLayers() {
   for (const [k, l] of Object.entries(basemaps)) l.setVisible(k === last(state[K.base]))
   for (const [id, l] of Object.entries(layers)) { l.setVisible(!!state[LAYER[id]] && !!l.getSource()); l.setOpacity((state[LAYER[id] + '_opacity'] ?? 100) / 100) }   // a raster layer without a source is never rendered
   for (const el of document.querySelectorAll('.legend .tog')) el.classList.toggle('off', !state[el.dataset.toggle])   // the legend chips show and toggle the layers
+  if (typeof remember === 'function' && cat) remember()
 }
 
 // ---- species → map layers (from the service's manifest), units → vector layer of reference points; the search pane filters live
 const t4futKey = () => { const c = cat.climates.find((k) => k[K.period] === state[K.period] && k[K.scenario] === state[K.scenario]); return c ? `${FUT[c.period]}|${c.scenario}|${Dict.aid(state[K.variant])}` : null }
 async function showSpeciesLayers(name) {
-  const e = await Svc.maps(name), T = Dict.title
+  const T = Dict.title
+  if (!name) {   // nothing chosen: no rasters, no chorology, every unit the level allows (the empty state, 2026-11-12)
+    for (const [l, g] of [[rpp, LAYER.rpp], [mhs, LAYER.mhs], [t4cur, LAYER.t4cur], [t4fut, LAYER.t4fut]]) { l.setSource(null); $K(g).parentElement.style.opacity = 0.4 }
+    choro.getSource().clear(); run.layers = ''; applyLayers()
+    await loadUnits(null); return
+  }
+  const e = await Svc.maps(name)
   const set = (layer, gid, entry) => { layer.setSource(entry ? cogSource(entry.path) : null); $K(gid).parentElement.style.opacity = entry ? 1 : 0.4 }
   set(rpp, LAYER.rpp, e.atlas_rpp); set(mhs, LAYER.mhs, e.atlas_mhs); set(t4cur, LAYER.t4cur, e.eutrees4f['cur2005|cur|nat']); set(t4fut, LAYER.t4fut, e.eutrees4f[t4futKey()])
   applyLayers()
@@ -165,7 +175,7 @@ function refill() {
   const count = (list, pick) => { const m = new Map(); for (const u of list) for (const k of [].concat(pick(u))) m.set(k, (m.get(k) ?? 0) + 1); return [...m].sort((a, b) => a[0].localeCompare(b[0])) }
   const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const [v, n] of count(ix.filter((u) => match(u, '', species)), (u) => u[K.country])) cs.add(new Option(`${T(v)} (${n})`, v, false, v === state[K.country]))
   const flagsOf = (s) => cat.species.find((x) => x.species === s)
-  const ss = $K(K.species); ss.innerHTML = ''; for (const [v, n] of count(ix.filter((u) => match(u, country, '')), (u) => u.species_list)) ss.add(new Option(`${v}${flagsOf(v)?.atlas_rpp ? ' ●' : ''} (${n})`, v, false, v === species))
+  const ss = $K(K.species); ss.innerHTML = ''; ss.add(new Option('—', '', false, !species)); for (const [v, n] of count(ix.filter((u) => match(u, country, '')), (u) => u.species_list)) ss.add(new Option(`${v}${flagsOf(v)?.atlas_rpp ? ' ●' : ''} (${n})`, v, false, v === species))
   const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'
   const flag = (u) => u[DIST] != null && u[DIST] > state[K.flag]
   for (const u of sel) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : '') + (flag(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
@@ -183,7 +193,8 @@ function updateInfo(sel) {
   const lines = [run.layers, state[K.country] && `${T('ui_layout_label_country')}: ${T(state[K.country])}`,
     u && `${T(LBL.unit)}: ${u.gcu_id_number}${u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : ''}${u[DIST] > state[K.flag] ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''}`,
     `${sel.length} ${T(LBL.unit).toLowerCase()}s, ${sel.filter((x) => x['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${sel.filter((x) => x[DIST] > state[K.flag]).length} ${T(LBL.flagged)}, ${(state[K.selection] ?? []).length} ${T(LBL.selection).toLowerCase()}`]
-  Pop.set($('status'), lines.filter(Boolean).join(' · '), state[K.species])
+  Pop.set($('status'), lines.filter(Boolean).join(' · '), state[K.species] ?? T('ui_layout_label_search'))
+  remember()
 }
 async function goToUnit() {
   picked.getSource().clear()
@@ -273,7 +284,7 @@ map.on('singleclick', (e) => {
 // the host page's state arrives as messages; a cleared selection from the host or the scatterplot clears the drawing without echo
 window.addEventListener('message', async (e) => {
   if (e.data?.type !== 'state' || !cat) return
-  const p = e.data, speciesChanged = p[K.species] && p[K.species] !== state[K.species], levelChanged = K.level in p && p[K.level] !== state[K.level], unitChanged = K.unit in p && p[K.unit] !== state[K.unit], countryChanged = K.country in p && p[K.country] !== state[K.country]
+  const p = e.data, speciesChanged = K.species in p && p[K.species] !== state[K.species], levelChanged = K.level in p && p[K.level] !== state[K.level], unitChanged = K.unit in p && p[K.unit] !== state[K.unit], countryChanged = K.country in p && p[K.country] !== state[K.country]
   for (const [k, v] of Object.entries(p)) if (k !== 'type') state[k] = v
   if (K.sel in p && !p[K.sel]) drawn.getSource().clear()
   if (K.selection in p) { units.changed(); picked.changed() }
@@ -289,7 +300,10 @@ const parse = (v) => { if (v === 'true') return true; if (v === 'false') return 
 Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   cat = c
   const t4 = c.climates.find((k) => k.src === 'eutrees4f' && k.period === '2051-2080' && k.scenario === 'rcp85') ?? c.climates.find((k) => k.src === 'eutrees4f' && !k.present)
-  state = { ...defaults, [K.species]: 'Fagus sylvatica', [K.period]: t4[K.period], [K.scenario]: t4[K.scenario], [K.variant]: OPT[K.variant][1] }   // the future layer shown by default: 2095, RCP 8.5, natural dispersal
+  // nothing chosen at first (Milko, 2026-11-12); the future layer shown by default: 2095, RCP 8.5, natural dispersal; then the settings and the view remembered in this browser, then the URL
+  const stored = Store.load('map')
+  state = { ...defaults, [K.species]: null, [K.period]: t4[K.period], [K.scenario]: t4[K.scenario], [K.variant]: OPT[K.variant][1], ...Object.fromEntries(Object.entries(stored).filter(([k]) => REMEMBER.includes(k))) }
+  if (stored.view && stored.view.center && stored.view.zoom) map.getView().setCenter(stored.view.center), map.getView().setZoom(stored.view.zoom)
   const q = new URLSearchParams(location.search)
   for (const k of [...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity')]) if (q.has(k)) state[k] = parse(q.get(k))
   if (q.get('embedded')) document.body.classList.add('embedded')
@@ -302,6 +316,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   for (const el of document.querySelectorAll('.legend .tog')) { el.title = Dict.def(el.dataset.toggle); el.addEventListener('click', () => { state[el.dataset.toggle] = !state[el.dataset.toggle]; syncControls(); applyLayers() }) }
   $('settings').addEventListener('click', () => document.body.classList.toggle('settings')); Pop.bind($('status')); Pop.bind($('help')); Pop.set($('help'), Dict.title('ui_layout_map_label_hints'), Dict.def('ui_layout_map_label_hints'))
   $('reset').addEventListener('click', resetView); $('reset').title = Dict.title('ui_layout_label_reset')
+  map.on('moveend', remember)
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})`; Pop.set($('status'), $('info').textContent) })
 </script>
 </body>

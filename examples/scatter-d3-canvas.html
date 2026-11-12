@@ -102,6 +102,8 @@ const K = {
   mapSel: 'ui_layout_map_selection', cursor: 'ui_layout_scatterplot_cursor',
 }
 const E = (root, ...lids) => lids.map((l) => `${root}_${l}`)   // the elements of an enumeration, in display order
+// what this pane remembers between visits (browser storage): the climate, the pair, the views and every drawing setting — not the filter, the selections or the zoom
+const REMEMBER = [K.dataset, K.period, K.scenario, K.X, K.Y, K.view, K.variant, K.position, K.bin, K.binMin, K.baseMode, K.baseOp, K.basePos, K.speciesMode, K.speciesOp, K.envelope, K.unitsMode, K.unitsOp, K.radius, K.arrows, K.flag, K.cursor]
 const OPT = {
   [K.view]: E('ui_layout_scatterplot_view', 'layer', 'classes'),
   [K.baseMode]: E('ui_layout_scatterplot_base', 'point', 'hex', 'none'),
@@ -168,7 +170,7 @@ async function refresh() {
   const c = cur(), p = presentOf(c), sp = state[K.species]
   busy()
   base = await Svc.base(state); basePresent = c.present ? base : await Svc.base(stateFor(p))
-  speciesIdx = await Svc.speciesCells(sp)
+  speciesIdx = sp ? await Svc.speciesCells(sp) : []   // no species: the base and every unit the level allows (the empty state, 2026-11-12)
   species = pts(speciesIdx, base); speciesPresent = c.present ? species : pts(speciesIdx, basePresent)
   units = await Svc.units(sp, state, state[K.level])
   await Dict.load(units.map((u) => 'ISO_3166_1_' + u.gcu_id_number.slice(0, 3)))   // country names for the list
@@ -181,18 +183,19 @@ async function refresh() {
   $('viewCtl').style.display = cur()?.src === 'eutrees4f' ? '' : 'none'   // the suitability-classes view exists for EU-Trees4F only: no single-choice selector for the other sources (Milko, 2026-11-12)
   $('basePosCtl').style.display = !c.present && !classView() ? '' : 'none'
   classes = ''
-  if (classView()) { const r = await Svc.classes(sp, state, state[K.variant]); classes = r ? r.cells : '' }
+  if (classView() && sp) { const r = await Svc.classes(sp, state, state[K.variant]); classes = r ? r.cells : '' }
   const T = Dict.title   // legend chips: a swatch and the term's title; the three layers' chips toggle the layer
   const chip = (v, text, tog) => `<span${tog ? ` class="tog${layerOff(tog) ? ' off' : ''}" data-toggle="${tog}" title="${T('ui_layout_scatterplot_layer')}"` : ''}><span class="sw" style="${v.startsWith('--') ? `background:var(${v})` : v}"></span>${text}</span>`
   $('legend').innerHTML = (classView()
     ? `${chip('--base', T(LBL.base), 'base')}${chip('--stable', T(LEGEND[1]))}${chip('--lost', T(LEGEND[2]))}${chip('--new', T(LEGEND[3]))}${chip('--unit', T(LBL.unitsPresent), 'units')}${chip('--future', T(LBL.unitsFuture))}${chip('--map', T(LBL.mapSel))}<span class="note">· ${T(LBL.binArrows)}</span>`
     : `${chip('--base', T(LBL.base) + (c.present ? '' : ` (${T(state[K.basePos]).toLowerCase()})`), 'base')}${chip('--species', T(LBL.species) + (c.present ? '' : ` (${T(LBL.unitsPresent).split(',').pop().trim()})`), 'species')}${chip('--unit', T(LBL.unitsPresent), 'units')}${chip('--future', T(LBL.unitsFuture))}${chip('--map', T(LBL.mapSel))}${chip('border:1.5px dashed var(--flag);background:none;width:8px;height:8px', T(LBL.flagged))}`)
     + (c.present ? '' : `<span class="note">· ${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}, ${T(LBL.envFuture)}</span>`)
-  for (const el of $('legend').querySelectorAll('.tog')) el.addEventListener('click', () => toggleLayer(el.dataset.toggle))
+  for (const el of $('legend').querySelectorAll('.tog')) el.addEventListener('click', () => { toggleLayer(el.dataset.toggle); remember() })
   fillClimate(); refill(); syncControls()
   if (state[K.mapSel]) await selectFromMap(state[K.mapSel], { quiet: true })
   draw()
 }
+const remember = () => Store.save('scatter', state, REMEMBER)
 /** the legend toggles: base and species switch their drawing mode to hidden and back, units switch their opacity */
 const layerOff = (l) => l === 'base' ? is(K.baseMode, 'none') : l === 'species' ? is(K.speciesMode, 'none') : state[K.unitsOp] === 0
 const remembered = {}
@@ -280,6 +283,13 @@ function draw() {
   if (cv) {}
   else if (is(K.speciesMode, 'hex')) drawHex(speciesPresent, r, (t) => d3.interpolateBlues(0.3 + 0.7 * t), op(K.speciesOp))
   else if (is(K.speciesMode, 'point')) { ctx.globalAlpha = op(K.speciesOp); ctx.fillStyle = css('--species'); for (const d of speciesPresent) ctx.fillRect(x(d[0]) - 1, y(d[1]) - 1, 2, 2); ctx.globalAlpha = 1 }
+  if (!state[K.species]) {   // nothing chosen: the search box's own hint, wrapped over the plot's width
+    ctx.save(); ctx.font = '14px system-ui, sans-serif'; ctx.fillStyle = '#666'; ctx.textAlign = 'center'
+    const maxW = (W - M.left - M.right) * 0.8, lines = [], words = String(Dict.def('ui_layout_label_search')).split(' '); let line = ''
+    for (const w of words) { const t = line ? `${line} ${w}` : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w } else line = t }
+    if (line) lines.push(line)
+    lines.forEach((l, i) => ctx.fillText(l, (M.left + W - M.right) / 2, M.top + 26 + 19 * i)); ctx.restore()
+  }
   if (state[K.envelope] && speciesPresent.length) {
     ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'
     if (future) { ctx.setLineDash([7, 5]); ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent, x, y)) }
@@ -319,7 +329,7 @@ function draw() {
   const ds = cat.datasets.find((d) => d[K.dataset] === c[K.dataset])
   const what = cv ? (classes ? `${T(OPT[K.view][1])} ${FUT_MAP[c.period]} (${T(state[K.period])}, ${T(state[K.scenario])}, ${T(state[K.variant])}): ${counts[1]} ${T(LEGEND[1])}, ${counts[2]} ${T(LEGEND[2])}, ${counts[3]} ${T(LEGEND[3])} of ${basePresent.length}` : `${T(OPT[K.view][1])}: not loaded for ${state[K.species]}`) : `${base.filter(Boolean).length} ${T(LBL.base)}, ${species.length} ${state[K.species]}`
   const mapWhat = (state[K.mapSel] ? ` · ${T(LBL.mapSel)}: ${run.mapLabel}, ${mapN} drawn` : '') + (nFlag ? ` · ${nFlag} ${T(LBL.flagged)} (> ${state[K.flag]} km)` : '')
-  setStatus(`${ds?.title} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`)
+  setStatus(`${state[K.species] ?? T('ui_layout_label_search')} · ${ds?.title} · ${T(state[K.period])} · ${T(state[K.scenario])} · ${what}, ${vis.length} units shown (${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}, ${(state[K.selection] ?? []).length} selected)${mapWhat} · drawn in ${Math.round(performance.now() - t0)} ms · zoom ×${tx.k.toFixed(1)}`)
 }
 /** three expanding rings on the overlay canvas, so a point sent from the map is found at once */
 function pulse(px, py, rgb = '0,137,123') {
@@ -383,9 +393,9 @@ function bindControls() {
     const k = el.dataset.key
     if (el.tagName === 'SELECT') { el.dataset.fieldDef = Dict.def(k); if (OPT[k]) Dict.options(el, OPT[k], state[k]); else Dict.hover(el) }
     else el.title ||= Dict.def(k)
-    el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { state[k] = read(el); (ON[k] ?? draw)() })
+    el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { state[k] = read(el); (ON[k] ?? draw)(); remember() })
   }
-  $('product').addEventListener('change', (e) => { setClimate(climates.find((k) => k[K.dataset] === e.target.value && k.present)); refresh() })
+  $('product').addEventListener('change', (e) => { setClimate(climates.find((k) => k[K.dataset] === e.target.value && k.present)); refresh(); remember() })
   $('product').dataset.fieldDef = Dict.def('ui_layout_label_source')
 }
 function syncControls() { for (const el of document.querySelectorAll('[data-key]')) { const v = state[el.dataset.key]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = Array.isArray(v) ? v[0] : v } }
@@ -395,7 +405,7 @@ function refill() {
   const cs = $K(K.country); cs.innerHTML = '<option value="">—</option>'; for (const g of countries) cs.add(new Option(`${T(g)} (${units.filter((u) => u.gcu_id_number.startsWith(Dict.aid(g))).length})`, g, false, g === state[K.country]))
   const country = state[K.country] ? Dict.aid(state[K.country]) : ''
   const us = $K(K.unit); us.innerHTML = '<option value="">—</option>'; for (const u of units.filter((u) => !country || u.gcu_id_number.startsWith(country))) us.add(new Option(u.gcu_id_number + (u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : '') + (flagged(u) ? ` ⚠ ${u[DIST].toFixed(0)} km` : ''), u.gcu_id_number, false, u.gcu_id_number === state[K.unit]))
-  const sp = $K(K.species); if (!sp.options.length) for (const s of cat.species.filter((s) => s.scatterplot)) sp.add(new Option(`${s.species} (${s.units})`, s.species, false, s.species === state[K.species]))
+  const sp = $K(K.species); if (!sp.options.length) { sp.add(new Option('—', '', false, !state[K.species])); for (const s of cat.species.filter((s) => s.scatterplot)) sp.add(new Option(`${s.species} (${s.units})`, s.species, false, s.species === state[K.species])) }
   for (const el of [cs, us, sp]) Dict.hover(el)
   const nf = units.filter(flagged).length; $('searchInfo').textContent = `${units.length} ${T(LBL.unit).toLowerCase()}s · ${units.filter((u) => u['gcu_loc_coordinates-restriction']).length} ${T(LBL.restricted)}${nf ? ` · ⚠ ${nf}` : ''}`; $('searchInfo').title = `⚠ = ${T(LBL.flagged)} (> ${state[K.flag]} km)`
   $('selCount').textContent = (state[K.selection] ?? []).length
@@ -471,15 +481,15 @@ function drawCursor(px, py) {
 const parse = (v) => { if (v === 'true') return true; if (v === 'false') return false; if (/^[\[{]/.test(v)) { try { return JSON.parse(v) } catch { return v } } return v !== '' && !isNaN(v) ? Number(v) : v }
 Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   cat = c; climates = c.climates
-  const firstSpecies = (c.species.find((s) => s.species === 'Fagus sylvatica') ?? c.species.find((s) => s.scatterplot)).species
-  state = { [K.cursor]: false, ...defaults, [K.species]: firstSpecies, [K.X]: c.axes.pairs[0][K.X], [K.Y]: c.axes.pairs[0][K.Y], [K.selection]: [] }
+  // nothing chosen at first: no species, country or unit — the search is the first thing to use (Milko, 2026-11-12); then the settings remembered in this browser, then the URL
+  state = { [K.cursor]: false, ...defaults, [K.species]: null, [K.X]: c.axes.pairs[0][K.X], [K.Y]: c.axes.pairs[0][K.Y], [K.selection]: [], ...Store.load('scatter', REMEMBER) }
   const q = new URLSearchParams(location.search)
   for (const k of Object.values(K)) if (q.has(k)) state[k] = parse(q.get(k))
   if (q.get('species') && c.species.find((s) => s.species === q.get('species'))) state[K.species] = q.get('species')
   if (!cur()) setClimate(climates.find((k) => k.src === 'eutrees4f' && k.present))   // the default climate: EU-Trees4F, reference period, historical scenario (Milko, 2026-11-12)
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection', ELEV])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection', 'ui_layout_label_search', ELEV])
   await Dict.labels(); Pop.shortLabels(); bindControls(); size()
   const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
   if (pt?.length === 2) state[K.mapSel] = { type: 'Point', coordinates: pt }
