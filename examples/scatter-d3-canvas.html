@@ -12,12 +12,15 @@
   .grid line { stroke: #000; stroke-opacity: .06 } .grid path { display: none }
   #disabled { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(255,255,255,.82); color: #555; font-size: 15px; text-align: center; padding: 24px; z-index: 3 }
   body.disabled #disabled { display: flex }
+  body.busy #wrap { opacity: .55; pointer-events: none }   /* the plot waits for the service with the controls */
 </style>
 </head>
 <body>
 <!-- Every label is a dictionary term (data-term: text = _title, hover = _definition); every control is bound to a key of
      the pane state (data-key = the term's gid), whose values are the gids of the enumeration elements. The data comes
      from the panes' Foxx service (service.js), the texts from the dictionary service (dictionary.js). -->
+<!-- the legend row first, on both panes: the marks ("i" status, "?" hints, reset view, the hourglass while waiting), then the chips (Milko, 2026-11-12) -->
+<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span class="reset" id="reset" tabindex="0">↺</span><span class="wait">⏳</span><span id="legend"></span></div>
 <div class="toolbar">
   <strong class="pane-title" data-term="ui_layout_scatterplot"></strong>
   <span class="group"><span class="cap" data-term="env_climate"></span>
@@ -74,7 +77,6 @@
   <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
   <span class="group"><span class="cap" data-term="ui_layout_scatterplot_cursor"></span><label><input type="checkbox" data-key="ui_layout_scatterplot_cursor"> <span id="cursorInfo" class="hints"></span></label></span>
 </div>
-<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span class="reset" id="reset" tabindex="0">↺</span><span id="legend"></span></div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip" class="tip"></div><div id="disabled"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
@@ -307,6 +309,9 @@ function draw() {
   for (const u of vis) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), state[K.unit] === u.gcu_id_number ? 6 : 3.5, 0, 2 * Math.PI); ctx.fill(); ctx.stroke() }
   ctx.strokeStyle = '#111'; ctx.lineWidth = 2
   for (const u of vis) if (selected(u.gcu_id_number)) { const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 6.5, 0, 2 * Math.PI); ctx.stroke() }
+  // the chosen unit keeps a ring in the chosen colour (a white halo under it), at any opacity, so that it is never lost after the pulse (Milko, 2026-11-12)
+  const ch = state[K.unit] && vis.find((u) => u.gcu_id_number === state[K.unit])
+  if (ch) { const q = unitPos(ch); ctx.save(); ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 9.5, 0, 2 * Math.PI); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.stroke(); ctx.strokeStyle = css('--chosen'); ctx.lineWidth = 3; ctx.stroke(); ctx.restore() }
   // the data-quality flag: a dashed dark-red ring on units whose reference point lies far from their polygon
   ctx.strokeStyle = '#b71c1c'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 2]); let nFlag = 0
   for (const u of vis) if (flagged(u)) { nFlag++; const q = unitPos(u); ctx.beginPath(); ctx.arc(x(q[0]), y(q[1]), 8, 0, 2 * Math.PI); ctx.stroke() }
@@ -422,14 +427,14 @@ d3.select(canvas).call(zoom).on('dblclick.zoom', null)
 canvas.addEventListener('dblclick', resetView)
 let box = null
 canvas.addEventListener('mousedown', (e) => { if (e.shiftKey || e.altKey || e.button !== 0) return; box = [e.offsetX, e.offsetY, e.offsetX, e.offsetY] })
-/** the chosen unit (gcu_id_number): drawn larger and pulsed here, its polygon on the map, a chip on the host; null clears it */
+/** the chosen unit (gcu_id_number): drawn larger, ringed and pulsed here, its polygon on the map, a chip on the host; null clears it */
 function chooseUnit(id, { echo = true } = {}) {
   state[K.unit] = id || null; syncControls(); $K(K.unit).value = state[K.unit] ?? ''; draw()
-  const u = id && units.find((x) => x.gcu_id_number === id), q = u && unitPos(u); if (q) pulse(q[0], q[1], '224,106,0')
+  const u = id && units.find((x) => x.gcu_id_number === id), q = u && unitPos(u); if (q) pulse(q[0], q[1], '0,174,230')
   if (echo) post({ [K.unit]: state[K.unit] })
 }
 // click on a unit: option-click toggles it in the selection (a set, drawn with a ring on both panes); a plain click chooses
-// it (one unit, highlighted on both panes); a plain click on empty space clears the chosen unit. A drag is never a click.
+// it (one unit, highlighted on both panes); a click on the chosen unit or on empty space clears it. A drag is never a click.
 canvas.addEventListener('click', (e) => {
   if (run.dragged) { run.dragged = false; return }
   if (!quad) return
@@ -438,7 +443,7 @@ canvas.addEventListener('click', (e) => {
     if (!u) return
     const s = state[K.selection] ?? []; state[K.selection] = selected(u.gcu_id_number) ? s.filter((id) => id !== u.gcu_id_number) : [...s, u.gcu_id_number]
     $('selCount').textContent = state[K.selection].length; draw(); post({ [K.selection]: state[K.selection] })   // the map draws the selection too
-  } else if (u) chooseUnit(u.gcu_id_number)
+  } else if (u) chooseUnit(state[K.unit] === u.gcu_id_number ? null : u.gcu_id_number)   // click again = unchoose, as option-click deselects (Milko, 2026-11-12)
   else if (state[K.unit]) chooseUnit(null)
 })
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state[K.unit]) chooseUnit(null) })

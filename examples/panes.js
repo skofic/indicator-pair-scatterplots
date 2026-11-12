@@ -42,6 +42,22 @@ window.Pop = (() => {
   return { bind, set, show, hide, shortLabels }
 })()
 
+/* Wait: the activity monitor. service.js reports its pending requests here; the page's body gets the "busy" class while
+   any are pending (panes.css dims the controls and shows the hourglass), released 150 ms after the last answer so that a
+   chain of requests reads as one wait. A pane tells its host (or the window that opened it) too, so the host waits with
+   its panes; the host counts every pane that is busy. */
+window.Wait = (() => {
+  const busy = new Set(); let timer = null
+  const sync = () => { clearTimeout(timer); if (busy.size) document.body.classList.add('busy'); else timer = setTimeout(() => document.body.classList.remove('busy'), 150) }
+  function set(who, on) {
+    if (on) busy.add(who); else busy.delete(who); sync()
+    if (who !== 'self') return
+    for (const w of [window.parent !== window && window.parent, window.opener]) if (w) w.postMessage({ type: 'busy', busy: on }, '*')
+  }
+  window.addEventListener('message', (e) => { if (e.data?.type === 'busy') set(e.source, e.data.busy) })
+  return { set }
+})()
+
 /* Store: the settings a pane remembers in the browser (localStorage, one entry per page). What is remembered is each
    page's list of state keys — never the species, country, unit or selections, which start empty (Milko, 2026-11-12);
    the restriction level is the portal's. Storage can be absent or blocked: every call is guarded. */

@@ -16,6 +16,16 @@
 <!-- Every label is a dictionary term (data-term); every control is bound to a key of the pane state (data-key = the term's
      gid). The data comes from the panes' Foxx service (service.js), the texts from the dictionary service (dictionary.js);
      the rasters and chorology files come from the static host (here: this repository served by examples/serve.mjs). -->
+<!-- the legend row first, on both panes: the marks ("i" status, "?" hints, reset view, the hourglass while waiting), then the chips (Milko, 2026-11-12) -->
+<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span class="reset" id="reset" tabindex="0">↺</span><span class="wait">⏳</span>
+  <span class="tog" data-toggle="ui_layout_map_layer_rpp"><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_mhs"><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_t4-current"><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_t4-future"><i class="sq" style="background:var(--t4fut)"></i><span data-term="ui_layout_map_label_t4-future"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_chorology"><i class="sq" style="border:2px dashed var(--chorology);background:none;height:5px"></i><span data-term="ui_layout_map_label_chorology"></span></span>
+  <span class="tog" data-toggle="ui_layout_map_layer_units"><i style="background:var(--unit)"></i><span data-term="ui_layout_map_label_units"></span></span>
+  <span><i style="border:1.5px dashed var(--flag);background:none;width:8px;height:8px"></i><span data-term="ui_layout_label_flagged"></span></span>
+</div>
 <div class="toolbar">
   <strong class="pane-title" data-term="ui_layout_map"></strong>
   <span class="group"><span class="cap" data-term="ui_layout_map_layer_base"></span><select data-key="ui_layout_map_layer_base"></select></span>
@@ -47,15 +57,6 @@
   <span class="group"><span class="cap" data-term="gcu_loc_coordinates-restriction"></span>
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
-</div>
-<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span class="reset" id="reset" tabindex="0">↺</span>
-  <span class="tog" data-toggle="ui_layout_map_layer_rpp"><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
-  <span class="tog" data-toggle="ui_layout_map_layer_mhs"><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
-  <span class="tog" data-toggle="ui_layout_map_layer_t4-current"><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
-  <span class="tog" data-toggle="ui_layout_map_layer_t4-future"><i class="sq" style="background:var(--t4fut)"></i><span data-term="ui_layout_map_label_t4-future"></span></span>
-  <span class="tog" data-toggle="ui_layout_map_layer_chorology"><i class="sq" style="border:2px dashed var(--chorology);background:none;height:5px"></i><span data-term="ui_layout_map_label_chorology"></span></span>
-  <span class="tog" data-toggle="ui_layout_map_layer_units"><i style="background:var(--unit)"></i><span data-term="ui_layout_map_label_units"></span></span>
-  <span><i style="border:1.5px dashed var(--flag);background:none;width:8px;height:8px"></i><span data-term="ui_layout_label_flagged"></span></span>
 </div>
 <div id="map"><div id="tip" class="tip"></div></div>
 <div id="info" data-term="ui_layout_map_label_click"></div>
@@ -107,8 +108,11 @@ const flagged = (f) => f.get(DIST) != null && f.get(DIST) > state[K.flag]
 // selected (option-click, here or in the scatterplot): the same black ring as in the scatterplot
 const selRing = new ol.style.Style({ image: new ol.style.Circle({ radius: 7.5, stroke: new ol.style.Stroke({ color: '#111', width: 2 }) }) })
 const selected = (id) => (state[K.selection] ?? []).includes(id)
-const chosenRing = new ol.style.Style({ image: new ol.style.Circle({ radius: 10, stroke: new ol.style.Stroke({ color: '#111', width: 3 }), fill: new ol.style.Fill({ color: 'rgba(255,255,255,.3)' }) }), zIndex: 20 })   // the chosen unit, visible at any zoom (Milko, 2026-11-12)
-const unitsStyle = (f) => { if (f.get('hidden')) return hidden; const id = f.get('gcu_id_number'), s = [flagged(f) ? flagStyle : unitStyle]; if (selected(id)) s.push(selRing); if (id === state[K.unit]) s.push(chosenRing); return s }
+// the chosen unit (one at most): a ring in the chosen colour over a white halo, the same mark as in the scatterplot, visible at any zoom (Milko, 2026-11-12)
+const CHOSEN = getComputedStyle(document.documentElement).getPropertyValue('--chosen').trim() || '#00aee6'
+const chosenHalo = new ol.style.Style({ image: new ol.style.Circle({ radius: 10, stroke: new ol.style.Stroke({ color: '#fff', width: 6 }) }), zIndex: 19 })
+const chosenRing = new ol.style.Style({ image: new ol.style.Circle({ radius: 10, stroke: new ol.style.Stroke({ color: CHOSEN, width: 3 }) }), zIndex: 20 })
+const unitsStyle = (f) => { if (f.get('hidden')) return hidden; const id = f.get('gcu_id_number'), s = [flagged(f) ? flagStyle : unitStyle]; if (selected(id)) s.push(selRing); if (id === state[K.unit]) s.push(chosenHalo, chosenRing); return s }
 const units = new ol.layer.Vector({ source: new ol.source.Vector(), style: unitsStyle })
 const picked = new ol.layer.Vector({ source: new ol.source.Vector(), style: unitsStyle })   // the chosen unit's polygon, fetched on demand
 const layers = { rpp, mhs, t4cur, t4fut, choro, units }
@@ -268,7 +272,8 @@ map.on('singleclick', (e) => {
   }
   if (f) {   // choose the unit: its polygon here, its reference point in the scatterplot (through the host)
     const id = f.get('gcu_id_number')
-    if (state[K.unit] !== id) { state[K.unit] = id; syncControls(); goToUnit(); refill() }
+    if (state[K.unit] === id) { state[K.unit] = null; picked.getSource().clear(); syncControls(); refill(); post({ [K.unit]: null }); return }   // click again = unchoose, as option-click deselects (Milko, 2026-11-12)
+    state[K.unit] = id; syncControls(); goToUnit(); refill()
     post({ [K.unit]: id }); $('info').innerHTML = unitHtml(f).replace(/<br>/g, ' · ')
     return
   }
