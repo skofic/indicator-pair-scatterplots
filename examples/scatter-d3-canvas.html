@@ -149,6 +149,8 @@ function fillClimate() {
 }
 const axisLabel = (g) => Dict.title(g) + (Dict.unit(g) ? ` (${Dict.unit(g)})` : '')
 const fmt = (v) => Number(v).toFixed(Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 10 ? 1 : 2)
+const ELEV = 'geo_shape_elevation'   // the unit polygon's mean elevation (with gcu_loc_elevation-min / -max) and, for a map point, the WorldClim elevation layer — both from the service (2026-11-12)
+const elevation = (u) => u[ELEV] == null ? '' : `<br>${Dict.title(ELEV)}: ${Math.round(u[ELEV])} ${Dict.unit(ELEV)}` + (u['gcu_loc_elevation-min'] != null ? ` (${u['gcu_loc_elevation-min']}–${u['gcu_loc_elevation-max']})` : '')
 function size() {
   W = wrap.clientWidth; H = wrap.clientHeight
   for (const [cv, cx] of [[canvas, ctx], [over, octx]]) { cv.width = W * devicePixelRatio; cv.height = H * devicePixelRatio; cv.style.width = W + 'px'; cv.style.height = H + 'px'; cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0) }
@@ -341,7 +343,7 @@ async function selectFromMap(geom, { quiet = false } = {}) {
     const [lon, lat] = geom.coordinates
     run.point = r.point?.values ? { values: r.point.values, present: null } : null
     if (run.point && !c.present) { const rp = await Svc.selection(geom, stateFor(presentOf(c))); run.point.present = rp.point?.values ?? null }
-    run.mapLabel = `${lat.toFixed(3)}, ${lon.toFixed(3)}` + (r.cells.length ? '' : run.point ? ` — ${r.point.source}${r.nearest ? `, nearest surveyed cell ${(r.nearest.metres / 1000).toFixed(1)} km` : ''}` : ' — no climate here')
+    run.mapLabel = `${lat.toFixed(3)}, ${lon.toFixed(3)}` + (r[ELEV] != null ? ` · ${Math.round(r[ELEV])} ${Dict.unit(ELEV)}` : '') + (r.cells.length ? '' : run.point ? ` — ${r.point.source}${r.nearest ? `, nearest surveyed cell ${(r.nearest.metres / 1000).toFixed(1)} km` : ''}` : ' — no climate here')
   } else run.mapLabel = `${r.cells.length} ${T(LBL.base)}`
   $('mapSel').style.display = ''; $('mapSelInfo').textContent = run.mapLabel; draw()
   if (!quiet) { const b = run.mapIdx.length === 1 ? base[run.mapIdx[0]] : (!run.mapIdx.length && run.point ? run.point.values : null); if (b) pulse(b[0], b[1]) }
@@ -439,7 +441,7 @@ canvas.addEventListener('mousemove', (e) => {
     const c = cur(), q = unitXY(u, c), p = unitXY(u, presentOf(c)), d = unitPos(u), x = tx.rescaleX(x0), y = tx.rescaleY(y0), ux = Dict.unit(state[K.X]), uy = Dict.unit(state[K.Y]), T = Dict.title
     octx.beginPath(); octx.arc(x(d[0]), y(d[1]), 7, 0, 2 * Math.PI); octx.strokeStyle = '#222'; octx.lineWidth = 2; octx.stroke()
     tip.style.display = 'block'; tip.style.left = Math.min(e.offsetX + 14, W - 220) + 'px'; tip.style.top = e.offsetY + 14 + 'px'
-    tip.innerHTML = `<b>${u.gcu_id_number}</b>${u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${u[DIST].toFixed(1)} km</span>` : ''}<br>${fmt(q[0])} ${ux} · ${fmt(q[1])} ${uy}` + (c.present || !p ? '' : `<br>${T(state[K.period])}; ${T(LBL.unitsPresent)}: ${fmt(p[0])} ${ux} · ${fmt(p[1])} ${uy}`) + `<br>${u.species_list.join(', ')}`
+    tip.innerHTML = `<b>${u.gcu_id_number}</b>${u['gcu_loc_coordinates-restriction'] ? ` (${T(LBL.restricted)})` : ''}${flagged(u) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${u[DIST].toFixed(1)} km</span>` : ''}${elevation(u)}<br>${fmt(q[0])} ${ux} · ${fmt(q[1])} ${uy}` + (c.present || !p ? '' : `<br>${T(state[K.period])}; ${T(LBL.unitsPresent)}: ${fmt(p[0])} ${ux} · ${fmt(p[1])} ${uy}`) + `<br>${u.species_list.join(', ')}`
   } else tip.style.display = 'none'
 })
 window.addEventListener('mouseup', (e) => {
@@ -476,7 +478,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (!cur()) setClimate(climates.find((k) => k.src === 'worldclim' && k.present))
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection'])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection', ELEV])
   await Dict.labels(); Pop.shortLabels(); bindControls(); size()
   const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
   if (pt?.length === 2) state[K.mapSel] = { type: 'Point', coordinates: pt }

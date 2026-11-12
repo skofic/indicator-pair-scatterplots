@@ -225,12 +225,20 @@ function setDraw() {   // changing the mode clears the drawing on both panes
   const type = { point: 'Point', box: 'Circle', polygon: 'Polygon' }[v]
   drawInt = new ol.interaction.Draw({ source: drawn.getSource(), type, geometryFunction: v === 'box' ? ol.interaction.Draw.createBox() : undefined })
   drawInt.on('drawstart', () => drawn.getSource().clear())
-  drawInt.on('drawend', (ev) => { const g = JSON.parse(wgs.writeGeometry(ev.feature.getGeometry())); state[K.sel] = g; post({ [K.sel]: g }); $('info').textContent = `${g.type} → ${Dict.title(LBL.mapSel)}` })
+  drawInt.on('drawend', (ev) => { const g = JSON.parse(wgs.writeGeometry(ev.feature.getGeometry())); state[K.sel] = g; post({ [K.sel]: g }); $('info').textContent = `${g.type} → ${Dict.title(LBL.mapSel)}`; pointElevation(g) })
   map.addInteraction(drawInt)
 }
 // ---- units under the pointer: the hover window, option-click = toggle in the selection, click = choose the unit
 const unitAt = (pixel) => map.forEachFeatureAtPixel(pixel, (f) => f, { layerFilter: (l) => l === units || l === picked, hitTolerance: 4 })
-const unitHtml = (f) => { const T = Dict.title, id = f.get('gcu_id_number'); return `<b>${id}</b>${f.get('gcu_loc_coordinates-restriction') ? ` (${T(LBL.restricted)})` : ''}${flagged(f) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${f.get(DIST).toFixed(1)} km</span>` : ''}<br>${f.get('species_list').join(', ')}<br>${T('ISO_3166_1_' + id.slice(0, 3))}` }
+const ELEV = 'geo_shape_elevation'   // the unit polygon's mean elevation (with gcu_loc_elevation-min / -max) and, at a clicked point, the WorldClim elevation layer — both from the service (2026-11-12)
+const elevation = (get) => get(ELEV) == null ? '' : `${Dict.title(ELEV)}: ${Math.round(get(ELEV))} ${Dict.unit(ELEV)}` + (get('gcu_loc_elevation-min') != null ? ` (${get('gcu_loc_elevation-min')}–${get('gcu_loc_elevation-max')})` : '')
+const unitHtml = (f) => { const T = Dict.title, id = f.get('gcu_id_number'), el = elevation((k) => f.get(k)); return `<b>${id}</b>${f.get('gcu_loc_coordinates-restriction') ? ` (${T(LBL.restricted)})` : ''}${flagged(f) ? `<br><span style="color:#b71c1c">⚠ ${T(LBL.flagged)}: ${f.get(DIST).toFixed(1)} km</span>` : ''}${el ? `<br>${el}` : ''}<br>${f.get('species_list').join(', ')}<br>${T('ISO_3166_1_' + id.slice(0, 3))}` }
+/** the elevation of a drawn or clicked point, asked from the service (no climate needed) and appended to the info line */
+async function pointElevation(g) {
+  if (!g || g.type !== 'Point') return
+  const r = await Svc.selection(g).catch(() => null)
+  if (r && r[ELEV] != null && state[K.sel] === g) $('info').innerHTML += ` · ${elevation((k) => (k === ELEV ? r[ELEV] : null))}`
+}
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state[K.unit]) { state[K.unit] = null; picked.getSource().clear(); syncControls(); refill(); post({ [K.unit]: null }) } })
 map.on('pointermove', (e) => {
   const f = e.dragging ? null : unitAt(e.pixel), tip = $('tip')
@@ -260,6 +268,7 @@ map.on('singleclick', (e) => {
   const parts = [`<b>${lat.toFixed(4)}, ${lon.toFixed(4)}</b>`]
   for (const [g, l] of [[LBL.presence, rpp], [LBL.suitability, mhs], [LBL.t4cur, t4cur], [LBL.t4fut, t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${T(g)}: ${v < 0 ? '—' : v.toFixed(2)}`) }
   $('info').innerHTML = parts.join(' · ')
+  pointElevation(state[K.sel])
 })
 // the host page's state arrives as messages; a cleared selection from the host or the scatterplot clears the drawing without echo
 window.addEventListener('message', async (e) => {
@@ -286,7 +295,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   ix = await Svc.unitsIndex(state[K.level])
-  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_reset', DIST])
+  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_reset', DIST, ELEV])
   await Dict.labels(); Pop.shortLabels(); bindControls(); syncControls(); applyLayers()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
