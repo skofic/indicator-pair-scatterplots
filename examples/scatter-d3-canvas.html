@@ -35,7 +35,7 @@
     <label><span data-term="ui_layout_scatterplot_view_classes_position"></span> <select data-key="ui_layout_scatterplot_view_classes_position"></select></label>
     <label><span data-term="ui_layout_scatterplot_view_classes_bin"></span> <select data-key="ui_layout_scatterplot_view_classes_bin"></select> ≥ <select data-key="ui_layout_scatterplot_view_classes_bin_min"><option>10</option><option>30</option><option>100</option><option>300</option></select></label>
   </span>
-  <span class="group"><button id="settings" class="toggle" data-term="ui_layout_scatterplot_layer"></button> <button id="reset" data-term="ui_layout_label_reset"></button></span>
+  <span class="group"><button id="settings" class="toggle" data-term="ui_layout_scatterplot_layer"></button></span>
 </div>
 <!-- the drawing settings: one group per layer, then the settings shared by the layers; a group never breaks across rows -->
 <div class="toolbar collapsible">
@@ -74,7 +74,7 @@
   <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
   <span class="group"><span class="cap" data-term="ui_layout_scatterplot_cursor"></span><label><input type="checkbox" data-key="ui_layout_scatterplot_cursor"> <span id="cursorInfo" class="hints"></span></label></span>
 </div>
-<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span id="legend"></span></div>
+<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span class="reset" id="reset" tabindex="0">↺</span><span id="legend"></span></div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip" class="tip"></div><div id="disabled"></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-hexbin/0.2.2/d3-hexbin.min.js"></script>
@@ -484,7 +484,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   await refresh()
   if (state[K.zoom]) zoomTo(state[K.zoom])
   $('mapSelClear').addEventListener('click', () => { selectFromMap(null); post({ [K.mapSel]: null }) })   // the host clears the map too
-  $('reset').addEventListener('click', resetView)
+  $('reset').addEventListener('click', resetView); $('reset').title = Dict.title('ui_layout_label_reset')
   $('settings').addEventListener('click', () => document.body.classList.toggle('settings'))
   Pop.bind(status); Pop.bind($('help')); Pop.set($('help'), Dict.title('ui_layout_scatterplot_label_hints'), Dict.def('ui_layout_scatterplot_label_hints'))
   $('selClear').addEventListener('click', () => { state[K.selection] = []; $('selCount').textContent = 0; draw(); post({ [K.selection]: [] }) })

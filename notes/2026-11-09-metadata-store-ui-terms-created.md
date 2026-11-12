@@ -41,6 +41,7 @@ Main panel first, then the pane settings. "Code today" is the symbol or value in
 | `selection` | `ui_layout_units_selection` (was `ui_layout_scatterplot_units_selection` until 2026-11-10) | array of unit numbers | | — |
 | `hexR` | `ui_layout_scatterplot_layer_radius` | integer px, 2–10 | | 4 |
 | `arrows` | `ui_layout_scatterplot_layer_arrows` | boolean | | true |
+| cursor (added 2026-11-12) | `ui_layout_scatterplot_cursor` | boolean | | false |
 | `tx` (zoom) | `ui_layout_scatterplot_zoom` | array of exactly four floats `[x0, x1, y0, y1]` | enforced by `_elements` 4–4 | — (absent = full range) |
 | `variant` (`pot`, `disp`) | `ui_layout_scatterplot_view_classes_variant` | enum | `…_variant_potential` (aid `pot`), `…_variant_dispersal` (aid `disp`) | `_potential` |
 | `classPos` | `ui_layout_scatterplot_view_classes_position` | enum | `…_position_present`, `…_position_future` | `_present` |

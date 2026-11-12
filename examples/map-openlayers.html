@@ -21,7 +21,7 @@
   <span class="group"><span class="cap" data-term="ui_layout_map_layer_base"></span><select data-key="ui_layout_map_layer_base"></select></span>
   <span class="group"><span class="cap" data-term="ui_layout_map_draw-mode"></span><select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></span>
   <span class="break"></span>
-  <span class="group"><button id="settings" class="toggle" data-term="ui_layout_map_layer"></button> <button id="reset" data-term="ui_layout_label_reset"></button></span>
+  <span class="group"><button id="settings" class="toggle" data-term="ui_layout_map_layer"></button></span>
 </div>
 <div class="toolbar collapsible">
   <span class="group"><span class="cap">Atlas</span>
@@ -48,7 +48,7 @@
     <label><span data-term="gcu_loc_climate_flag"></span> &gt; <select data-key="gcu_loc_climate_flag"><option>1</option><option>2</option><option>5</option><option>10</option><option>20</option></select> km</label>
   </span>
 </div>
-<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span>
+<div class="legend"><span class="info" id="status">i</span><span class="help" id="help">?</span><span class="reset" id="reset" tabindex="0">↺</span>
   <span class="tog" data-toggle="ui_layout_map_layer_rpp"><i class="sq" style="background:var(--presence)"></i><span data-term="ui_layout_map_label_presence"></span></span>
   <span class="tog" data-toggle="ui_layout_map_layer_mhs"><i class="sq" style="background:var(--suitability)"></i><span data-term="ui_layout_map_label_suitability"></span></span>
   <span class="tog" data-toggle="ui_layout_map_layer_t4-current"><i class="sq" style="background:var(--t4cur)"></i><span data-term="ui_layout_map_label_t4-current"></span></span>
@@ -286,13 +286,13 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   ix = await Svc.unitsIndex(state[K.level])
-  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', DIST])
+  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_reset', DIST])
   await Dict.labels(); Pop.shortLabels(); bindControls(); syncControls(); applyLayers()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
   for (const el of document.querySelectorAll('.legend .tog')) { el.title = Dict.def(el.dataset.toggle); el.addEventListener('click', () => { state[el.dataset.toggle] = !state[el.dataset.toggle]; syncControls(); applyLayers() }) }
   $('settings').addEventListener('click', () => document.body.classList.toggle('settings')); Pop.bind($('status')); Pop.bind($('help')); Pop.set($('help'), Dict.title('ui_layout_map_label_hints'), Dict.def('ui_layout_map_label_hints'))
-  $('reset').addEventListener('click', resetView)
+  $('reset').addEventListener('click', resetView); $('reset').title = Dict.title('ui_layout_label_reset')
 }).catch((e) => { $('info').textContent = `service unavailable: ${e.message} (${Svc.BASE})`; Pop.set($('status'), $('info').textContent) })
 </script>
 </body>
