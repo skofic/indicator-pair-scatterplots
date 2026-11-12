@@ -7,7 +7,7 @@
 // gid's last segment, so the panes still work.
 window.Dict = (() => {
   const q = new URLSearchParams(location.search)
-  const BASE = q.get('dict') || 'http://localhost:8529/_db/metadata/ui'
+  const BASE = q.get('dict') || (['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://localhost:8529' : location.origin) + '/_db/metadata/ui'   // published: the same origin (deploy/Caddyfile)
   const LANG = 'ISO_639_3_' + (q.get('lang') || 'eng')
   const terms = new Map()
   const post = (path, body) => fetch(BASE + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json())

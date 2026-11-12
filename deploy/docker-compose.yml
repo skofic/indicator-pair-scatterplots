@@ -1,0 +1,27 @@
+# The showcase instance: ArangoDB (not reachable from outside) behind Caddy (HTTPS, gzip, byte ranges).
+# On the server:  cp .env.example .env  (set the two values), then  docker compose up -d
+services:
+  arangodb:
+    image: arangodb:3.12
+    restart: unless-stopped
+    environment:
+      ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:?set ARANGO_ROOT_PASSWORD in .env}
+    command: ["arangod", "--rocksdb.block-cache-size=536870912", "--rocksdb.total-write-buffer-size=268435456", "--cache.size=268435456"]   # bounded memory: fits a 4 GB machine
+    volumes:
+      - arango-data:/var/lib/arangodb3
+      - arango-apps:/var/lib/arangodb3-apps
+    ports:
+      - "127.0.0.1:8529:8529"   # the server's own loopback only: reached from the laptop through an ssh tunnel for the import
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. panes.example.org}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site:/srv/site:ro          # examples/ and maps/, as in the repository
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [arangodb]
+volumes: { arango-data: {}, arango-apps: {}, caddy-data: {}, caddy-config: {} }

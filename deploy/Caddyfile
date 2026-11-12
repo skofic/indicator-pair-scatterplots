@@ -1,0 +1,19 @@
+# HTTPS certificate obtained automatically for the address. Only the two read services of the database are
+# exposed; the rest of ArangoDB (its API, its web interface) is not reachable from outside.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	@services path /_db/GeoService/panes/* /_db/metadata/ui/*
+	handle @services {
+		reverse_proxy arangodb:8529
+	}
+	handle /_db/* {
+		respond 404
+	}
+	handle {
+		root * /srv/site
+		redir / /examples/linked.html
+		file_server          # honours Range requests: the map files are read by byte ranges
+		@maps path /maps/*
+		header @maps Cache-Control "public, max-age=604800"
+	}
+}

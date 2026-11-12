@@ -4,7 +4,8 @@
 // `?api=<base url>` points at another instance (the portal's).
 window.Svc = (() => {
   const q = new URLSearchParams(location.search)
-  const BASE = q.get('api') || 'http://localhost:8529/_db/GeoService/panes'
+  // on the laptop the local database; published, the same origin: the web server proxies /_db/GeoService/panes (deploy/Caddyfile)
+  const BASE = q.get('api') || (['localhost', '127.0.0.1'].includes(location.hostname) ? 'http://localhost:8529' : location.origin) + '/_db/GeoService/panes'
   const mem = new Map()
   let pending = 0   // requests in flight → the page's activity monitor (panes.js Wait)
   const track = async (p) => { if (++pending === 1) window.Wait?.set('self', true); try { return await p } finally { if (--pending === 0) window.Wait?.set('self', false) } }
