@@ -354,7 +354,7 @@ async function selectFromMap(geom, { quiet = false } = {}) {
     const [lon, lat] = geom.coordinates
     run.point = r.point?.values ? { values: r.point.values, present: null } : null
     if (run.point && !c.present) { const rp = await Svc.selection(geom, stateFor(presentOf(c))); run.point.present = rp.point?.values ?? null }
-    run.mapLabel = `${lat.toFixed(3)}, ${lon.toFixed(3)}` + (r[ELEV] != null ? ` · ${Math.round(r[ELEV])} ${Dict.unit(ELEV)}` : '') + (r.cells.length ? '' : run.point ? ` — ${r.point.source}${r.nearest ? `, nearest surveyed cell ${(r.nearest.metres / 1000).toFixed(1)} km` : ''}` : ' — no climate here')
+    run.mapLabel = `${Dict.title('latitude')} ${lat.toFixed(3)}° · ${Dict.title('longitude')} ${lon.toFixed(3)}°` + (r[ELEV] != null ? ` · ${Math.round(r[ELEV])} ${Dict.unit(ELEV)}` : '') + (r.cells.length ? '' : run.point ? ` — ${r.point.source}${r.nearest ? `, nearest surveyed cell ${(r.nearest.metres / 1000).toFixed(1)} km` : ''}` : ' — no climate here')
   } else run.mapLabel = `${r.cells.length} ${T(LBL.base)}`
   $('mapSel').style.display = ''; $('mapSelInfo').textContent = run.mapLabel; draw()
   if (!quiet) { const b = run.mapIdx.length === 1 ? base[run.mapIdx[0]] : (!run.mapIdx.length && run.point ? run.point.values : null); if (b) pulse(b[0], b[1]) }
@@ -489,7 +489,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (!cur()) setClimate(climates.find((k) => k.src === 'eutrees4f' && k.present))   // the default climate: EU-Trees4F, reference period, historical scenario (Milko, 2026-11-12)
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
-  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection', 'ui_layout_label_search', ELEV])
+  await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection', 'ui_layout_label_search', 'latitude', 'longitude', ELEV])
   await Dict.labels(); Pop.shortLabels(); bindControls(); size()
   const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
   if (pt?.length === 2) state[K.mapSel] = { type: 'Point', coordinates: pt }

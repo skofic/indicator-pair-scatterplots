@@ -276,7 +276,7 @@ map.on('singleclick', (e) => {
   drawn.getSource().clear(); drawn.getSource().addFeature(new ol.Feature(new ol.geom.Point(e.coordinate)))
   state[K.sel] = { type: 'Point', coordinates: [lon, lat] }; post({ [K.sel]: state[K.sel] })
   const read = (l) => { if (!l.getSource()) return null; const d = l.getData(e.pixel); return d ? d[0] : null }
-  const parts = [`<b>${lat.toFixed(4)}, ${lon.toFixed(4)}</b>`]
+  const parts = [`<b>${Dict.title('latitude')} ${lat.toFixed(4)}° · ${Dict.title('longitude')} ${lon.toFixed(4)}°</b>`]
   for (const [g, l] of [[LBL.presence, rpp], [LBL.suitability, mhs], [LBL.t4cur, t4cur], [LBL.t4fut, t4fut]]) { const v = read(l); if (v != null && l.getVisible()) parts.push(`${T(g)}: ${v < 0 ? '—' : v.toFixed(2)}`) }
   $('info').innerHTML = parts.join(' · ')
   pointElevation(state[K.sel])
@@ -309,7 +309,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   ix = await Svc.unitsIndex(state[K.level])
-  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_reset', DIST, ELEV])
+  await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_reset', 'latitude', 'longitude', DIST, ELEV])
   await Dict.labels(); Pop.shortLabels(); bindControls(); syncControls(); applyLayers()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
