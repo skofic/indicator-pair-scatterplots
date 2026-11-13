@@ -2,7 +2,7 @@
 
 From the `indicator-pair-scatterplots` session, carried by Milko. Two requests:
 
-- **Part A**: mark the terms that are **form fields** (a new `_term_role` element, Milko's decision of
+- **Part A**: mark the terms that are **form fields** (in their texts; no new `_term_role`, Milko's decision of
   2026-11-13) and say so in their `_description`.
 - **Part B**: fill `_uses`, `_methods`, `_issues`, `_references` and `_notes` on the panes' terms, and
   `_examples` on `ui_layout_state`, from the content census reviewed by Milko the same day.
@@ -20,17 +20,16 @@ yours and Milko's. Nothing here was written into the dictionary by this session.
 ### A.1 What Milko decided
 
 Until now the dictionary described data: descriptors and their values. The panes' terms are the first that
-describe **controls of a user interface form**. Milko will add a `_term_role` element for a term that
-stands for a form field (the name is his and yours; your `CLAUDE.md` already records a deferred
-`_term_role_layout`, which may or may not be the same thing). The role is **set by hand**. It matters
-because the `_info` fields read differently on a form field than on a data descriptor: `_uses` is "what the
-user does with the control", `_issues` is "what to keep in mind when reading the result".
+describe **controls of a user interface form**. A `_term_role` element for form fields was considered and
+**dropped** (Milko with the `metadata-store` session, 2026-11-13): no new role. What matters is a
+**definite distinction, in the texts, between a term used as a descriptor and a term used as a form
+field**, because the `_info` fields read differently: on a form field `_uses` is "what the user does with
+the control" and `_issues` is "what to keep in mind when reading the result".
 
-Two things are asked for each form field:
-
-1. the new role in `_domn._term_role`;
-2. a statement in `_description` that the term is a form field, with the kind of control (table below). The
-   place and the exact sentence are yours; a closing sentence such as "Form field: check box." would do.
+So one thing is asked for each form field: a statement in `_description` that the term is a form field,
+with the kind of control (table below). The place and the exact sentence are yours; a closing sentence
+such as "Form field: check box." would do. The lists below say which terms are form fields and which are
+not.
 
 ### A.2 The form fields in the `ui_layout` family (34 terms)
 
@@ -67,7 +66,7 @@ use today.
 ### A.3 State properties that are not form fields (confirmed by Milko, 2026-11-13)
 
 They have a `_data` section and belong to `ui_layout_state`, but the user sets them by a gesture on the
-pane, not through a control. **No form-field role**; their `_description` may say "set by a gesture on
+pane, not through a control. **Not form fields**; their `_description` may say "set by a gesture on
 the pane".
 
 | Term | How it is set |
@@ -89,16 +88,16 @@ data, not of the layout.
 |---|---|
 | `gcu_loc_coordinates-restriction_level` | exists only as a setting of the panes: **form field** (selector) |
 | `gcu_loc_climate_flag` | a threshold chosen by the user: **form field** (selector of a number) |
-| `species`, `gcu_id_country`, `gcu_id_number`, `std_dataset_ids`, `env_climate_scenario`, `env_climate_period` | **no role**: data descriptors first; that the panes offer them as selectors is already said by their place in `ui_layout_state._fields`. A role on the term would say "this is a form field" of a property that lives in millions of records |
+| `species`, `gcu_id_country`, `gcu_id_number`, `std_dataset_ids`, `env_climate_scenario`, `env_climate_period` | **not marked**: data descriptors first; that the panes offer them as selectors is already said by their place in `ui_layout_state._fields`. A role on the term would say "this is a form field" of a property that lives in millions of records |
 
-So the role goes to **36 terms**: the 34 of A.2 and the two above.
+So **36 terms** are stated as form fields: the 34 of A.2 and the two above.
 
-### A.5 The other `ui_layout` terms (no form-field role; confirmed by Milko)
+### A.5 The other `ui_layout` terms (not form fields; confirmed by Milko)
 
 - **Options** of the selectors: the enumeration elements (`…_mode_auto`, `…_draw-mode_box`,
   `…_base_position_future`, `…_legend_0` and so on). They already carry the enum-item role.
 - **Labels and fixed texts**: everything under `ui_layout_label`, `ui_layout_map_label`,
-  `ui_layout_scatterplot_label` (33 terms): legend entries, hints, button texts. If Milko wants a role for
+  `ui_layout_scatterplot_label` (33 terms): legend entries, hints, button texts. If Milko wants a statement for
   these as well, they are exactly the children of those three namespaces.
 - **Groups**: `ui_layout`, `ui_layout_map`, `ui_layout_scatterplot`, `ui_layout_units`, and the layer groups
   `ui_layout_map_layer`, `ui_layout_scatterplot_layer`, `ui_layout_scatterplot_base`, `_species`, `_units`,
@@ -197,9 +196,9 @@ does its envelope: the units and the map-selected cells are what the future peri
 Reload the dictionary on the laptop and copy it to the showcase server (`ONLY=metadata`), then build step 3:
 the panes show `_uses` and `_methods` in the "i" popover, a warning mark where a term has `_issues`, the
 examples as links, and "more" links to the term pages of `dictionary.skofic.io`. Nothing in the panes
-depends on the new role.
+depends on that statement.
 
 ### B.4 Please report back
 
-The commit, the name of the new role and the terms that received it, the decision on A.3 and A.4, and any
+The commit, the sentence chosen for the form fields, and any
 row you reworded enough to change its meaning.

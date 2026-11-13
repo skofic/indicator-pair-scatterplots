@@ -2,7 +2,8 @@
 
 **Status: reviewed by Milko on 2026-11-13.** The rows stand, with the changes of §10. The term rows went to
 `metadata-store` as [`2026-11-13-handoff-metadata-store-info-fields.md`](2026-11-13-handoff-metadata-store-info-fields.md),
-which also lists the terms that are form fields (a new `_term_role` element, Milko's decision). The
+which also lists the terms that are form fields (to be stated in their descriptions; a new `_term_role`
+element was considered and dropped the same day). The
 dataset-record rows (I12 to I14, M7, M8, R7, R8) were loaded on the laptop the same day
 (`sources/datasets/records.js --write --update`); the showcase server gets them with the next copy of
 `GeoService`. Texts are proposals in English; the final wording is Milko's and the `metadata-store` session's.
@@ -164,4 +165,4 @@ Austria's units are all restricted and absent from the showcase server.
 - **Question B**: the six examples are accepted; the scientists may propose more relevant ones later.
 - **Form fields**: 34 `ui_layout` terms are controls of the form; four state properties are set by gestures;
   eight data descriptors are shown as selectors, of which two (restriction level, flag distance) take the
-  role. All confirmed by Milko; 36 terms take the role. Lists in the handoff note, Part A.
+  role. All confirmed by Milko; 36 terms are stated as form fields, without a new role. Lists in the handoff note, Part A.
