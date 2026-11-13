@@ -40,7 +40,7 @@
   </span>
   <span class="group"><span class="cap">EU-Trees4F</span>
     <label><input type="checkbox" data-key="ui_layout_map_layer_t4-current"> <span data-term="ui_layout_map_layer_t4-current"></span> <input type="range" data-key="ui_layout_map_layer_t4-current_opacity" min="0" max="100"></label>
-    <label><input type="checkbox" data-key="ui_layout_map_layer_t4-future"> <span data-term="ui_layout_map_layer_t4-future"></span> <select id="t4period"></select> <select data-key="ui_layout_scatterplot_view_classes_variant"></select> <input type="range" data-key="ui_layout_map_layer_t4-future_opacity" min="0" max="100"></label>
+    <label><input type="checkbox" data-key="ui_layout_map_layer_t4-future"> <span data-term="ui_layout_map_layer_t4-future"></span> <select id="t4scenario"></select> <select id="t4period"></select> <select data-key="ui_layout_scatterplot_view_classes_variant"></select> <input type="range" data-key="ui_layout_map_layer_t4-future_opacity" min="0" max="100"></label>
   </span>
   <span class="group"><span class="cap" data-term="ui_layout_map_layer"></span>
     <label><input type="checkbox" data-key="ui_layout_map_layer_chorology"> <span data-term="ui_layout_map_layer_chorology"></span> <input type="range" data-key="ui_layout_map_layer_chorology_opacity" min="0" max="100"></label>
@@ -223,20 +223,22 @@ function bindControls() {
     else el.title ||= Dict.def(k)
     el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { state[k] = read(el); (ON[k] ?? applyLayers)() })
   }
-  // the EU-Trees4F future layer: period × scenario of the EU-Trees4F futures, as one selector (the period term's definition as hover)
-  const t4 = $('t4period'); t4.innerHTML = ''
-  for (const c of cat.climates.filter((k) => k.src === 'eutrees4f' && !k.present)) { const o = new Option(`${Dict.title(c[K.period])} · ${Dict.title(c[K.scenario])}`, c.key, false, c[K.period] === state[K.period] && c[K.scenario] === state[K.scenario]); o.title = Dict.def(c[K.period]); t4.add(o) }
-  t4.dataset.fieldDef = Dict.def(K.period); Dict.hover(t4)
-  t4.addEventListener('change', (e) => { const c = cat.climates.find((k) => k.key === e.target.value); state[K.period] = c[K.period]; state[K.scenario] = c[K.scenario]; showSpeciesLayers(state[K.species]) })
+  // the EU-Trees4F future layer: one selector for the scenario, one for the period (Milko, 2026-11-13); the terms' definitions as hovers
+  const fut = cat.climates.filter((k) => k.src === 'eutrees4f' && !k.present), uniq = (k) => [...new Set(fut.map((c) => c[k]))]
+  for (const [id, k] of [['t4scenario', K.scenario], ['t4period', K.period]]) {
+    const el = $(id); el.innerHTML = ''
+    for (const g of uniq(k)) { const o = new Option(Dict.title(g), g, false, g === state[k]); o.title = Dict.def(g); el.add(o) }
+    el.dataset.fieldDef = Dict.def(k); Dict.hover(el)
+    el.addEventListener('change', (e) => { state[k] = e.target.value; showSpeciesLayers(state[K.species]) })
+  }
 }
-function syncControls() { for (const el of document.querySelectorAll('[data-key]')) { const v = state[el.dataset.key]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = v } }
+function syncControls() { for (const el of document.querySelectorAll('[data-key]')) { const v = state[el.dataset.key]; if (el.type === 'checkbox') el.checked = !!v; else if (v != null) el.value = v }; $('t4scenario').value = state[K.scenario]; $('t4period').value = state[K.period] }
 // ---- map → scatterplot: the drawn geometry (WGS84 GeoJSON) goes to the parent page as ui_layout_map_selection
 const post = (partial) => { const msg = { type: 'state', ...partial }; if (window.parent !== window) window.parent.postMessage(msg, '*'); if (window.opener) window.opener.postMessage(msg, '*') }
 const wgs = new ol.format.GeoJSON({ dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3035' })
 let drawInt = null
-function setDraw() {   // changing the mode clears the drawing on both panes
+function setDraw() {   // changing the mode keeps what was drawn (draw, switch off, navigate; Milko, 2026-11-13): the clear button or a new drawing removes it
   if (drawInt) { map.removeInteraction(drawInt); drawInt = null }
-  drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null })
   const v = last(state[K.draw]); if (v === 'none') return
   const type = { point: 'Point', box: 'Circle', polygon: 'Polygon' }[v]
   drawInt = new ol.interaction.Draw({ source: drawn.getSource(), type, geometryFunction: v === 'box' ? ol.interaction.Draw.createBox() : undefined })
