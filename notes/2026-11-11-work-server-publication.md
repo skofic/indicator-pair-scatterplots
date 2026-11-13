@@ -148,3 +148,10 @@ The server was back after an outage of the network (not of the server). Brought 
 
 Still open, unchanged: the static host for the pages and maps, the cause of the four drops, the cache
 warm-up.
+
+**Warm-up attempt, 2026-11-13 20:11 UTC** (asked by Milko, run one request at a time, stopping at the first
+failure): the first base computation (EU-Trees4F 1961–1990, annual temperature × precipitation) was
+answered **502 after 48 s**; the server answered `/health` again within seconds and `PanesCache` held one
+document afterwards, so the computation probably finished behind the proxy. Stopped there, nothing else
+requested. Same behaviour as on 2026-11-11: the cause must be read in the server's log (§5) before the
+other 79 combinations are tried.
