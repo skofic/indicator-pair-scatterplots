@@ -15,5 +15,7 @@
 		file_server          # honours Range requests: the map files are read by byte ranges
 		@maps path /maps/*
 		header @maps Cache-Control "public, max-age=604800"
+		@pages path /examples/*
+		header @pages Cache-Control "no-cache"   # the browser asks each time whether a page changed (a small 304 answer), so a new version shows at once
 	}
 }
