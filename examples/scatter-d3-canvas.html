@@ -191,7 +191,7 @@ async function refresh() {
   $('legend').innerHTML = (classView()
     ? `${chip('--base', T(LBL.base), 'base')}${chip('--stable', T(LEGEND[1]))}${chip('--lost', T(LEGEND[2]))}${chip('--new', T(LEGEND[3]))}${chip('--unit', T(LBL.unitsPresent), 'units')}${chip('--future', T(LBL.unitsFuture))}${chip('--map', T(LBL.mapSel))}<span class="note">· ${T(LBL.binArrows)}</span>`
     : `${chip('--base', T(LBL.base) + (c.present ? '' : ` (${T(state[K.basePos]).toLowerCase()})`), 'base')}${chip('--species', T(LBL.species) + (c.present ? '' : ` (${T(LBL.unitsPresent).split(',').pop().trim()})`), 'species')}${chip('--unit', T(LBL.unitsPresent), 'units')}${chip('--future', T(LBL.unitsFuture))}${chip('--map', T(LBL.mapSel))}${chip('border:1.5px dashed var(--flag);background:none;width:8px;height:8px', T(LBL.flagged))}`)
-    + (c.present ? '' : `<span class="note">· ${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}, ${T(LBL.envFuture)}</span>`)
+    + (c.present ? '' : `<span class="note">· ${T(LBL.projection)}: ${T(LBL.unitsFuture)}, ${T(LBL.mapSel)}</span>`)
   for (const el of $('legend').querySelectorAll('.tog')) el.addEventListener('click', () => { toggleLayer(el.dataset.toggle); remember() })
   fillClimate(); refill(); syncControls()
   if (state[K.mapSel]) await selectFromMap(state[K.mapSel], { quiet: true })
@@ -275,8 +275,9 @@ function draw() {
   const drawHex = (pts, r, interp, alpha) => { const hex = d3.hexbin().x((d) => x(d[0])).y((d) => y(d[1])).radius(r).extent([[M.left, M.top], [W - M.right, H - M.bottom]]); const bins = hex(pts); const color = d3.scaleSequentialLog(interp).domain([1, d3.max(bins, (b) => b.length)]); const path = new Path2D(hex.hexagon()); ctx.globalAlpha = alpha; for (const b of bins) { ctx.fillStyle = color(b.length); ctx.save(); ctx.translate(b.x, b.y); ctx.fill(path); ctx.restore() } ctx.globalAlpha = 1 }
   const r = state[K.radius], cv = classView(), c = cur(), p = presentOf(c), future = !c.present
   // The species cloud is the reference: the realised niche, the climate of the places where the species grows today;
-  // it never moves (decided 2026-11-09). What moves to the selected period: the units, the map-selected cells, the
-  // solid envelope and, on request, the base layer. The classes view keeps its own rule (EU-Trees4F Figure 1).
+  // it never moves (decided 2026-11-09), and neither does its envelope (Milko, 2026-11-13: the envelope is the border of
+  // the climate the species lives in; it does not travel with the climate). What moves to the selected period: the units,
+  // the map-selected cells and, on request, the base layer. The classes view keeps its own rule (EU-Trees4F Figure 1).
   const baseShown = future && is(K.basePos, 'future') ? base : basePresent
   let counts = null
   if (cv) counts = drawClasses(x, y, drawHex, r, op)
@@ -293,9 +294,7 @@ function draw() {
     lines.forEach((l, i) => ctx.fillText(l, (M.left + W - M.right) / 2, M.top + 26 + 19 * i)); ctx.restore()
   }
   if (state[K.envelope] && speciesPresent.length) {
-    ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'
-    if (future) { ctx.setLineDash([7, 5]); ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent, x, y)) }
-    ctx.setLineDash([]); ctx.strokeStyle = future ? '#8e0038' : '#0d2a66'; ctx.stroke(envelopePath(species, x, y)); ctx.restore()
+    ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent, x, y)); ctx.restore()
   }
   const vis = visibleUnits()
   let mapN = 0
