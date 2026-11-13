@@ -126,3 +126,25 @@ Until this is understood, no further base computations or test runs are triggere
    `Access-Control-Allow-Origin`, so the pages can live on any host.
 3. Warm the base cache (80 combinations, ~1 h) once §5 is settled; repeat after every upgrade.
 4. Then invite the partners; the instructions page for the search box follows (Serve Plan).
+
+## 7. Update of 2026-11-13
+
+The server was back after an outage of the network (not of the server). Brought up to date the same day:
+
+- **Service** upgraded at `/panes` to commit `dc40017` (five commits since `8da4371`: units without a
+  species, elevation, EU-Trees4F point from the nearest surveyed cell within 5 km, the slim-instance
+  fallback, `/units/geo` with projections). No `??` / `?.` in the code, as 3.11 requires.
+- **Checked with light requests only** (§5 is still not understood, so no base computation and no test
+  run): `/health` 200; `/species/units` without a species returns 3 329 units, none restricted, with
+  elevation; `/units/geo` asked at the manage level returns 3 329 features, none restricted (clamped);
+  a point selection answers in 0.24 s with the nearest cell and the elevation.
+- **The upgrade emptied `PanesCache`**: the first request of each base layer will take 35 to 45 s there
+  again, and that computation is what dropped the server on 2026-11-11.
+- **Dataset records**: the `_info` of our three changed records (`SCATTER_OCCURRENCES`, `SCATTER_UNITS`,
+  `EU-TREES4F_MAPS_2022`: issues, methods, citations) copied from the laptop.
+- **Dictionary**: already current when checked (16 340 terms, 36 controls, the retired envelope label
+  gone); not touched from here.
+- No data collection changed since the load of 2026-11-11.
+
+Still open, unchanged: the static host for the pages and maps, the cause of the four drops, the cache
+warm-up.
