@@ -165,8 +165,14 @@ and manual pages there). Prepared the same day:
 - Verified on the server with a throwaway user and the placeholder name: the interface and the API answer,
   the database API and the panes' paths answer 404, without login everything answers 401.
 - `/ui` has no write route (every POST is a read), so the interface cannot change the dictionary there.
-- **Blocked on two things:** the DNS record (Milko), and the interface's fixed `Authorization` header, which
-  the web server's login refuses — handoff
-  [`2026-11-13-handoff-metadata-store-interface-auth-header.md`](2026-11-13-handoff-metadata-store-interface-auth-header.md).
+- Two things had to happen first: the DNS record (Milko), and the interface's fixed `Authorization` header,
+  which the web server's login refused — handoff
+  [`2026-11-13-handoff-metadata-store-interface-auth-header.md`](2026-11-13-handoff-metadata-store-interface-auth-header.md),
+  fixed by that session (`cb71e06`) and installed on the laptop.
+- **Live the same day at https://dictionary.skofic.io:** certificate issued, the upgraded interface copied
+  from the laptop (its API client now sends no header of its own), checked with a throwaway user: the
+  interface, a term and the manual tree answer; the database API answers 404; without login 401. Not checked
+  in a real browser from here (no user of mine): Milko's test is the confirmation.
+- Cross-repository facts now live in `../shared/deployments.md` (folder created the same day).
 
 **Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).
