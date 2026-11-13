@@ -64,7 +64,7 @@ Root descriptors: `rcp45`, `rcp85` (open objects beside `ssp370`), the nesting k
 | Namespace | gids |
 |---|---|
 | `ui_layout_label` | `_species`, `_country`, `_unit`, `_restricted`, `_flagged`, `_clear`, `_reset`, `_no-data`, `_source` (the climate-source selector's label; added later the same day), `_search` (the shared bar's search box, 2026-11-10) |
-| `ui_layout_scatterplot_label` | `_base`, `_species`, `_units-present`, `_units-future`, `_map-selection`, `_envelope-present`, `_envelope-future`, `_arrows`, `_bin-arrows`, `_hints` (the 2026-11-10 gestures), `_projection` — `_selection` removed 2026-11-10, the group's caption is the title of `ui_layout_units_selection` |
+| `ui_layout_scatterplot_label` | `_base`, `_species`, `_units-present`, `_units-future`, `_map-selection`, `_envelope-present` (`_envelope-future` retired 2026-11-13: one envelope, the reference period's), `_arrows`, `_bin-arrows`, `_hints` (the 2026-11-10 gestures), `_projection` — `_selection` removed 2026-11-10, the group's caption is the title of `ui_layout_units_selection` |
 | `ui_layout_map_label` | `_presence`, `_suitability`, `_t4-current`, `_t4-future`, `_chorology`, `_units`, `_click`, `_hints` (2026-11-10), `_never-on-map`, `_attribution` |
 
 Namespaces (no `_data`): `ui_layout`, `ui_layout_map`, `ui_layout_map_layer`, `ui_layout_scatterplot`, `_base`, `_species`, `_units`, `_layer`, `ui_layout_units` (2026-11-10: the units-shown mode and the selection, shared by both panes), and the three label namespaces.

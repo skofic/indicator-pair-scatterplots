@@ -4,9 +4,12 @@
 # same documents travel uncompressed (over 1 GB): hours on a domestic upload line.
 #   node deploy/slim.mjs export  &&  deploy/import-on-server.sh user@server /opt/panes
 set -eu
-[ $# -eq 2 ] || { echo "usage: $0 user@server /path/to/deploy"; exit 1; }
-cd "$(dirname "$0")"
-rsync -a --partial slim.mjs slim.config.json out "$1:$2/import/"
+# One database only (a dictionary change):  ONLY=metadata node deploy/slim.mjs export  &&  deploy/import-on-server.sh user@server /opt/panes metadata
+[ $# -ge 2 ] || { echo "usage: $0 user@server /path/to/deploy [database]"; exit 1; }
+cd "$(dirname "$0")"; only=${3:-}
+ssh "$1" "mkdir -p $2/import/out"
+rsync -a --partial slim.mjs slim.config.json "$1:$2/import/"
+rsync -a --partial out/$only "$1:$2/import/out/"
 ssh "$1" "cd $2 && export TARGET_PASSWORD=\$(grep ARANGO_ROOT_PASSWORD .env | cut -d= -f2) && \
-  docker run --rm --network host -e TARGET_URL=http://127.0.0.1:8529 -e TARGET_PASSWORD -v $2/import:/w -w /w node:22-alpine node slim.mjs import /w/out && \
+  docker run --rm --network host -e TARGET_URL=http://127.0.0.1:8529 -e TARGET_PASSWORD -e ONLY=$only -v $2/import:/w -w /w node:22-alpine node slim.mjs import /w/out && \
   rm -rf $2/import"

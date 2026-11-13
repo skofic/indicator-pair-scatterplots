@@ -28,11 +28,13 @@ const client = (host, user, password) => {
   }
   return call
 }
+// ONLY=metadata (or a comma list) limits export and import to those databases, e.g. after a dictionary change
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null, DBS = Object.entries(CFG.databases).filter(([db]) => !ONLY || ONLY.includes(db))
 const strip = (ix) => { const { id, selectivityEstimate, isNewlyCreated, figures, code, error, ...def } = ix; return def }
 
 async function exportAll() {
   const c = JSON.parse(readFileSync(resolve(HERE, '../globals/auth/db.credentials.json'), 'utf8')), call = client(c.host, c.username, c.password)
-  for (const [db, spec] of Object.entries(CFG.databases)) {
+  for (const [db, spec] of DBS) {
     const dir = `${DIR}/${db}`; mkdirSync(dir, { recursive: true })
     const all = (await call(db, '/_api/collection?excludeSystem=true')).result.map((x) => x.name)
     const names = spec.collections === '*' ? all : spec.collections
@@ -67,24 +69,29 @@ async function importAll() {
   const { TARGET_URL, TARGET_USER = 'root', TARGET_PASSWORD, TARGET_PREFIX = '' } = process.env
   if (!TARGET_URL || TARGET_PASSWORD === undefined) throw new Error('set TARGET_URL and TARGET_PASSWORD (and TARGET_USER, default root)')
   const call = client(TARGET_URL, TARGET_USER, TARGET_PASSWORD)
-  for (const db of Object.keys(CFG.databases)) {
+  for (const [db] of DBS) {
     const dir = `${DIR}/${db}`, to = TARGET_PREFIX + db, meta = JSON.parse(readFileSync(`${dir}/_meta.json`, 'utf8'))
     const made = await call(null, '/_api/database', { method: 'POST', body: { name: to } }); if (made._status !== 201 && made._status !== 409) throw new Error(`${to}: cannot create the database (${made._status} ${made.errorMessage ?? ''}) — the target user must be an administrator`)
     console.log(`${to}: database ${made._status === 201 ? 'created' : 'exists'}`)
     for (const a of meta.analyzers) await call(to, '/_api/analyzer', { method: 'POST', body: a })
     for (const [n, c] of Object.entries(meta.collections)) {
       await call(to, '/_api/collection', { method: 'POST', body: { name: n, type: c.type } })
-      let errors = 0, chunk = [], size = 0   // read as a stream (the occurrences exceed a string's size), sent in chunks of about 8 MB: the size that crossed a slow line without a break
+      let errors = 0, chunk = [], size = 0; const keys = []   // read as a stream (the occurrences exceed a string's size), sent in chunks of about 8 MB: the size that crossed a slow line without a break
       const flush = async () => {
         if (!chunk.length) return
         const r = await call(to, `/_api/import?collection=${n}&type=documents&onDuplicate=replace`, { method: 'POST', body: chunk.join('\n'), type: 'application/x-ndjson' })
         if (r.error) throw new Error(`${to}.${n}: ${r.errorMessage}`)
         errors += r.errors ?? 0; chunk = []; size = 0
       }
-      for await (const line of createInterface({ input: createReadStream(`${dir}/${n}.jsonl.gz`).pipe(createGunzip()), crlfDelay: Infinity })) { if (!line) continue; chunk.push(line); size += line.length; if (size >= 8e6) await flush() }
+      for await (const line of createInterface({ input: createReadStream(`${dir}/${n}.jsonl.gz`).pipe(createGunzip()), crlfDelay: Infinity })) { if (!line) continue; chunk.push(line); size += line.length; keys.push(JSON.parse(line)._key); if (size >= 8e6) await flush() }
       await flush()
       for (const ix of c.indexes) { const r = await call(to, `/_api/index?collection=${n}`, { method: 'POST', body: ix }); if (r.error) console.log(`  index ${ix.name}: ${r.errorMessage}`) }
-      const have = (await call(to, `/_api/collection/${n}/count`)).count
+      let have = (await call(to, `/_api/collection/${n}/count`)).count
+      if (have > c.count) {   // the target mirrors the export: documents the source no longer has (a retired term) are removed
+        const r = await call(to, '/_api/cursor', { method: 'POST', body: { query: 'LET keys = @keys FOR d IN @@c FILTER d._key NOT IN keys REMOVE d IN @@c COLLECT WITH COUNT INTO n RETURN n', bindVars: { '@c': n, keys } } })
+        if (r.error) throw new Error(`${to}.${n}: ${r.errorMessage}`)
+        console.log(`  ${to}.${n}: ${r.result[0]} documents no longer in the source removed`); have = (await call(to, `/_api/collection/${n}/count`)).count
+      }
       console.log(`${to}.${n}: ${have} of ${c.count} documents, ${errors} errors, ${c.indexes.length} indexes${have === c.count ? '' : '  ← MISMATCH'}`)
     }
     for (const v of meta.views) { const r = await call(to, '/_api/view', { method: 'POST', body: v }); if (r.error && r.errorNum !== 1207) console.log(`  view ${v.name}: ${r.errorMessage}`) }
