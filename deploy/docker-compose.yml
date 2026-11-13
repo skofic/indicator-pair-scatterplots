@@ -21,6 +21,7 @@ services:
     ports: ["80:80", "443:443", "443:443/udp"]   # udp: HTTP/3, which Caddy advertises
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./auth:/etc/caddy/auth:ro    # users.caddy, written by users.sh
       - ./site:/srv/site:ro          # examples/ and maps/, as in the repository
       - caddy-data:/data
       - caddy-config:/config

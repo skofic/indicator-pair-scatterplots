@@ -123,4 +123,20 @@ What remains is the line between the browser and the server: each raster read is
 1 MB/s line. The laptop serves the same bytes from its own disk. Map files are cached by the browser for a
 week, so a second visit to the same area is quick. To be confirmed from a faster connection.
 
+## 7. Users (2026-11-13)
+
+Milko: the site, and the future dictionary site, should not be open to everybody; a few users he can revoke
+or change, nothing sophisticated. Built as HTTP basic authentication in Caddy:
+
+- `users.sh add <name> | remove <name> | list`, run on the server in `/opt/panes`. `add` generates the
+  password and prints it once; only bcrypt hashes are stored (`auth/users.txt`, written into
+  `auth/users.caddy`); the web server is reloaded without interruption.
+- The site block imports `/etc/caddy/auth/*.caddy`: **no user, no login** (the site stays open until the
+  first `add`); with a user, pages, map files and both services answer 401 without credentials. A second
+  site (the dictionary) imports the same line and shares the users; the browser asks once per site.
+- Tested on the live site with a throwaway user (401 without, 200 with, open again after removal). The first
+  request of a user costs about 1 s (bcrypt), later ones are cached by Caddy.
+- With users, the cache warm-up needs `SITE_USER` and `SITE_PASSWORD` in the environment.
+- Not covered: wrong-password attempts are not rate-limited (each costs the server about a second of one core).
+
 **Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).

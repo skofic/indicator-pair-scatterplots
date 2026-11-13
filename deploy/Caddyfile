@@ -2,6 +2,7 @@
 # exposed; the rest of ArangoDB (its API, its web interface) is not reachable from outside.
 {$SITE_ADDRESS} {
 	encode zstd gzip
+	import /etc/caddy/auth/*.caddy   # the users (users.sh); no file, no login. A second site imports the same line to share them
 	@services path /_db/GeoService/panes/* /_db/metadata/ui/*
 	handle @services {
 		reverse_proxy arangodb:8529
