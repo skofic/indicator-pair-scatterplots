@@ -147,6 +147,9 @@ or change, nothing sophisticated. Built as HTTP basic authentication in Caddy:
 - Not covered: a flood of requests that never reaches a login answer (the provider's network protection is
   the only defence there), and a limit per logged-in user.
 - **ssh, found while installing:** 11 533 failed ssh logins in 24 hours, password login for root enabled.
-  The package's `sshd` jail is active (4 addresses banned at once). Decision pending with Milko: key-only ssh.
+  The package's `sshd` jail is active (4 addresses banned at once). **Key-only ssh since 2026-11-13 (Milko):**
+  `/etc/ssh/sshd_config.d/00-key-only.conf` (no password or keyboard-interactive login, root by key only);
+  verified: a new connection with the key works, a password-only attempt is refused. One key is authorised
+  (Milko's laptop); if it is lost, the way in is netcup's web console.
 
 **Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).
