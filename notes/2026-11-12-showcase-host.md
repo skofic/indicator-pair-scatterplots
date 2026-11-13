@@ -47,7 +47,8 @@ service is configured with `maxLevel` public.
 | `slim.mjs export` | Laptop → `deploy/out/` (ignored by git): documents as gzipped JSONL, collection types, indexes, analyzers, views, the Foxx bundles and their configuration. HTTP only |
 | `slim.mjs import` | `deploy/out/` → the target: databases, analyzers, collections, documents (8 MB chunks, streamed), indexes, views, services installed and configured. Target from `TARGET_URL`, `TARGET_USER`, `TARGET_PASSWORD` (environment, never a file in git); the user must be an administrator |
 | `docker-compose.yml`, `Caddyfile`, `.env.example` | ArangoDB 3.12 (loopback only, bounded memory) behind Caddy: automatic HTTPS, compression, byte ranges; **only** `/_db/GeoService/panes/*` and `/_db/metadata/ui/*` are proxied |
-| `publish.sh` | rsync of `examples/`, `maps/` and the server files |
+| `publish.sh` | rsync of the server files, `examples/` and `maps/` (small folders first, the Atlas rasters last) |
+| `import-on-server.sh` | Sends the compressed export to the server and runs `slim.mjs import` there in a throw-away Node container |
 | `warm.mjs` | One `/base` request per climate × pair (80) |
 
 The pages need no address baked in: on `localhost` they use the laptop's database, anywhere else the
@@ -56,20 +57,49 @@ The pages need no address baked in: on `localhost` they use the laptop's databas
 Steps once the machine exists (Docker installed, DNS record pointing at it):
 
 ```
-deploy/publish.sh user@server:/opt/panes            # pages, maps, server files
+deploy/publish.sh user@server:/opt/panes            # server files, pages, maps (hours for the maps)
 ssh user@server 'cd /opt/panes && cp .env.example .env && nano .env && docker compose up -d'
 node deploy/slim.mjs export                          # about one minute
-ssh -N -L 8530:127.0.0.1:8529 user@server &          # tunnel to the database
-TARGET_URL=http://localhost:8530 TARGET_PASSWORD=… node deploy/slim.mjs import
+deploy/import-on-server.sh user@server /opt/panes    # upload 215 MB, import 38 s
 node deploy/warm.mjs https://<address>
 ```
 
 ## 4. Verified, and not
 
-- Verified: the export (1 min 5 s, counts equal to the collections'); the stripped polygons; the service
-  with the change on the laptop (19 tests: 18 pass, 1 pending); the warm-up script (80 answers, about
-  0.75 s each on the laptop).
-- **Not verified:** the import, the Compose file and the Caddy configuration. The laptop's database user may
-  not create databases and Docker is not running here, so there was no rehearsal. The slim-instance path of
-  the point lookup is the EU-Trees4F code path, exercised by the tests only for EU-Trees4F. First run on the
-  real machine is the test; the Foxx suite and the checks of the plan follow there.
+- Verified on the laptop (2026-11-12): the export (1 min 5 s, counts equal to the collections'); the stripped
+  polygons; the service with the change (19 tests: 18 pass, 1 pending); the warm-up script.
+
+## 5. The installation (2026-11-12 … 13)
+
+**Machine:** netcup VPS, 4 cores, 7.8 GB RAM, 125 GB disk, Debian 13, IP 62.83.125.116; address
+`panes.skofic.io` (A record at NameSilo). Docker 26.1.5, Compose 2.26.1, a 2 GB swap file; everything in
+`/opt/panes`; the database password generated on the server and kept only in `/opt/panes/.env`.
+
+**What ran as written:** the Compose file, the Caddy configuration (certificate issued at first start), the
+import's databases, analyzer, collections, indexes, views and both service installs.
+
+**What had to change:**
+
+| Finding | Fix |
+|---|---|
+| The import through an ssh tunnel sends the documents uncompressed: about 16 occurrence documents a second on the laptop's upload line (100–200 KB/s), 3.5 hours left when stopped | `import-on-server.sh`: the compressed export uploaded once, the import run on the server — **38 s**, every collection complete, 0 errors |
+| ArangoDB 3.12.13 in the container refused the services' requests to their own instance ("not allowed to connect to this URL"), although both lists are empty by default: `/health` reported the dictionary unreachable, `/state/validate` and the test suite could not run. The laptop's 3.12.4 allows them. Cause in the image not found | `--javascript.endpoints-allowlist` for the instance's own address in the Compose file |
+| `VIEW_SHAPE` could not be created (it links `Shapes`, which is not copied) | None needed: the panes do not use it. The export should skip views whose collections are not copied |
+| The Mac's `rsync` has no `--info=progress2`; the maps (2.3 GB, Atlas first alphabetically) kept the site without maps for hours | `publish.sh` sends the small folders first |
+
+**Checks on the public address (2026-11-13):**
+
+- Counts equal to the export's in both databases (250 569 occurrences, 3 669 units, 3 669 polygons of which
+  3 329 with geometry, 16 340 terms).
+- Service tests: 19 tests, 17 pass, 2 pending (the two manage-level tests, skipped on a public-only instance).
+- Restricted units: **no coordinate of any of the 340 exists on the server** (no reference point, no polygon,
+  bounds or hash list); `/units/index` and `/units/geo` answer 3 329 units at every requested level.
+- A map click answers for EU-Trees4F, WorldClim and CHELSA from the nearest surveyed cell (test point near
+  Bolzano: 2 945 m away); elevation is `null`, as expected without the grid.
+- Only the two service mounts are reachable: `/_api`, `/_admin`, other databases and `/.env` answer 404.
+- Pages, dictionary and service answers are compressed (gzip or zstd).
+- Cache warmed: 80 of 80 base layers (4–11 s each from the laptop, download included).
+- The joint page loads in a headless browser without login: both panes, dictionary labels, units, chorology.
+
+**Open:** the Atlas rasters were still uploading when this was written (byte-range check to repeat when they
+are there); elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).

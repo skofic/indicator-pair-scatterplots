@@ -6,7 +6,8 @@ services:
     restart: unless-stopped
     environment:
       ARANGO_ROOT_PASSWORD: ${ARANGO_ROOT_PASSWORD:?set ARANGO_ROOT_PASSWORD in .env}
-    command: ["arangod", "--rocksdb.block-cache-size=536870912", "--rocksdb.total-write-buffer-size=268435456", "--cache.size=268435456"]   # bounded memory: fits a 4 GB machine
+    command: ["arangod", "--rocksdb.block-cache-size=536870912", "--rocksdb.total-write-buffer-size=268435456", "--cache.size=268435456",
+              "--javascript.endpoints-allowlist=^(tcp|http)://(localhost|127\\.0\\.0\\.1):8529"]   # bounded memory (fits a 4 GB machine); the services may call each other (panes -> metadata/ui), nothing else
     volumes:
       - arango-data:/var/lib/arangodb3
       - arango-apps:/var/lib/arangodb3-apps
