@@ -101,5 +101,8 @@ import's databases, analyzer, collections, indexes, views and both service insta
 - Cache warmed: 80 of 80 base layers (4–11 s each from the laptop, download included).
 - The joint page loads in a headless browser without login: both panes, dictionary labels, units, chorology.
 
-**Open:** the Atlas rasters were still uploading when this was written (byte-range check to repeat when they
-are there); elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).
+- Maps complete (2026-11-13, 06:20): 3 621 files, 2.45 GB, identical to the laptop's by an rsync dry run; the
+  Atlas upload lost its connection three times and resumed. Atlas and EU-Trees4F rasters answer byte-range
+  requests (HTTP 206).
+
+**Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).
