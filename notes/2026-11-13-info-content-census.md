@@ -158,7 +158,10 @@ Austria's units are all restricted and absent from the showcase server.
   the zoom (`examples/scatter-d3-canvas.html`), so the statement holds at any zoom.
 - **M2** was checked against the code: the shade follows the logarithm of the count, up to the densest
   hexagon in view. **R6** carries the attributions the map displays; Esri's own list was not checked.
-- **Question A** (precipitation remark on the CHELSA dataset record): explained to Milko again, open.
+- **Question A** closed (Milko): WorldClim and CHELSA are two ways of estimating the climate, neither an error
+  nor the truth. No warning: the precipitation remark leaves I8 and becomes a neutral sentence in the
+  description of both period terms (handoff §B.2); nothing on the dataset records.
 - **Question B**: the six examples are accepted; the scientists may propose more relevant ones later.
 - **Form fields**: 34 `ui_layout` terms are controls of the form; four state properties are set by gestures;
-  eight data descriptors are shown as selectors. Lists and open points in the handoff note, Part A.
+  eight data descriptors are shown as selectors, of which two (restriction level, flag distance) take the
+  role. All confirmed by Milko; 36 terms take the role. Lists in the handoff note, Part A.

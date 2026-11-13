@@ -64,11 +64,11 @@ use today.
 | `ui_layout_map_layer_rpp`, `_mhs`, `_t4-current`, `_t4-future`, `_chorology`, `_units` (6) | check box |
 | `ui_layout_map_layer_rpp_opacity`, `_mhs_opacity`, `_t4-current_opacity`, `_t4-future_opacity`, `_chorology_opacity`, `_units_opacity` (6) | slider, 0 to 100 |
 
-### A.3 State properties that are not form fields (Milko to confirm)
+### A.3 State properties that are not form fields (confirmed by Milko, 2026-11-13)
 
 They have a `_data` section and belong to `ui_layout_state`, but the user sets them by a gesture on the
-pane, not through a control. Our proposal: no form-field role; their `_description` may say "set by a
-gesture on the pane".
+pane, not through a control. **No form-field role**; their `_description` may say "set by a gesture on
+the pane".
 
 | Term | How it is set |
 |---|---|
@@ -80,18 +80,20 @@ gesture on the pane".
 Also not fields: `ui_layout_state` (the form as a whole: the object the fields belong to) and
 `ui_layout_scatterplot_view_classes_legend` (a data value per cell, shown as the legend).
 
-### A.4 Data descriptors that the panes show as form fields (Milko to decide)
+### A.4 Data descriptors that the panes show as form fields (decided by Milko, 2026-11-13)
 
 These eight are properties of `ui_layout_state` too, each shown as a selector, but they are terms of the
 data, not of the layout.
 
-| Term | Our reading |
+| Term | Decision |
 |---|---|
-| `gcu_loc_coordinates-restriction_level` | exists only as a setting of the panes: a form field |
-| `gcu_loc_climate_flag` | a threshold chosen by the user: a form field |
-| `species`, `gcu_id_country`, `gcu_id_number`, `std_dataset_ids`, `env_climate_scenario`, `env_climate_period` | data descriptors first; that the panes offer them as selectors is already said by their place in `ui_layout_state._fields`. A role on the term would say "this is a form field" of a property that lives in millions of records |
+| `gcu_loc_coordinates-restriction_level` | exists only as a setting of the panes: **form field** (selector) |
+| `gcu_loc_climate_flag` | a threshold chosen by the user: **form field** (selector of a number) |
+| `species`, `gcu_id_country`, `gcu_id_number`, `std_dataset_ids`, `env_climate_scenario`, `env_climate_period` | **no role**: data descriptors first; that the panes offer them as selectors is already said by their place in `ui_layout_state._fields`. A role on the term would say "this is a form field" of a property that lives in millions of records |
 
-### A.5 The other `ui_layout` terms (no form-field role)
+So the role goes to **36 terms**: the 34 of A.2 and the two above.
+
+### A.5 The other `ui_layout` terms (no form-field role; confirmed by Milko)
 
 - **Options** of the selectors: the enumeration elements (`…_mode_auto`, `…_draw-mode_box`,
   `…_base_position_future`, `…_legend_0` and so on). They already carry the enum-item role.
@@ -147,6 +149,23 @@ the 95 % highest-density region of the species' cells; no normal distribution is
 - `_description`: "the densest 95 % of the species cloud (a blurred density cut at the level holding 95 % of
   the mass)" may become "the 95 % highest-density region of the species cloud"; the detail is now in
   `_methods`.
+
+**WorldClim and CHELSA differ; that is not a defect of either** (Milko, 2026-11-13). The two climatologies
+are built in different ways: WorldClim 2.1 interpolates weather-station records, CHELSA 2.1 downscales a
+global reanalysis with corrections for the terrain. We offer both as options and neither is the truth, so
+the difference must not read as a warning against one of them. Therefore:
+
+- `_issues` of `env_climate_period_chelsa` (replaces I8) keeps only the real limits: "Future periods come
+  from **one climate model** (MPI-ESM1-2-HR) under **one scenario** (SSP3-7.0). No monthly radiation: the
+  radiation axis is not available."
+- The comparison goes, as a neutral statement, to the `_description` of **both** `env_climate_period_worldclim21`
+  and `env_climate_period_chelsa`: "WorldClim 2.1 and CHELSA 2.1 are two estimates of the same climate,
+  built in different ways (interpolated weather-station records; a downscaled global reanalysis), and they
+  do not give the same values: over the surveyed forest cells CHELSA's precipitation is 15 to 20 % higher.
+  Neither is the reference. Read the units against the species within one source, and do not compare
+  positions between sources."
+- I7 (WorldClim) is unchanged: its content is limits of the data we hold, not a comparison.
+- Nothing is asked of the WorldClim and CHELSA dataset records.
 
 **M2, checked against the code.** For `ui_layout_scatterplot_base_hex` and `ui_layout_scatterplot_species_hex`:
 "Cells are counted in hexagons of the chosen radius, in pixels of the screen, so zooming in refines them.
