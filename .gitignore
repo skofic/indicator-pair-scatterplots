@@ -86,5 +86,3 @@ globals/auth/*
 /work/
 /maps/
 
-# The slim export for a showcase instance (deploy/slim.mjs): regenerated, never committed
-/deploy/out/

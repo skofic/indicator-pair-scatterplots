@@ -176,3 +176,15 @@ and manual pages there). Prepared the same day:
 - Cross-repository facts now live in `../shared/deployments.md` (folder created the same day).
 
 **Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).
+
+## 9. The server's files moved to their own repository (2026-11-13)
+
+Milko's decision: one repository per server, named after its domain, because the final portal server will
+need its own configuration. `../skofic.io` now holds the Compose and Caddy files, `.env.example`, `users.sh`,
+the fail2ban rules, `slim.mjs` with `slim.config.json` (what the server holds) and `import-on-server.sh`,
+plus a new `install.sh` that copies the server's own files. This repository's `deploy/` keeps what belongs
+to the application: `publish.sh` (pages and map files; `pages` as second argument for the pages only) and
+`warm.mjs` (which now stops at the first answer that is not 200 and can rest between requests, `PAUSE`).
+Wherever the sections above say `deploy/slim.mjs`, `deploy/import-on-server.sh`, `deploy/users.sh` or the
+Caddy and Compose files, read `../skofic.io/`. Nothing changed on the server. Checked: the dictionary
+export runs from the new place; the new repository is local only (no GitHub remote yet).
