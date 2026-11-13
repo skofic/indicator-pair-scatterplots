@@ -358,3 +358,25 @@ geometries for the map come from `UnitPolygons` (all 441 unrestricted beech unit
 | 2026-11-09 | **The pages run on the Foxx service** (iteration 9): all species, all units, five pairs with X / Y selectors, the map's period selector; click anywhere → the 1 km grid's values. The exported files are fixtures only. |
 | 2026-11-09 | **The panes run on the dictionary terms** (iteration 8): labels, options, hovers, legends and axis legends from `metadata/ui`; the state keyed by gids and validated against `ui_layout_state`; `dictionary.js` shared by the three pages. Next: `gcu_loc_climate_distance` on `ScatterUnits`, then the Foxx service taking a `ui_layout_state`. |
 | 2026-10-31 | **Restricted units.** Only the portal talks to the database, which simplifies the model: the service takes a **restriction level** set by the portal per request — `hidden` (default for the public: restricted units absent everywhere), `values` (identifiers and climate values returned, no coordinates or geometry: the scatterplot default, since managers must see which units risk becoming unfit and a pair of 1 km climate values is shared by thousands of cells), `geometry` (coordinates and polygons returned, for an authenticated unit manager of that country, e.g. to review or edit the unit). The service never returns geometry below the `geometry` level, whatever else is asked. Measured 2026-10-31: every unit has a stored reference point and a polygon; of the 340 restricted units 135 points lie inside their polygon and the rest a median 0.6 km from it (max 25 km), so restricted units' climate values are representative and they belong in the scatterplot. |
+
+### Iteration 18 (2026-11-13): the panes show what the dictionary says of a control (Serve Plan order, step 3, first part)
+
+Built for Milko's review, after the `_info` fields were loaded (`metadata-store` `0961991`):
+
+- **Term cards.** Resting the pointer on a label, a caption or a pane title opens a reading card when its
+  term has more than a definition: the definition, the description, then `_uses`, `_methods` and `_issues`,
+  each under the dictionary's own title for that field. For a selector the card continues with the chosen
+  option and, where the option belongs to a section (a source's periods), with that section. The card's
+  head is a link to the term's page on the dictionary site (`dictionary.<domain>` when published, the
+  laptop's `/web` locally, `?dictsite=` otherwise). The card can be entered, so its links work.
+- **Warning marks.** A term with `_issues` gets a "⚠" beside its label; a selector gets one beside itself
+  when the chosen option or its section has issues (the period selector: the limits of the chosen source).
+  Hovering or clicking the mark shows the issues alone.
+- **`data-info`.** The map selection is a state property set by a gesture and has no control: its caption
+  on the scatterplot and on the host, and the map's draw selector, name it with `data-info`, so the
+  "nearest surveyed cell" caveat sits where the user draws.
+- No text is written in the pages: titles, headings and bodies are all the dictionary's
+  (`examples/panes.js` `Info`, `Dict.info`).
+
+Not built yet: the examples as links, the "Sources and how to cite" panel (dataset records through our
+service), cards on the legend entries.

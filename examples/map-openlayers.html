@@ -29,7 +29,7 @@
 <div class="toolbar">
   <strong class="pane-title" data-term="ui_layout_map"></strong>
   <span class="group"><span class="cap" data-term="ui_layout_map_layer_base"></span><select data-key="ui_layout_map_layer_base"></select></span>
-  <span class="group"><span class="cap" data-term="ui_layout_map_draw-mode"></span><select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></span>
+  <span class="group"><span class="cap" data-term="ui_layout_map_draw-mode" data-info="ui_layout_map_selection"></span><select data-key="ui_layout_map_draw-mode"></select> <button id="drawClear" data-term="ui_layout_label_clear"></button></span>
   <span class="break"></span>
   <span class="group"><button id="settings" class="toggle" data-term="ui_layout_map_layer"></button></span>
 </div>
@@ -321,7 +321,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   ix = await Svc.unitsIndex(state[K.level])
   await Dict.load([...Object.values(K), ...Object.values(LAYER), ...Object.values(LAYER).map((l) => l + '_opacity'), ...Object.values(OPT).flat(), ...Object.values(LBL), 'ui_layout_map_label_hints', ...c.countries.map((x) => x[K.country]), ...c.climates.filter((k) => k.src === 'eutrees4f').flatMap((k) => [k[K.period], k[K.scenario]]), 'ui_layout_map', 'ui_layout_map_layer', 'ui_layout_label_unit', 'ui_layout_label_flagged', 'ui_layout_label_clear', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_reset', 'latitude', 'longitude', DIST, ELEV])
-  await Dict.labels(); Pop.shortLabels(); bindControls(); syncControls(); applyLayers()
+  await Dict.labels(); Pop.shortLabels(); bindControls(); syncControls(); applyLayers(); Info.init()
   await showSpeciesLayers(state[K.species])
   $('drawClear').addEventListener('click', () => { drawn.getSource().clear(); state[K.sel] = null; post({ [K.sel]: null }) })
   for (const el of document.querySelectorAll('.legend .tog')) { el.title = Dict.def(el.dataset.toggle); el.addEventListener('click', () => { state[el.dataset.toggle] = !state[el.dataset.toggle]; syncControls(); applyLayers() }) }

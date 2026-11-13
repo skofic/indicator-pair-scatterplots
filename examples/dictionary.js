@@ -33,6 +33,8 @@ window.Dict = (() => {
   // `_title` and `_definition` are text, `_description` is Markdown: the hover shows the definition, else the description as plain text
   const def = (g) => text(terms.get(g), '_definition') || plain(text(terms.get(g), '_description'))
   const desc = (g) => text(terms.get(g), '_description')
+  /** any text field of a term's `_info` in the pane's language (`_uses`, `_methods`, `_issues`, ...), '' when absent */
+  const info = (g, f) => text(terms.get(g), f)
   /** the stored / wire value of an element: its first alias (the period string, the class digit, the scenario key) */
   const aid = (g) => terms.get(g)?._code?._aid?.[0] ?? last(g)
   /** the unit symbol of a descriptor (°C, mm), empty when it has none */
@@ -66,5 +68,5 @@ window.Dict = (() => {
   /** validate a (partial) state against ui_layout_state; returns { ok, errors, warnings } */
   const validate = (doc) => post('/validate/document', { descriptor: 'ui_layout_state', document: doc }).catch((e) => ({ ok: null, errors: [{ message: e.message }], warnings: [] }))
 
-  return { BASE, LANG, load, title, def, desc, plain, aid, unit, last, label, options, hover, labels, defaults, validate, terms }
+  return { BASE, LANG, load, title, def, desc, info, plain, aid, unit, last, label, options, hover, labels, defaults, validate, terms }
 })()

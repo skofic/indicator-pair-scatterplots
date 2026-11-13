@@ -41,7 +41,7 @@
     <select data-key="ui_layout_units_mode"></select>
     <button id="selClear" data-term="ui_layout_label_clear"></button>
   </span>
-  <span class="group" id="clearGroup" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><button id="clear" data-term="ui_layout_label_clear"></button></span>
+  <span class="group" id="clearGroup" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection" data-info="ui_layout_map_selection"></span><button id="clear" data-term="ui_layout_label_clear"></button></span>
   <span class="group right"><select data-key="ui_layout_mode"></select>
     <label><span data-term="ui_layout_map_placement"></span> <select data-key="ui_layout_map_placement"></select></label>
   </span>
@@ -137,7 +137,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (lv.includes(max)) { OPT[K.level] = lv.slice(0, lv.indexOf(max) + 1); if (!OPT[K.level].includes(state[K.level])) state[K.level] = max; if (max === lv[0]) document.querySelector(`[data-key="${K.level}"]`).closest('label').style.display = 'none' }
   ix = await Svc.unitsIndex(state[K.level])
   await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...c.countries.map((x) => x[K.country]), 'ui_layout', 'ui_layout_scatterplot', 'ui_layout_scatterplot_label_map-selection', 'gcu_loc_coordinates-restriction', 'ui_layout_label_species', 'ui_layout_label_country', 'ui_layout_label_unit', 'ui_layout_label_clear', 'ui_layout_label_restricted', 'ui_layout_label_flagged', 'ui_layout_map_label_presence'])
-  await Dict.labels()
+  await Dict.labels(); Info.init()
   for (const el of document.querySelectorAll('[data-key]')) {
     const k = el.dataset.key
     el.dataset.fieldDef = Dict.def(k)

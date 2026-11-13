@@ -74,7 +74,7 @@
   <span class="group host"><span class="cap" data-term="ui_layout_units_selection"></span>
     <span id="selCount">0</span> <select data-key="ui_layout_units_mode"></select> <button id="selClear" data-term="ui_layout_label_clear"></button>
   </span>
-  <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
+  <span class="group" id="mapSel" style="display:none"><span class="cap" data-term="ui_layout_scatterplot_label_map-selection" data-info="ui_layout_map_selection"></span><span id="mapSelInfo"></span> <button id="mapSelClear" data-term="ui_layout_label_clear"></button></span>
   <span class="group"><span class="cap" data-term="ui_layout_scatterplot_cursor"></span><label><input type="checkbox" data-key="ui_layout_scatterplot_cursor"> <span id="cursorInfo" class="hints"></span></label></span>
 </div>
 <div id="wrap"><canvas id="c"></canvas><canvas id="over"></canvas><svg id="s"></svg><div id="tip" class="tip"></div><div id="disabled"></div></div>
@@ -504,7 +504,7 @@ Promise.all([Svc.catalogue(), Dict.defaults()]).then(async ([c, defaults]) => {
   if (q.get('embedded')) document.body.classList.add('embedded')
   if (q.get('settings')) document.body.classList.add('settings')   // the drawing settings open at load (dev and presets)
   await Dict.load([...Object.values(K), ...Object.values(OPT).flat(), ...LEGEND, ...Object.values(LBL), ...climates.flatMap((k) => [k[K.period], k[K.scenario]]), ...c.axes[K.X], ...c.axes[K.Y], 'ui_layout_scatterplot', 'ui_layout_scatterplot_base', 'ui_layout_scatterplot_species', 'ui_layout_scatterplot_units', 'ui_layout_scatterplot_layer', 'env_climate', 'ui_layout_label_reset', 'ui_layout_label_clear', 'ui_layout_label_source', 'ui_layout_scatterplot_label_hints', 'ui_layout_units_selection', 'ui_layout_label_search', 'latitude', 'longitude', ELEV])
-  await Dict.labels(); Pop.shortLabels(); bindControls(); size()
+  await Dict.labels(); Pop.shortLabels(); bindControls(); size(); Info.init()
   const pt = q.get('point')?.split(',').map(Number), bb = q.get('bbox')?.split(',').map(Number)
   if (pt?.length === 2) state[K.mapSel] = { type: 'Point', coordinates: pt }
   else if (bb?.length === 4) state[K.mapSel] = { type: 'Polygon', coordinates: [[[bb[0], bb[1]], [bb[2], bb[1]], [bb[2], bb[3]], [bb[0], bb[3]], [bb[0], bb[1]]]] }
