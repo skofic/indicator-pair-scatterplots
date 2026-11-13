@@ -105,4 +105,22 @@ import's databases, analyzer, collections, indexes, views and both service insta
   Atlas upload lost its connection three times and resumed. Atlas and EU-Trees4F rasters answer byte-range
   requests (HTTP 206).
 
+## 6. Speed (Milko's first test, 2026-11-13)
+
+Milko: works as on the laptop, but the map refreshes slowly. Measured the same morning:
+
+| Measure | Value |
+|---|---|
+| Server load | 0.08 on 4 cores, 5 GB of 7.8 GB free: **more memory or processors would change nothing** |
+| Server's line | 39 MB/s up, 120 MB/s down |
+| Milko's line | about 1 MB/s down from a CDN, 0.4 MB/s from the server at that moment; 50–240 ms round trip |
+| `/units/geo`, every unit | **2.1 s on the server itself**: it loaded every unit's climate blocks and every polygon's geometry to read six numbers. Rewritten with projections: 0.1 s, same answer (service commit `perf(units)`) |
+| Other service answers on the server | 3–350 ms |
+| HTTP/3 | advertised by Caddy but the UDP port was not published; published now |
+
+What remains is the line between the browser and the server: each raster read is a few range requests of
+0.2–0.5 s each, and megabyte answers (country outlines 1 MB, base layer 0.9 MB compressed) take 1–2 s on a
+1 MB/s line. The laptop serves the same bytes from its own disk. Map files are cached by the browser for a
+week, so a second visit to the same area is quick. To be confirmed from a faster connection.
+
 **Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).
