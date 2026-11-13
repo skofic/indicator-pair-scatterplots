@@ -137,6 +137,16 @@ or change, nothing sophisticated. Built as HTTP basic authentication in Caddy:
 - Tested on the live site with a throwaway user (401 without, 200 with, open again after removal). The first
   request of a user costs about 1 s (bcrypt), later ones are cached by Caddy.
 - With users, the cache warm-up needs `SITE_USER` and `SITE_PASSWORD` in the environment.
-- Not covered: wrong-password attempts are not rate-limited (each costs the server about a second of one core).
+- **Refused logins are limited (same day, on Milko's request):** Caddy writes a JSON access log
+  (`/opt/panes/logs/access.log`, 5 × 20 MB); `fail2ban` on the host reads it (`deploy/fail2ban/`: filter →
+  `/etc/fail2ban/filter.d/caddy-auth.conf`, jail → `/etc/fail2ban/jail.d/caddy-auth.conf`): 30 answers 401
+  from one address within 10 minutes ban it for one hour from every container port, TCP and UDP (Docker's
+  `DOCKER-USER` chain; ssh is not affected). Verified: the filter matches the log's lines and dates; a ban of
+  a reserved test address created and removed the firewall rule. Not verified end to end with a real flood
+  (it would have banned Milko's own address). Release by hand: `fail2ban-client set caddy-auth unbanip <address>`.
+- Not covered: a flood of requests that never reaches a login answer (the provider's network protection is
+  the only defence there), and a limit per logged-in user.
+- **ssh, found while installing:** 11 533 failed ssh logins in 24 hours, password login for root enabled.
+  The package's `sshd` jail is active (4 addresses banned at once). Decision pending with Milko: key-only ssh.
 
 **Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).

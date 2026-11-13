@@ -22,6 +22,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./auth:/etc/caddy/auth:ro    # users.caddy, written by users.sh
+      - ./logs:/var/log/caddy        # access.log, read by fail2ban on the host
       - ./site:/srv/site:ro          # examples/ and maps/, as in the repository
       - caddy-data:/data
       - caddy-config:/config

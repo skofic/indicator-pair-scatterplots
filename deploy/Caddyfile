@@ -2,6 +2,13 @@
 # exposed; the rest of ArangoDB (its API, its web interface) is not reachable from outside.
 {$SITE_ADDRESS} {
 	encode zstd gzip
+	log {   # the access log, read by fail2ban on the host (repeated refused logins ban the address)
+		output file /var/log/caddy/access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+		format json
+	}
 	import /etc/caddy/auth/*.caddy   # the users (users.sh); no file, no login. A second site imports the same line to share them
 	@services path /_db/GeoService/panes/* /_db/metadata/ui/*
 	handle @services {
