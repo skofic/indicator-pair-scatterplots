@@ -152,4 +152,21 @@ or change, nothing sophisticated. Built as HTTP basic authentication in Caddy:
   verified: a new connection with the key works, a password-only attempt is refused. One key is authorised
   (Milko's laptop); if it is lost, the way in is netcup's web console.
 
+## 8. The dictionary site (2026-11-13)
+
+Decided by Milko: `dictionary.skofic.io`, same users, needed before the manual (the panes will link to term
+and manual pages there). Prepared the same day:
+
+- `slim.config.json`: the `metadata` database also carries `/web` (the interface, a static Foxx mount) and
+  `/ui` gets `searchDebug: false` (it was on, copied from the laptop; the route now answers 404).
+- `Caddyfile`: a `(common)` snippet (compression, access log, users) and a second site `{$DICT_ADDRESS}`
+  that proxies only `/_db/metadata/web*` and `/_db/metadata/ui/*` and redirects `/` to the interface;
+  inert (`http://dictionary.invalid`, no certificate) until `DICT_ADDRESS` is set in `/opt/panes/.env`.
+- Verified on the server with a throwaway user and the placeholder name: the interface and the API answer,
+  the database API and the panes' paths answer 404, without login everything answers 401.
+- `/ui` has no write route (every POST is a read), so the interface cannot change the dictionary there.
+- **Blocked on two things:** the DNS record (Milko), and the interface's fixed `Authorization` header, which
+  the web server's login refuses — handoff
+  [`2026-11-13-handoff-metadata-store-interface-auth-header.md`](2026-11-13-handoff-metadata-store-interface-auth-header.md).
+
 **Open:** elevation of a clicked point on this instance (decision pending: store it with each surveyed cell).

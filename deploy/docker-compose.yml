@@ -18,6 +18,7 @@ services:
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in .env, e.g. panes.example.org}
+      DICT_ADDRESS: ${DICT_ADDRESS:-http://dictionary.invalid}   # the dictionary site; unset = inert placeholder
     ports: ["80:80", "443:443", "443:443/udp"]   # udp: HTTP/3, which Caddy advertises
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

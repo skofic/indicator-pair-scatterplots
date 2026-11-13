@@ -1,18 +1,42 @@
 {
-  "comment": "What a slim (showcase) instance holds: the panes' collections and the dictionary. No climate grids, no Units collection (restricted points), restricted units' polygons stripped at export.",
-  "databases": {
-    "metadata": {
-      "collections": "*",
-      "services": ["/ui"]
-    },
-    "GeoService": {
-      "collections": ["Dataset", "ScatterSpecies", "ScatterUnits", "ScatterMaps", "PanesSuitability", "ScatterOccurrences", "UnitPolygons"],
-      "batch": { "PanesSuitability": 20 },
-      "queries": {
-        "UnitPolygons": "FOR d IN UnitPolygons LET r = FIRST(FOR u IN ScatterUnits FILTER u.gcu_id_number == d._key RETURN u['gcu_loc_coordinates-restriction']) RETURN r == true ? UNSET(d, 'geometry', 'geometry_bounds', 'geometry_hash_list') : d"
-      },
-      "services": ["/panes"],
-      "configuration": { "/panes": { "maxLevel": "gcu_loc_coordinates-restriction_public" } }
+ "comment": "What a slim (showcase) instance holds: the panes' collections and the dictionary. No climate grids, no Units collection (restricted points), restricted units' polygons stripped at export. The dictionary keeps its read API (/ui, search debugging off) and its interface (/web).",
+ "databases": {
+  "metadata": {
+   "collections": "*",
+   "services": [
+    "/ui",
+    "/web"
+   ],
+   "configuration": {
+    "/ui": {
+     "searchDebug": false
     }
+   }
+  },
+  "GeoService": {
+   "collections": [
+    "Dataset",
+    "ScatterSpecies",
+    "ScatterUnits",
+    "ScatterMaps",
+    "PanesSuitability",
+    "ScatterOccurrences",
+    "UnitPolygons"
+   ],
+   "batch": {
+    "PanesSuitability": 20
+   },
+   "queries": {
+    "UnitPolygons": "FOR d IN UnitPolygons LET r = FIRST(FOR u IN ScatterUnits FILTER u.gcu_id_number == d._key RETURN u['gcu_loc_coordinates-restriction']) RETURN r == true ? UNSET(d, 'geometry', 'geometry_bounds', 'geometry_hash_list') : d"
+   },
+   "services": [
+    "/panes"
+   ],
+   "configuration": {
+    "/panes": {
+     "maxLevel": "gcu_loc_coordinates-restriction_public"
+    }
+   }
   }
+ }
 }
