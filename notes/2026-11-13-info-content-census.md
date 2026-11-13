@@ -1,8 +1,11 @@
 # The `_info` fields beyond title, definition and description — content census for the panes (2026-11-13)
 
-**Status: draft for Milko's review.** Nothing here is in the dictionary yet. After the review the accepted
-rows become a handoff note to `metadata-store` (terms) and a small loader change here (our own dataset
-records). Texts are proposals in English; the final wording is Milko's and the `metadata-store` session's.
+**Status: reviewed by Milko on 2026-11-13.** The rows stand, with the changes of §10. The term rows went to
+`metadata-store` as [`2026-11-13-handoff-metadata-store-info-fields.md`](2026-11-13-handoff-metadata-store-info-fields.md),
+which also lists the terms that are form fields (a new `_term_role` element, Milko's decision). The
+dataset-record rows (I12 to I14, M7, M8, R7, R8) were loaded on the laptop the same day
+(`sources/datasets/records.js --write --update`); the showcase server gets them with the next copy of
+`GeoService`. Texts are proposals in English; the final wording is Milko's and the `metadata-store` session's.
 
 Step 2 of the order agreed on 2026-11-13: (1) dictionary site, done; **(2) fill the fields**; (3) the panes
 show them; (4) the narrative manual pages.
@@ -144,3 +147,18 @@ Austria's units are all restricted and absent from the showcase server.
 2. Accepted dataset-record rows → `sources/datasets/` here, reload on the laptop, then `deploy/` to the server.
 3. Step 3: the panes read the new fields (warning mark, uses and methods in the popover, sources panel,
    examples as links, "more" links to `dictionary.skofic.io`).
+
+## 10. After Milko's review (2026-11-13)
+
+- **The envelope is a statistical measure** (Milko's question): the 95 % highest-density region of the
+  species' cells (Hyndman 1996), no normal distribution assumed. M1 and I5 were rewritten to say so and a
+  reference (R10) was added; the texts are in the handoff note, §B.2. While checking, the envelope was found
+  to be computed on the *zoomed* plot, so that after a zoom it enclosed 95 % of the cells in view, with a
+  narrower smoothing. Corrected the same day: it is computed once on the unzoomed plot and carried through
+  the zoom (`examples/scatter-d3-canvas.html`), so the statement holds at any zoom.
+- **M2** was checked against the code: the shade follows the logarithm of the count, up to the densest
+  hexagon in view. **R6** carries the attributions the map displays; Esri's own list was not checked.
+- **Question A** (precipitation remark on the CHELSA dataset record): explained to Milko again, open.
+- **Question B**: the six examples are accepted; the scientists may propose more relevant ones later.
+- **Form fields**: 34 `ui_layout` terms are controls of the form; four state properties are set by gestures;
+  eight data descriptors are shown as selectors. Lists and open points in the handoff note, Part A.

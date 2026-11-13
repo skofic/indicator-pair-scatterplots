@@ -9,6 +9,16 @@ import { GID } from '../../config/indicators.js'
 const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
 const eng = (s) => ({ ISO_639_3_eng: s })
 
+// Citations of the climate sources our own collections are derived from, as their Dataset records carry them
+// (WORLDCLIM_V2.1 and CHELSA_V2.1, written by metadata-external-databases); first citation of each.
+const CITE = {
+  euforest: 'Mauri, A., Strona, G., San-Miguel-Ayanz, J. (2017). EU-Forest, a high-resolution tree occurrence dataset for Europe. *Scientific Data* 4:160123. doi: [10.1038/sdata.2016.123](https://doi.org/10.1038/sdata.2016.123)',
+  eutrees4f: 'Mauri, A., Girardello, M., Strona, G., Beck, P.S.A., Forzieri, G., Caudullo, G., Manca, F., Cescatti, A. (2022). EU-Trees4F, a dataset on the future distribution of European tree species. *Scientific Data* 9:37. doi: [10.1038/s41597-022-01128-5](https://doi.org/10.1038/s41597-022-01128-5)',
+  worldclim: 'Fick, S.E. and R.J. Hijmans, 2017. WorldClim 2: new 1km spatial resolution climate surfaces for global land areas. [International Journal of Climatology 37 (12): 4302-4315](https://rmets.onlinelibrary.wiley.com/doi/abs/10.1002/joc.5086).',
+  chelsa: "Karger, D.N., Conrad, O., Böhner, J., Kawohl, T., Kreft, H., Soria-Auza, R.W., Zimmermann, N.E., Linder, H.P., Kessler, M. (2017): Climatologies at high resolution for the Earth's land surface areas. *Scientific Data* 4:170122. [https://doi.org/10.1038/sdata.2017.122](https://doi.org/10.1038/sdata.2017.122)",
+}
+const REPO_URL = '[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'
+
 export const RECORDS = [
   {
     std_dataset_code: 'EU-FOREST_2017',
@@ -59,7 +69,8 @@ RECORDS.push(
     std_date_submission: today, std_date_start: '2005', std_date_end: '2095',
     _info: {
       _title: eng('EU-Trees4F species distribution maps (current and future suitability, 5 arc-minutes)'),
-      _description: eng('Ensemble species distribution model outputs of EU-Trees4F for 67 European tree species: climatic suitability as probability (WGS84, 5 arc-minutes, 0–1000) and as binary presence (ETRS89-LAEA 10 km INSPIRE grid), for the current period (centred on 2005) and three future periods (2035, 2065, 2095) under RCP 4.5 and RCP 8.5; potential (pot), realised within the native range (nat), natural dispersal (disp) and forest land-use clipped (lu) variants; SDM ensemble (ens-sdms) and climatic ensemble (ens-clim). Served as cloud-optimised GeoTIFF files listed in ScatterMaps. Known defect of the published files: the natural-dispersal binary rasters carry no coordinate reference system; they sit on the 10 km INSPIRE EPSG:3035 grid of the potential ones, cropped by whole cells (verified), and the served copies have the CRS assigned.'),
+      _description: eng('Ensemble species distribution model outputs of EU-Trees4F for 67 European tree species: climatic suitability as probability (WGS84, 5 arc-minutes, 0–1000) and as binary presence (ETRS89-LAEA 10 km INSPIRE grid), for the current period (centred on 2005) and three future periods (2035, 2065, 2095) under RCP 4.5 and RCP 8.5; potential (pot), realised within the native range (nat), natural dispersal (disp) and forest land-use clipped (lu) variants; SDM ensemble (ens-sdms) and climatic ensemble (ens-clim). Served as cloud-optimised GeoTIFF files listed in ScatterMaps.'),
+      _issues: eng('Known defect of the published files: the natural-dispersal binary rasters carry no coordinate reference system. They sit on the 10 km INSPIRE EPSG:3035 grid of the potential ones, cropped by whole cells (verified), and the served copies have the coordinate reference system assigned.'),
       _references: {
         _citation: ['Mauri, A., Girardello, M., Strona, G., Beck, P.S.A., Forzieri, G., Caudullo, G., Manca, F., Cescatti, A. (2022). EU-Trees4F, a dataset on the future distribution of European tree species. *Scientific Data* 9:37. doi: [10.1038/s41597-022-01128-5](https://doi.org/10.1038/s41597-022-01128-5)'],
         _url: ['[EU-Trees4F on figshare (CC0)](https://doi.org/10.6084/m9.figshare.c.5525688)'],
@@ -119,8 +130,10 @@ RECORDS.push(
     std_date_submission: today, std_date_start: '1961', std_date_end: '2100',
     _info: {
       _title: eng('Indicator pair scatterplots: EU-Forest occurrence cells with present and future climate'),
-      _description: eng('One document per EU-Forest 1 km cell (250 569): the species observed there, the cell centroid, and the indicator values of the three climate sources side by side under properties.<source>.<period>: EU-Trees4F predictors (1961–1990; 1991–2020, 2021–2050, 2051–2080 under RCP 4.5 / 8.5 at 10 km), WorldClim 2.1 (1970–2000; 2021–2100 in four periods under MPI-ESM1-2-HR SSP3-7.0 at 1 km) and CHELSA 2.1 (1981–2010; 2011–2100 in three periods, same model and scenario, 1 km). Annual and monthly-derived indicators (summer / winter means, continentality, coldest-month temperature, spring-summer radiation, seasonality ratio) at full precision. Caveats: WorldClim future monthly layers carry only daily extremes, so its future temperature-derived indicators use tas ≈ (tasmax + tasmin) / 2; radiation exists for the WorldClim historical period only; 1 715 cells outside the project land mask have no 1 km climate. The base and species layers of the scatterplots (European Atlas of Forest Tree Species autoecology definition).'),
-      _references: { _url: ['[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'] },
+      _description: eng('One document per EU-Forest 1 km cell (250 569): the species observed there, the cell centroid, and the indicator values of the three climate sources side by side under properties.<source>.<period>: EU-Trees4F predictors (1961–1990; 1991–2020, 2021–2050, 2051–2080 under RCP 4.5 / 8.5 at 10 km), WorldClim 2.1 (1970–2000; 2021–2100 in four periods under MPI-ESM1-2-HR SSP3-7.0 at 1 km) and CHELSA 2.1 (1981–2010; 2011–2100 in three periods, same model and scenario, 1 km). Annual and monthly-derived indicators (summer / winter means, continentality, coldest-month temperature, spring-summer radiation, seasonality ratio) at full precision. The base and species layers of the scatterplots (European Atlas of Forest Tree Species autoecology definition).'),
+      _methods: eng('Each EU-Forest cell centre is reprojected to WGS84 and read in the grid cell that contains it, at each source\'s own resolution (1 km for WorldClim 2.1 and CHELSA 2.1, 5 arc-minutes for the EU-Trees4F predictors); no interpolation, no thinning.'),
+      _issues: eng('WorldClim future monthly layers carry only daily extremes, so its future temperature-derived indicators use the mean of the daily maximum and minimum, tas ≈ (tasmax + tasmin) / 2. Radiation exists for the WorldClim historical period only. 1 715 cells lie outside the land mask of the 1 km grids and have no WorldClim or CHELSA values.'),
+      _references: { _citation: [CITE.euforest, CITE.eutrees4f, CITE.worldclim, CITE.chelsa], _url: [REPO_URL] },
     },
     std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_region', std_dataset_scope: 'std_dataset_scope_grid' },
     std_dataset_prop: { _collection_list: ['ScatterOccurrences', 'ScatterCells'], std_terms: ['species_list', 'geometry_point', 'geometry_hash', ...SCATTER_TERMS()], std_terms_key: ['geometry_point'] },
@@ -130,8 +143,10 @@ RECORDS.push(
     std_date_submission: today, std_date_start: '1961', std_date_end: '2100',
     _info: {
       _title: eng('Indicator pair scatterplots: gene conservation units in present and future climate'),
-      _description: eng('One document per EUFGIS gene conservation unit (3 669) at its climate reference point, with the unit number, its target species, the coordinate-restriction flag, the climate reference point (gcu_loc_climate) and its distance from the unit polygon (gcu_loc_climate_distance, km on the EPSG:3035 plane, 0 when inside: a data-quality fact), and the same per-source, per-period indicator blocks as ScatterOccurrences. Restricted units carry climate values and the distance only: no point and no cell reference. Rebuilt from GeoService.Units by a refresh command; the top layer of the scatterplots, the layer the visualisation exists for.'),
-      _references: { _url: ['[indicator-pair-scatterplots on GitHub](https://github.com/skofic/indicator-pair-scatterplots)'] },
+      _description: eng('One document per EUFGIS gene conservation unit (3 669) at its climate reference point, with the unit number, its target species, the coordinate-restriction flag, the climate reference point (gcu_loc_climate) and its distance from the unit polygon (gcu_loc_climate_distance, km on the EPSG:3035 plane, 0 when inside: a data-quality fact), and the same per-source, per-period indicator blocks as ScatterOccurrences. Restricted units carry climate values and the distance only: no point and no cell reference. The top layer of the scatterplots, the layer the visualisation exists for.'),
+      _methods: eng('Each unit is read at its climate reference point in the same way as the occurrence cells. Rebuilt from the EUFGIS units (GeoService.Units) by a refresh command; the date of the last refresh is the record\'s submission date.'),
+      _issues: eng('26 target species of units (for example *Fagus orientalis*, 28 units) match no occurrence or map source: those units appear without a species layer.'),
+      _references: { _citation: [CITE.eutrees4f, CITE.worldclim, CITE.chelsa], _provider: ['[EUFGIS](http://www.eufgis.org)'], _url: [REPO_URL] },
     },
     std_dataset_domn: { std_dataset_extent: 'std_dataset_extent_gcu', std_dataset_scope: 'std_dataset_scope_shape' },
     std_dataset_prop: { _collection_list: ['ScatterUnits'], std_terms: ['gcu_id_number', 'species_list', 'gcu_loc_coordinates-restriction', 'gcu_loc_climate', 'gcu_loc_climate_distance', 'geometry_point', 'geometry_hash', ...SCATTER_TERMS()], std_terms_key: ['gcu_id_number'] },

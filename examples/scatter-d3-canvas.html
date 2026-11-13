@@ -177,7 +177,7 @@ async function refresh() {
   units = await Svc.units(sp, state, state[K.level])
   await Dict.load(units.map((u) => 'ISO_3166_1_' + u.gcu_id_number.slice(0, 3)))   // country names for the list
   const dk = `${c[K.dataset]}|${state[K.X]}|${state[K.Y]}`
-  if (domainKey !== dk) { fixDomain(basePresent); domainKey = dk; tx = d3.zoomIdentity; state[K.zoom] = null; size() }
+  if (domainKey !== dk) { const first = !domainKey; fixDomain(basePresent); domainKey = dk; tx = d3.zoomIdentity; if (!first) state[K.zoom] = null; size() }   // at load a zoom window given in the address is kept (applied after the first refresh)
   const avail = c.src === 'eutrees4f' && !c.present, view = $K(K.view)
   view.options[1].disabled = !avail; if (!avail && is(K.view, 'classes')) { state[K.view] = OPT[K.view][0]; view.value = state[K.view] }
   view.options[1].text = Dict.title(OPT[K.view][1]) + (avail ? '' : ' — EU-Trees4F, future period')
@@ -256,17 +256,27 @@ function drawClasses(x, y, drawHex, r, op) {
 }
 /** the 95 % envelope as a smooth closed contour: a blurred pixel histogram of the points, cut at the density
  *  level whose cells hold 95 % of the mass, traced with d3.contours */
-function envelopePath(points, x, y) {
-  const cell = 4, nx = Math.ceil(W / cell), ny = Math.ceil(H / cell), g = new Float64Array(nx * ny)
-  for (const d of points) { const i = Math.floor(x(d[0]) / cell), j = Math.floor(y(d[1]) / cell); if (i >= 0 && i < nx && j >= 0 && j < ny) g[j * nx + i]++ }
-  d3.blur2({ data: g, width: nx, height: ny }, 2.5)
-  const sorted = Array.from(g).filter((v) => v > 0).sort((a, b) => b - a), total = d3.sum(sorted)
-  let acc = 0, level = sorted[0] ?? 1
-  for (const v of sorted) { acc += v; level = v; if (acc >= 0.95 * total) break }
-  const polys = d3.contours().size([nx, ny]).thresholds([level])(g)[0]
-  const path = new Path2D()
-  for (const poly of polys.coordinates) for (const ring of poly) { ring.forEach(([px, py], k) => { const X = px * cell, Y = py * cell; k ? path.lineTo(X, Y) : path.moveTo(X, Y) }); path.closePath() }
-  return path
+// The species envelope: the 95 % highest-density region of the species' cells (Hyndman 1996), from a smoothed count on a
+// grid. Computed on the unzoomed plot and carried through the zoom, so that it always encloses 95 % of ALL the species'
+// cells and keeps one smoothing width, whatever part of the plot is in view (2026-11-13); cached until the cells, the
+// axes or the plot's size change.
+let envCache = { key: null, path: null }
+function envelopePath(points) {
+  const key = [W, H, x0.domain(), y0.domain(), points.length, state[K.species], state[K.X], state[K.Y], state[K.dataset]].join('|')
+  if (envCache.key !== key || envCache.points !== points) {
+    const cell = 2, nx = Math.ceil(W / cell), ny = Math.ceil(H / cell), g = new Float64Array(nx * ny)
+    for (const d of points) { const i = Math.floor(x0(d[0]) / cell), j = Math.floor(y0(d[1]) / cell); if (i >= 0 && i < nx && j >= 0 && j < ny) g[j * nx + i]++ }
+    d3.blur2({ data: g, width: nx, height: ny }, 5)
+    const sorted = Array.from(g).filter((v) => v > 0).sort((a, b) => b - a), total = d3.sum(sorted)
+    let acc = 0, level = sorted[0] ?? 1
+    for (const v of sorted) { acc += v; level = v; if (acc >= 0.95 * total) break }
+    const polys = d3.contours().size([nx, ny]).thresholds([level])(g)[0]
+    const path = new Path2D()
+    for (const poly of polys.coordinates) for (const ring of poly) { ring.forEach(([px, py], k) => { const X = px * cell, Y = py * cell; k ? path.lineTo(X, Y) : path.moveTo(X, Y) }); path.closePath() }
+    envCache = { key, points, path }
+  }
+  const out = new Path2D(); out.addPath(envCache.path, new DOMMatrix([tx.k, 0, 0, tx.k, tx.x, tx.y]))
+  return out
 }
 function draw() {
   if (!base.length && !species.length) return
@@ -294,7 +304,7 @@ function draw() {
     lines.forEach((l, i) => ctx.fillText(l, (M.left + W - M.right) / 2, M.top + 26 + 19 * i)); ctx.restore()
   }
   if (state[K.envelope] && speciesPresent.length) {
-    ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent, x, y)); ctx.restore()
+    ctx.save(); ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0d2a66'; ctx.stroke(envelopePath(speciesPresent)); ctx.restore()
   }
   const vis = visibleUnits()
   let mapN = 0
